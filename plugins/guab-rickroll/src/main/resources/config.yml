@@ -20,4 +20,4 @@ cinema:
   height: 11.25
 
 # Used only when pack.properties has no duration.
-show-seconds: 60
+show-seconds: 213

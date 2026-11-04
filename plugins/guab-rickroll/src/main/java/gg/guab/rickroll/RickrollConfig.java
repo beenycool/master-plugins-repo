@@ -38,7 +38,7 @@ public record RickrollConfig(
 
         int fps = Math.clamp(parseInt(props.getProperty("fps"), cfg.getInt("pack.fps", 10)), 1, 20);
         int frames = Math.max(1, parseInt(props.getProperty("frames"), 1));
-        int duration = Math.max(1, parseInt(props.getProperty("duration"), cfg.getInt("show-seconds", 60)));
+        int duration = Math.max(1, parseInt(props.getProperty("duration"), cfg.getInt("show-seconds", 213)));
 
         return new RickrollConfig(
                 Math.clamp(cfg.getDouble("chance", 0.01), 0.0, 1.0),

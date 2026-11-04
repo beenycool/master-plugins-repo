@@ -36,7 +36,6 @@ final class Show {
     private BukkitTask task;
     private BukkitTask timeout;
     private int tick;
-    private int period = 2;
     private boolean started;
     private boolean finished;
 
@@ -94,7 +93,6 @@ final class Show {
 
     private void startShow() {
         started = true;
-        period = Math.max(1, 20 / plugin.config().fps());
         display = plugin.cinema().spawnScreen();
         List<ItemStack> frames = plugin.cinema().frames();
         int intro = plugin.config().introTicks();
@@ -110,9 +108,9 @@ final class Show {
             if (tick == intro) {
                 player.playSound(player, "guab:rickroll", SoundCategory.MASTER, 1.0f, 1.0f);
             }
-            if (tick >= intro && (tick - intro) % period == 0) {
-                int frame = (tick - intro) / period;
-                display.setItemStack(frames.get(frame % frames.size()));
+            if (tick >= intro) {
+                int frame = (int) (((tick - intro) * (long) plugin.config().fps()) / 20);
+                display.setItemStack(frames.get(Math.min(frame, frames.size() - 1)));
             }
             tick++;
             if (tick >= total) {

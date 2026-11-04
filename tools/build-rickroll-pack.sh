@@ -36,7 +36,7 @@ fi
 if command -v pngquant >/dev/null 2>&1; then
   echo "Quantizing ${COUNT} frames..."
   find "$BUILD/assets/guab/textures/item/frame" -name '*.png' -print0 \
-    | xargs -0 -P "$(nproc)" -n 32 pngquant --quality=0-100 --speed 1 --force --skip-if-larger --ext .png || true
+    | xargs -0 -P "$(nproc)" -n 32 pngquant 128 --speed 1 --force --skip-if-larger --ext .png || true
 fi
 
 echo "Writing ${COUNT} item models..."
