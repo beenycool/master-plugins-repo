@@ -71,7 +71,7 @@ DURATION=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 
 DURATION=${DURATION%.*}
 
 cat > "$BUILD/pack.mcmeta" <<JSON
-{"pack":{"description":"Guab rickroll pack","pack_format":${PACK_FORMAT},"supported_formats":[${PACK_FORMAT},${PACK_FORMAT}]}}
+{"pack":{"description":"Guab rickroll pack","pack_format":${PACK_FORMAT},"min_format":${PACK_FORMAT},"max_format":${PACK_FORMAT}}}
 JSON
 
 ZIP="$BUILD/rickroll.zip"
