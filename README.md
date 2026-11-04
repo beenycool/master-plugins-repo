@@ -55,10 +55,11 @@ sudo docker exec guab-mc rcon-cli rickroll verify
 ```
 
 The pack is served at `:39002/rickroll.zip`. `pack.properties` feeds frame count, fps, duration
-and SHA-1 to the plugin. The current pack is the full 3:33 at 10 fps and 192x108 (~23.4 MB), quantized to a 128-color
-palette and losslessly recompressed with `advpng`. The source is archived as AV1, but the pack
-itself is PNG frames because Minecraft item textures cannot be AV1. When `pngquant` is installed
-the build quantizes each frame; without it the same pack is roughly 60 MB.
+and SHA-1 to the plugin. The current pack is a 60-second cut starting at 0:19 (the first lyric) at 12 fps and 192x108
+(~7.5 MB), quantized to a 128-color palette and losslessly recompressed with `advpng`. The
+source is archived as AV1, but the pack itself is PNG frames because Minecraft item textures
+cannot be AV1. When `pngquant` is installed the build quantizes each frame; without it the same
+pack is much larger.
 
 ## Add a plugin
 
