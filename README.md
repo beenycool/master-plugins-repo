@@ -23,8 +23,9 @@ Jars land in `plugins/<module>/build/libs/`.
 
 ## Deploy
 
-Push to `main`. GitHub Actions builds all six jars into the `deploy-latest` release; the VM
-polls every 2 minutes, announces the restart in-game, swaps jars and restarts Paper.
+Push to `main`. GitHub Actions builds all six jars into the `deploy-latest` release, then pings
+the VM's authenticated deploy webhook (`:39001`). The VM announces the restart in-game, swaps
+jars and restarts Paper. A 2-minute timer still polls as a fallback if the ping is missed.
 
 - Server: `145.241.198.214:30565` — 3 GB heap, 4 GB cap, superflat, 20 slots, no whitelist.
 - Everyone who joins is opped automatically.
