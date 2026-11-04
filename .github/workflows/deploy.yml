@@ -40,12 +40,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view deploy-latest >/dev/null 2>&1 || \
-            gh release create deploy-latest \
-              --title "Deploy latest" \
-              --notes "Rolling build of every plugin jar. Consumed by the game server." \
-              --prerelease
-          gh release upload deploy-latest plugins.tar.gz plugins.sha256 build.txt --clobber
+          publish() {
+            gh release view deploy-latest >/dev/null 2>&1 || \
+              gh release create deploy-latest \
+                --title "Deploy latest" \
+                --notes "Rolling build of every plugin jar. Consumed by the game server." \
+                --prerelease
+            gh release upload deploy-latest plugins.tar.gz plugins.sha256 build.txt --clobber
+          }
+          for attempt in 1 2 3 4 5; do
+            if publish; then
+              exit 0
+            fi
+            echo "Release upload failed (attempt ${attempt}), retrying..."
+            sleep $((attempt * 10))
+          done
+          exit 1
 
       - name: Ping the server
         continue-on-error: true
