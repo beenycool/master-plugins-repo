@@ -10,10 +10,12 @@ public final class GuabRickrollPlugin extends JavaPlugin {
     private PackManager packs;
     private ShowManager shows;
     private BlockStore blocks;
+    private Lyrics lyrics;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        this.lyrics = Lyrics.load(getResource("lyrics.txt"));
         reload();
         this.blocks = new BlockStore(this);
         this.cinema = new Cinema(this);
@@ -69,5 +71,9 @@ public final class GuabRickrollPlugin extends JavaPlugin {
 
     public BlockStore blocks() {
         return blocks;
+    }
+
+    public Lyrics lyrics() {
+        return lyrics;
     }
 }

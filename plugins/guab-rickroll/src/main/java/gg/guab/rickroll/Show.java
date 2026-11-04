@@ -1,5 +1,6 @@
 package gg.guab.rickroll;
 
+import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.title.Title;
@@ -33,8 +34,11 @@ final class Show {
     private final float walkSpeed;
 
     private ItemDisplay display;
+    private BossBar bossBar;
     private BukkitTask task;
     private BukkitTask timeout;
+    private String lastLyric;
+    private int lastTimerSecond = -1;
     private int tick;
     private boolean started;
     private boolean finished;
@@ -102,15 +106,42 @@ final class Show {
                 Component.text("TRACKING", NamedTextColor.GRAY),
                 Component.text("VHS", NamedTextColor.DARK_GRAY),
                 Title.Times.times(Duration.ZERO, Duration.ofSeconds(2), Duration.ZERO)));
-        player.sendActionBar(Component.text("Never gonna give you up...", NamedTextColor.DARK_GRAY));
+
+        bossBar = BossBar.bossBar(
+                Component.text("Never Gonna Give You Up - " + formatTime(plugin.config().showSeconds()), NamedTextColor.LIGHT_PURPLE),
+                1.0f,
+                BossBar.Color.PINK,
+                BossBar.Overlay.PROGRESS);
+        player.showBossBar(bossBar);
+        player.sendActionBar(Component.text("Now playing: Never Gonna Give You Up", NamedTextColor.GOLD));
 
         task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            int elapsed = tick - intro;
             if (tick == intro) {
                 player.playSound(player, "guab:rickroll", SoundCategory.MASTER, 1.0f, 1.0f);
             }
-            if (tick >= intro) {
-                int frame = (int) (((tick - intro) * (long) plugin.config().fps()) / 20);
+            if (elapsed >= 0) {
+                int frame = (int) ((elapsed * (long) plugin.config().fps()) / 20);
                 display.setItemStack(frames.get(Math.min(frame, frames.size() - 1)));
+
+                int totalTicks = plugin.config().showSeconds() * 20;
+                bossBar.progress(Math.max(0.0f, Math.min(1.0f, 1.0f - (float) elapsed / totalTicks)));
+
+                int second = elapsed / 20;
+                if (second != lastTimerSecond) {
+                    lastTimerSecond = second;
+                    int remaining = Math.max(0, plugin.config().showSeconds() - second);
+                    bossBar.name(Component.text("Never Gonna Give You Up - " + formatTime(remaining), NamedTextColor.LIGHT_PURPLE));
+                }
+
+                String lyric = plugin.lyrics().lineAt(elapsed / 20.0);
+                if (lyric != null && !lyric.equals(lastLyric)) {
+                    player.sendActionBar(Component.text(lyric, NamedTextColor.GOLD));
+                    lastLyric = lyric;
+                } else if (lyric == null && lastLyric != null) {
+                    player.sendActionBar(Component.empty());
+                    lastLyric = null;
+                }
             }
             tick++;
             if (tick >= total) {
@@ -145,8 +176,13 @@ final class Show {
             display.remove();
             display = null;
         }
+        if (bossBar != null) {
+            player.hideBossBar(bossBar);
+            bossBar = null;
+        }
         if (player.isOnline()) {
             player.stopSound("guab:rickroll");
+            player.sendActionBar(Component.empty());
         }
         restore();
         plugin.shows().remove(this);
@@ -164,6 +200,13 @@ final class Show {
         if (display != null) {
             display.remove();
         }
+        if (bossBar != null) {
+            player.hideBossBar(bossBar);
+            bossBar = null;
+        }
+        if (player.isOnline()) {
+            player.sendActionBar(Component.empty());
+        }
         restore();
         plugin.shows().remove(this);
     }
@@ -178,6 +221,10 @@ final class Show {
             player.teleport(back);
         }
         player.getPersistentDataContainer().remove(markerKey());
+    }
+
+    private String formatTime(int seconds) {
+        return String.format("%d:%02d", seconds / 60, seconds % 60);
     }
 
     private void cancelTimeout() {
