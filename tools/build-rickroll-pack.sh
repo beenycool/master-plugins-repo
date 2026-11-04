@@ -20,17 +20,23 @@ DEST="${DEST:-/opt/guab-server}"
 PACK_FORMAT=97
 
 rm -rf "$BUILD"
-mkdir -p "$BUILD/assets/guab/textures/frame" "$BUILD/assets/guab/sounds"
+mkdir -p "$BUILD/assets/guab/textures/item/frame" "$BUILD/assets/guab/sounds"
 
 echo "Extracting frames (${WIDTH}x${HEIGHT} @ ${FPS}fps)..."
 ffmpeg -loglevel error -y -i "$VIDEO" \
   -vf "fps=${FPS},scale=${WIDTH}:${HEIGHT}:flags=lanczos" \
-  "$BUILD/assets/guab/textures/frame/%04d.png"
+  "$BUILD/assets/guab/textures/item/frame/%04d.png"
 
-COUNT=$(find "$BUILD/assets/guab/textures/frame" -name '*.png' | wc -l)
+COUNT=$(find "$BUILD/assets/guab/textures/item/frame" -name '*.png' | wc -l)
 if [ "$COUNT" -lt 1 ]; then
   echo "No frames extracted" >&2
   exit 1
+fi
+
+if command -v pngquant >/dev/null 2>&1; then
+  echo "Quantizing ${COUNT} frames..."
+  find "$BUILD/assets/guab/textures/item/frame" -name '*.png' -print0 \
+    | xargs -0 -P "$(nproc)" -n 32 pngquant --quality=0-100 --speed 1 --force --skip-if-larger --ext .png || true
 fi
 
 echo "Writing ${COUNT} item models..."
@@ -45,7 +51,7 @@ for folder in ("models/item/frame", "models/frame", "items/frame"):
 
 for index in range(1, count + 1):
     name = f"{index:04d}"
-    model = {"parent": "minecraft:item/generated", "textures": {"layer0": f"guab:frame/{name}"}}
+    model = {"parent": "minecraft:item/generated", "textures": {"layer0": f"guab:item/frame/{name}"}}
     for folder in ("models/item/frame", "models/frame"):
         path = os.path.join(build, "assets/guab", folder, name + ".json")
         with open(path, "w", encoding="utf-8") as handle:

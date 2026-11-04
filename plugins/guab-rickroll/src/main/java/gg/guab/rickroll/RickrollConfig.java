@@ -38,7 +38,7 @@ public record RickrollConfig(
 
         int fps = Math.clamp(parseInt(props.getProperty("fps"), cfg.getInt("pack.fps", 10)), 1, 20);
         int frames = Math.max(1, parseInt(props.getProperty("frames"), 1));
-        int duration = Math.max(1, parseInt(props.getProperty("duration"), cfg.getInt("show-seconds", 213)));
+        int duration = Math.max(1, parseInt(props.getProperty("duration"), cfg.getInt("show-seconds", 60)));
 
         return new RickrollConfig(
                 Math.clamp(cfg.getDouble("chance", 0.01), 0.0, 1.0),
@@ -50,8 +50,8 @@ public record RickrollConfig(
                 cfg.getString("cinema.world", "guab_cinema"),
                 Math.max(0, cfg.getInt("cinema.intro-ticks", 40)),
                 Math.max(1, cfg.getInt("cinema.fallback-seconds", 15)),
-                cfg.getDouble("cinema.width", 12.0),
-                cfg.getDouble("cinema.height", 6.75),
+                cfg.getDouble("cinema.width", 20.0),
+                cfg.getDouble("cinema.height", 11.25),
                 duration,
                 fps,
                 frames,

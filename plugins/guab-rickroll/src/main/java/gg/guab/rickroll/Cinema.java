@@ -11,6 +11,10 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.WorldType;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.Stairs;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.inventory.ItemStack;
@@ -142,13 +146,38 @@ public final class Cinema {
                 set(MAX_X, y, z, Material.BLACK_CONCRETE);
             }
         }
+        // Red frame around the screen on the north wall.
+        for (int x = 4; x <= 17; x++) {
+            set(x, FLOOR_Y + 1, MIN_Z, Material.RED_CONCRETE);
+            set(x, CEILING_Y, MIN_Z, Material.RED_CONCRETE);
+        }
+        for (int y = FLOOR_Y + 1; y <= CEILING_Y; y++) {
+            set(4, y, MIN_Z, Material.RED_CONCRETE);
+            set(17, y, MIN_Z, Material.RED_CONCRETE);
+        }
+        // Ceiling lights.
+        for (int x : new int[] { 3, 10, 17 }) {
+            for (int z : new int[] { 3, 7, 11 }) {
+                set(x, CEILING_Y, z, Material.SEA_LANTERN);
+            }
+        }
         for (int x = 6; x <= 14; x++) {
             for (int z : new int[] { 9, 11 }) {
-                set(x, FLOOR_Y + 1, z, Material.DARK_OAK_STAIRS);
+                setStairs(x, FLOOR_Y + 1, z);
             }
         }
         for (int z = 6; z <= 13; z++) {
             set(10, FLOOR_Y + 1, z, Material.RED_CARPET);
+        }
+    }
+
+    private void setStairs(int x, int y, int z) {
+        Block block = world.getBlockAt(x, y, z);
+        block.setType(Material.DARK_OAK_STAIRS, false);
+        BlockData data = block.getBlockData();
+        if (data instanceof Stairs stairs) {
+            stairs.setFacing(BlockFace.SOUTH);
+            block.setBlockData(data, false);
         }
     }
 
