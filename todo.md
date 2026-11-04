@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-04
 
-Overall: `███░░░░░░░` **26%** (16/61 checklist items)
+Overall: `███░░░░░░░` **25%** (14/57 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
@@ -12,7 +12,6 @@ Overall: `███░░░░░░░` **26%** (16/61 checklist items)
 | guab-rickroll    | `████████░░` 78% (14/18)    |
 | guab-gambling    | `░░░░░░░░░░` 0% (0/8)       |
 | guab-minigames   | `░░░░░░░░░░` 0% (0/7)       |
-| shared / infra    | `█████░░░░░` 50% (2/4)      |
 
 Progress is per checklist line, updated by hand.
 
@@ -116,12 +115,3 @@ Status: blocked on the core points ledger.
 - [ ] Respawn at the pit spawn, keep or drop inventory config
 - [ ] Action bar/scoreboard for the current streak
 - [ ] Additional point-earning minigames outside the main parkour
-
-## shared / infra — `█████░░░░░` 50% (2/4)
-
-**What it does:** builds every push and ships it to the VM, runs the Paper server and backups, and hosts the resource pack used by the rickroll.
-
-- [x] CI build, rolling release, webhook deploy, timer fallback, rollback
-- [x] Server on `:30565`, 3 GB heap, superflat, backups
-- [ ] Visual pass on the real client (nothing client-side is verified yet)
-- [ ] Decide on a whitelist before the parkour is public
