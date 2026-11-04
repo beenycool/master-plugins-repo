@@ -71,6 +71,7 @@ public final class TriggerListener implements Listener {
 
     private void restoreStale(Player player) {
         NamespacedKey key = new NamespacedKey(plugin, "active");
+        NamespacedKey backKey = new NamespacedKey(plugin, "back");
         String mode = player.getPersistentDataContainer().get(key, PersistentDataType.STRING);
         if (mode == null) {
             return;
@@ -81,8 +82,13 @@ public final class TriggerListener implements Listener {
             player.setGameMode(GameMode.SURVIVAL);
         }
         player.resetPlayerTime();
-        player.teleport(Bukkit.getWorlds().getFirst().getSpawnLocation());
+        player.setFlySpeed(0.05f);
+        player.setWalkSpeed(0.1f);
+        player.setAllowFlight(player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR);
+        var back = Show.deserializeLocation(player.getPersistentDataContainer().get(backKey, PersistentDataType.STRING));
+        player.teleport(back != null ? back : Bukkit.getWorlds().getFirst().getSpawnLocation());
         player.getPersistentDataContainer().remove(key);
+        player.getPersistentDataContainer().remove(backKey);
         plugin.getLogger().info("Restored " + player.getName() + " after an interrupted rickroll.");
     }
 }

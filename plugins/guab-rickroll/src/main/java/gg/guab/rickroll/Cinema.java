@@ -146,14 +146,21 @@ public final class Cinema {
                 set(MAX_X, y, z, Material.BLACK_CONCRETE);
             }
         }
-        // Red frame around the screen on the north wall.
+        // Red wool frame and curtains around the screen on the north wall.
         for (int x = 4; x <= 17; x++) {
-            set(x, FLOOR_Y + 1, MIN_Z, Material.RED_CONCRETE);
-            set(x, CEILING_Y, MIN_Z, Material.RED_CONCRETE);
+            set(x, FLOOR_Y + 1, MIN_Z, Material.RED_WOOL);
+            set(x, CEILING_Y, MIN_Z, Material.RED_WOOL);
         }
         for (int y = FLOOR_Y + 1; y <= CEILING_Y; y++) {
-            set(4, y, MIN_Z, Material.RED_CONCRETE);
-            set(17, y, MIN_Z, Material.RED_CONCRETE);
+            set(4, y, MIN_Z, Material.RED_WOOL);
+            set(17, y, MIN_Z, Material.RED_WOOL);
+            for (int x : new int[] { 2, 3, 18, 19 }) {
+                set(x, y, MIN_Z, Material.RED_WOOL);
+            }
+        }
+        // Marquee lights along the top frame.
+        for (int x : new int[] { 6, 10, 15 }) {
+            set(x, CEILING_Y, MIN_Z, Material.SEA_LANTERN);
         }
         // Ceiling lights.
         for (int x : new int[] { 3, 10, 17 }) {
@@ -161,9 +168,23 @@ public final class Cinema {
                 set(x, CEILING_Y, z, Material.SEA_LANTERN);
             }
         }
+        // Wall sconces.
+        for (int z : new int[] { 3, 7, 11 }) {
+            set(MIN_X, FLOOR_Y + 4, z, Material.SEA_LANTERN);
+            set(MAX_X, FLOOR_Y + 4, z, Material.SEA_LANTERN);
+        }
+        // Aisle floor lights.
+        for (int z : new int[] { 6, 12 }) {
+            set(9, FLOOR_Y, z, Material.SEA_LANTERN);
+            set(11, FLOOR_Y, z, Material.SEA_LANTERN);
+        }
         for (int x = 6; x <= 14; x++) {
+            if (x == 10) {
+                continue;
+            }
             for (int z : new int[] { 9, 11 }) {
                 setStairs(x, FLOOR_Y + 1, z);
+                set(x, FLOOR_Y + 2, z, Material.RED_CARPET);
             }
         }
         for (int z = 6; z <= 13; z++) {

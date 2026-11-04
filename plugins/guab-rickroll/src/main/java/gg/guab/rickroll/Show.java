@@ -10,6 +10,7 @@ import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
+import org.bukkit.World;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -61,6 +62,7 @@ final class Show {
         player.setWalkSpeed(0.0f);
         player.setPlayerTime(18000L, false);
         player.getPersistentDataContainer().set(markerKey(), PersistentDataType.STRING, mode.name());
+        player.getPersistentDataContainer().set(backKey(), PersistentDataType.STRING, serializeLocation(back));
         player.teleport(plugin.cinema().seat());
         player.showTitle(Title.title(
                 Component.text("BUFFERING", NamedTextColor.GRAY),
@@ -111,8 +113,9 @@ final class Show {
                 Component.text("Never Gonna Give You Up - " + formatTime(plugin.config().showSeconds()), NamedTextColor.LIGHT_PURPLE),
                 1.0f,
                 BossBar.Color.PINK,
-                BossBar.Overlay.PROGRESS);
+                BossBar.Overlay.NOTCHED_20);
         player.showBossBar(bossBar);
+        player.playSound(player, Sound.BLOCK_LEVER_CLICK, SoundCategory.MASTER, 0.5f, 0.7f);
         player.sendActionBar(Component.text("Now playing: Never Gonna Give You Up", NamedTextColor.GOLD));
 
         task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
@@ -134,9 +137,10 @@ final class Show {
                     bossBar.name(Component.text("Never Gonna Give You Up - " + formatTime(remaining), NamedTextColor.LIGHT_PURPLE));
                 }
 
-                String lyric = plugin.lyrics().lineAt(elapsed / 20.0);
+                String lyric = plugin.lyrics().lineAt(elapsed / 20.0 + plugin.config().lyricsOffsetSeconds());
                 if (lyric != null && !lyric.equals(lastLyric)) {
-                    player.sendActionBar(Component.text(lyric, NamedTextColor.GOLD));
+                    NamedTextColor color = lyric.startsWith("Never gonna") ? NamedTextColor.LIGHT_PURPLE : NamedTextColor.GOLD;
+                    player.sendActionBar(Component.text(lyric, color));
                     lastLyric = lyric;
                 } else if (lyric == null && lastLyric != null) {
                     player.sendActionBar(Component.empty());
@@ -219,8 +223,9 @@ final class Show {
         player.setWalkSpeed(walkSpeed);
         if (player.isOnline()) {
             player.teleport(back);
+            player.getPersistentDataContainer().remove(markerKey());
+            player.getPersistentDataContainer().remove(backKey());
         }
-        player.getPersistentDataContainer().remove(markerKey());
     }
 
     private String formatTime(int seconds) {
@@ -240,5 +245,41 @@ final class Show {
 
     private NamespacedKey markerKey() {
         return new NamespacedKey(plugin, "active");
+    }
+
+    private NamespacedKey backKey() {
+        return new NamespacedKey(plugin, "back");
+    }
+
+    static String serializeLocation(Location location) {
+        if (location.getWorld() == null) {
+            return "";
+        }
+        return location.getWorld().getName() + ";" + location.getX() + ";" + location.getY() + ";" + location.getZ()
+                + ";" + location.getYaw() + ";" + location.getPitch();
+    }
+
+    static Location deserializeLocation(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String[] parts = value.split(";");
+        if (parts.length != 6) {
+            return null;
+        }
+        World world = Bukkit.getWorld(parts[0]);
+        if (world == null) {
+            return null;
+        }
+        try {
+            return new Location(world,
+                    Double.parseDouble(parts[1]),
+                    Double.parseDouble(parts[2]),
+                    Double.parseDouble(parts[3]),
+                    Float.parseFloat(parts[4]),
+                    Float.parseFloat(parts[5]));
+        } catch (NumberFormatException exception) {
+            return null;
+        }
     }
 }

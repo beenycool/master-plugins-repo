@@ -19,6 +19,7 @@ public record RickrollConfig(
         double screenWidth,
         double screenHeight,
         int showSeconds,
+        double lyricsOffsetSeconds,
         int fps,
         int frameCount,
         String sha1) {
@@ -38,11 +39,11 @@ public record RickrollConfig(
 
         int fps = Math.clamp(parseInt(props.getProperty("fps"), cfg.getInt("pack.fps", 10)), 1, 20);
         int frames = Math.max(1, parseInt(props.getProperty("frames"), 1));
-        int duration = Math.max(1, parseInt(props.getProperty("duration"), cfg.getInt("show-seconds", 213)));
+        int duration = Math.max(1, parseInt(props.getProperty("duration"), cfg.getInt("show-seconds", 60)));
 
         return new RickrollConfig(
-                Math.clamp(cfg.getDouble("chance", 0.01), 0.0, 1.0),
-                Math.max(0, cfg.getLong("cooldown-seconds", 600)) * 1000L,
+                Math.clamp(cfg.getDouble("chance", 0.05), 0.0, 1.0),
+                Math.max(0, cfg.getLong("cooldown-seconds", 300)) * 1000L,
                 cfg.getString("pack.url", ""),
                 cfg.getBoolean("pack.preload", true),
                 Math.max(1, cfg.getInt("pack.timeout-seconds", 180)),
@@ -53,6 +54,7 @@ public record RickrollConfig(
                 cfg.getDouble("cinema.width", 20.0),
                 cfg.getDouble("cinema.height", 11.25),
                 duration,
+                cfg.getDouble("lyrics-offset-seconds", 0.0),
                 fps,
                 frames,
                 props.getProperty("sha1", ""));
