@@ -53,7 +53,7 @@ public record RickrollConfig(
                 admins,
                 cfg.getString("pack.url", ""),
                 cfg.getBoolean("pack.preload", true),
-                cfg.getString("pack.file", "/opt/troll-server/resourcepack/rickroll.zip"),
+                cfg.getString("pack.file", "/resourcepack/rickroll.zip"),
                 cfg.getString("cinema.world", "guab_cinema"),
                 Math.max(0, cfg.getInt("cinema.intro-ticks", 40)),
                 Math.max(1, cfg.getInt("cinema.fallback-seconds", 15)),

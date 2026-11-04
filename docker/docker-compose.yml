@@ -32,6 +32,7 @@ services:
     volumes:
       - ./data:/data
       - ./plugins:/plugins:ro
+      - ./resourcepack:/resourcepack:ro
     healthcheck:
       test: mc-health
       start_period: 3m

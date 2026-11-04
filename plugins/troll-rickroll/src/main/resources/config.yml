@@ -10,7 +10,7 @@ admins: []
 pack:
   url: "http://145.241.198.214:39002/rickroll.zip"
   preload: true
-  file: "/opt/troll-server/resourcepack/rickroll.zip"
+  file: "/resourcepack/rickroll.zip"
 
 cinema:
   world: "guab_cinema"
