@@ -27,7 +27,7 @@ if ! grep -q '^DEPLOY_TOKEN=' "$DEST/.env"; then
   printf 'DEPLOY_TOKEN=%s\n' "$(openssl rand -hex 32)" >> "$DEST/.env"
 fi
 
-mkdir -p "$DEST/plugins" "$DEST/data" "$DEST/backups" "$DEST/resourcepack"
+mkdir -p "$DEST/plugins" "$DEST/data" "$DEST/backups" "$DEST/resourcepack" "$DEST/media"
 
 cd "$DEST"
 docker compose up -d

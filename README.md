@@ -47,7 +47,7 @@ the player to a hidden cinema for the video and song. `/rickroll test` rickrolls
 Build a pack from your own mp4 (media stays on the VM, never in git):
 
 ```bash
-tools/build-rickroll-pack.sh /opt/troll-server/media/rickroll.mp4
+sudo tools/build-rickroll-pack.sh /opt/troll-server/media/rickroll.mp4
 sudo systemctl restart troll-server-pack.service
 sudo docker exec troll-mc rcon-cli rickroll reload
 sudo docker exec troll-mc rcon-cli rickroll verify
