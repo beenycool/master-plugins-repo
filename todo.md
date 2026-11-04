@@ -16,7 +16,11 @@ Overall: `██░░░░░░░░` **20%** (12/60 checklist items)
 
 Progress is per checklist line, updated by hand.
 
+The loop: **minigames earn points → gambling risks them → items and blocks are the rewards.**
+
 ## troll-core — `█░░░░░░░░░` 13% (1/8)
+
+**What it does:** the shared foundation. Holds the player points ledger (the parkour currency), common helpers, and server-wide bits like auto-OP. Every other plugin depends on it.
 
 Status: partial — auto-OP only. The shared points ledger does not exist yet.
 
@@ -30,6 +34,8 @@ Status: partial — auto-OP only. The shared points ledger does not exist yet.
 - [ ] Decide if core also owns the parkour scoreboard
 
 ## troll-blocks — `░░░░░░░░░░` 0% (0/10)
+
+**What it does:** the parkour's troll blocks. Staff tag blocks; stepping on one can drop the player through the floor, hit them with a random bad potion effect, or swap them with another player.
 
 Status: boilerplate. Nothing implemented.
 
@@ -46,6 +52,8 @@ Status: boilerplate. Nothing implemented.
 
 ## troll-items — `░░░░░░░░░░` 0% (0/7)
 
+**What it does:** the troll items players earn or gamble for. A wind charge that boosts you forward or knocks others off, and a feather that grants permanent jump boost.
+
 Status: boilerplate. Nothing implemented.
 
 - [ ] PDC-tagged items so names cannot be faked
@@ -57,6 +65,8 @@ Status: boilerplate. Nothing implemented.
 - [ ] Block crafting/renaming from producing fake copies
 
 ## troll-rickroll — `██████░░░░` 56% (9/16)
+
+**What it does:** the 1% joke. A tagged block sends the victim to a hidden cinema, locks them in spectator, and plays the rickroll video and song, then puts them back exactly where they were.
 
 Status: working end-to-end with a placeholder pack (200 frames, 20s).
 
@@ -79,6 +89,8 @@ Status: working end-to-end with a placeholder pack (200 frames, 20s).
 
 ## troll-gambling — `░░░░░░░░░░` 0% (0/8)
 
+**What it does:** the point sink. Players wager the points they earn from minigames on casino games; a configurable house edge keeps the economy in check.
+
 Status: blocked on the core points ledger.
 
 - [ ] Load `PointsService` from TrollCore
@@ -92,6 +104,8 @@ Status: blocked on the core points ledger.
 
 ## troll-minigames — `░░░░░░░░░░` 0% (0/7)
 
+**What it does:** the point faucet. Battle pit and other small games outside the main parkour award points for kills and wins, which then feed gambling and item rewards.
+
 Status: blocked on the core points ledger.
 
 - [ ] Battle pit arena spawn (`/battlepit setspawn`)
@@ -103,6 +117,8 @@ Status: blocked on the core points ledger.
 - [ ] Additional point-earning minigames outside the main parkour
 
 ## shared / infra — `█████░░░░░` 50% (2/4)
+
+**What it does:** builds every push and ships it to the VM, runs the Paper server and backups, and hosts the resource pack used by the rickroll.
 
 - [x] CI build, rolling release, webhook deploy, timer fallback, rollback
 - [x] Server on `:30565`, 3 GB heap, superflat, backups
