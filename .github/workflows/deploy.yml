@@ -46,3 +46,11 @@ jobs:
               --notes "Rolling build of every plugin jar. Consumed by the game server." \
               --prerelease
           gh release upload deploy-latest plugins.tar.gz plugins.sha256 build.txt --clobber
+
+      - name: Ping the server
+        continue-on-error: true
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          curl -fsS --max-time 280 -X POST "http://145.241.198.214:39001/deploy" \
+            -H "Authorization: Bearer ${DEPLOY_TOKEN}"
