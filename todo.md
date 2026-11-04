@@ -2,14 +2,14 @@
 
 Last updated: 2026-11-04
 
-Overall: `██░░░░░░░░` **22%** (13/59 checklist items)
+Overall: `███░░░░░░░` **25%** (15/61 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
 | guab-core        | `░░░░░░░░░░` 0% (0/7)       |
 | guab-blocks      | `░░░░░░░░░░` 0% (0/10)      |
 | guab-items       | `░░░░░░░░░░` 0% (0/7)       |
-| guab-rickroll    | `███████░░░` 69% (11/16)    |
+| guab-rickroll    | `███████░░░` 72% (13/18)    |
 | guab-gambling    | `░░░░░░░░░░` 0% (0/8)       |
 | guab-minigames   | `░░░░░░░░░░` 0% (0/7)       |
 | shared / infra    | `█████░░░░░` 50% (2/4)      |
@@ -63,11 +63,11 @@ Status: boilerplate. Nothing implemented.
 - [ ] Cooldowns and config values
 - [ ] Block crafting/renaming from producing fake copies
 
-## guab-rickroll — `███████░░░` 69% (11/16)
+## guab-rickroll — `███████░░░` 72% (13/18)
 
 **What it does:** the 1% joke. A tagged block sends the victim to a hidden cinema, locks them in spectator, and plays the rickroll video and song, then puts them back exactly where they were.
 
-Status: working end-to-end with the full song (2130 frames, 213s, 23.4 MB pack) and a 10-block screen.
+Status: working end-to-end with the full song (2130 frames, 213s, 23.4 MB pack), synced lyrics, a boss-bar timer, and a 10-block screen.
 
 - [x] 1% trigger block, per-player cooldown
 - [x] `/rickroll setblock`, `remove`, `test`, `stop`, `verify`, `reload`
@@ -79,12 +79,14 @@ Status: working end-to-end with the full song (2130 frames, 213s, 23.4 MB pack) 
 - [x] Fallback when the pack is declined
 - [x] Full song from 0:00 (AV1 source, 10 fps, 192x108, 128-color PNG, 23.4 MB lossless)
 - [x] Visual QA: video, texture path, audio on the old 6-block screen
+- [x] Synced lyrics on the action bar (LRC timestamps)
+- [x] Boss-bar countdown timer (3:33 to 0:00)
 - [ ] Check the new 10-block screen, red frame, lights, and stair direction
 - [ ] Mark the first block in-game with `/rickroll setblock`
 - [ ] Full 3:33 show test, including disconnect mid-show
 - [ ] Tune `cinema.width`/`height`, `intro-ticks`, `chance`, `cooldown-seconds`
 - [x] Decide full video vs loop: full 3:33, no loop
-- [ ] Optional: VHS static, scanlines, synced lyrics
+- [ ] Optional: VHS static, scanlines
 
 ## guab-gambling — `░░░░░░░░░░` 0% (0/8)
 

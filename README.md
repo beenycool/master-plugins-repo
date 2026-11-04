@@ -43,6 +43,7 @@ sudo /opt/guab-server/rollback.sh        # revert, sticks until the next push
 
 `GuabRickroll` tags blocks with `/rickroll setblock`; stepping on one has a 1% chance to send
 the player to a hidden cinema for the video and song. `/rickroll test` rickrolls yourself.
+During the show the lyrics appear above the hotbar and a pink boss bar counts down the song.
 
 Build a pack from your own mp4 (media stays on the VM, never in git):
 
