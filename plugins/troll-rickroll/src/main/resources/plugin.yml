@@ -2,6 +2,14 @@ name: TrollRickroll
 version: '${version}'
 main: gg.guab.troll.rickroll.TrollRickrollPlugin
 api-version: '26.3'
-description: The 1% rickroll block.
+description: The 1% rickroll block, now with a cinema screen.
 authors: [Guab]
 depend: [TrollCore]
+commands:
+  rickroll:
+    description: Manage the rickroll block and cinema show
+    usage: /rickroll <setblock|remove|test|stop|verify|reload>
+    permission: troll.rickroll
+permissions:
+  troll.rickroll:
+    default: op

@@ -1,0 +1,21 @@
+# Chance per step on a marked block.
+chance: 0.01
+
+# Per-player cooldown between rolls, in seconds.
+cooldown-seconds: 600
+
+# Extra names allowed to use setblock/stop/verify. Console always can.
+admins: []
+
+pack:
+  url: "http://145.241.198.214:39002/rickroll.zip"
+  preload: true
+  file: "/opt/troll-server/resourcepack/rickroll.zip"
+
+cinema:
+  world: "guab_cinema"
+  intro-ticks: 40
+  fallback-seconds: 15
+
+# Used only when pack.properties has no duration.
+show-seconds: 213

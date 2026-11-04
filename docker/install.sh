@@ -17,6 +17,7 @@ for unit in troll-server-deploy troll-server-backup; do
   install -m 644 "$SRC/${unit}.timer" "/etc/systemd/system/${unit}.timer"
 done
 install -m 644 "$SRC/troll-server-webhook.service" /etc/systemd/system/troll-server-webhook.service
+install -m 644 "$SRC/troll-server-pack.service" /etc/systemd/system/troll-server-pack.service
 
 if [ ! -f "$DEST/.env" ]; then
   printf 'RCON_PASSWORD=%s\n' "$(openssl rand -hex 16)" > "$DEST/.env"
@@ -26,12 +27,12 @@ if ! grep -q '^DEPLOY_TOKEN=' "$DEST/.env"; then
   printf 'DEPLOY_TOKEN=%s\n' "$(openssl rand -hex 32)" >> "$DEST/.env"
 fi
 
-mkdir -p "$DEST/plugins" "$DEST/data" "$DEST/backups"
+mkdir -p "$DEST/plugins" "$DEST/data" "$DEST/backups" "$DEST/resourcepack"
 
 cd "$DEST"
 docker compose up -d
 
 systemctl daemon-reload
-systemctl enable --now troll-server-deploy.timer troll-server-backup.timer troll-server-webhook.service
+systemctl enable --now troll-server-deploy.timer troll-server-backup.timer troll-server-webhook.service troll-server-pack.service
 
-echo "Installed. Minecraft on 30565, webhook on 39001, timer fallback every 2 minutes."
+echo "Installed. Minecraft on 30565, webhook 39001, resource packs 39002."

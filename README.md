@@ -39,6 +39,23 @@ sudo /opt/troll-server/deploy.sh --force  # re-apply latest
 sudo /opt/troll-server/rollback.sh        # revert, sticks until the next push
 ```
 
+## Rickroll
+
+`TrollRickroll` tags blocks with `/rickroll setblock`; stepping on one has a 1% chance to send
+the player to a hidden cinema for the video and song. `/rickroll test` rickrolls yourself.
+
+Build a pack from your own mp4 (media stays on the VM, never in git):
+
+```bash
+tools/build-rickroll-pack.sh /opt/troll-server/media/rickroll.mp4
+sudo systemctl restart troll-server-pack.service
+sudo docker exec troll-mc rcon-cli rickroll reload
+sudo docker exec troll-mc rcon-cli rickroll verify
+```
+
+The pack is served at `:39002/rickroll.zip`. `pack.properties` feeds frame count, fps, duration
+and SHA-1 to the plugin.
+
 ## Add a plugin
 
 1. Add `"plugins:troll-name"` to `settings.gradle.kts`.
