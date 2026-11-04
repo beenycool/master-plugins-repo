@@ -6,7 +6,7 @@ Small Paper plugins for the Guab Christmas parkour. Paper `26.3`, Java 25, one p
 
 | Module                    | Purpose                                  |
 | ------------------------- | ---------------------------------------- |
-| `plugins/troll-core`      | Shared points ledger, helpers, auto-OP.  |
+| `plugins/troll-core`      | Shared points ledger and helpers.        |
 | `plugins/troll-blocks`    | Fake blocks, potion blocks, swap blocks. |
 | `plugins/troll-items`     | Wind charges, jump boost feathers.       |
 | `plugins/troll-rickroll`  | The 1% rickroll block.                   |
@@ -28,7 +28,7 @@ the VM's authenticated deploy webhook (`:39001`). The VM announces the restart i
 jars and restarts Paper. A 2-minute timer still polls as a fallback if the ping is missed.
 
 - Server: `145.241.198.214:30565` — 3 GB heap, 4 GB cap, superflat, 20 slots, no whitelist.
-- Everyone who joins is opped automatically.
+- Rickroll admin commands use `troll.rickroll.admin` (OP by default).
 - World and plugin configs live in `/opt/troll-server/data` and survive every deploy.
 - `backup.sh` snapshots the world daily at `/opt/troll-server/backups` (last 7 kept).
 

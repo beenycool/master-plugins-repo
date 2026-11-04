@@ -4,15 +4,11 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 
 public record RickrollConfig(
         double chance,
         long cooldownMillis,
-        Set<String> admins,
         String packUrl,
         boolean preload,
         String packFile,
@@ -43,16 +39,9 @@ public record RickrollConfig(
         int frames = Math.max(1, parseInt(props.getProperty("frames"), 1));
         int duration = Math.max(1, parseInt(props.getProperty("duration"), cfg.getInt("show-seconds", 213)));
 
-        List<String> adminNames = cfg.getStringList("admins");
-        Set<String> admins = new HashSet<>();
-        for (String name : adminNames) {
-            admins.add(name.toLowerCase());
-        }
-
         return new RickrollConfig(
                 Math.clamp(cfg.getDouble("chance", 0.01), 0.0, 1.0),
                 Math.max(0, cfg.getLong("cooldown-seconds", 600)) * 1000L,
-                admins,
                 cfg.getString("pack.url", ""),
                 cfg.getBoolean("pack.preload", true),
                 cfg.getString("pack.file", "/resourcepack/rickroll.zip"),

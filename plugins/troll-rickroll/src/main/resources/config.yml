@@ -4,9 +4,6 @@ chance: 0.01
 # Per-player cooldown between rolls, in seconds.
 cooldown-seconds: 600
 
-# Extra names allowed to use setblock/stop/verify. Console always can.
-admins: ["r4kz"]
-
 pack:
   url: "http://145.241.198.214:39002/rickroll.zip"
   preload: true

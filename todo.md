@@ -2,14 +2,14 @@
 
 Last updated: 2026-11-04
 
-Overall: `██░░░░░░░░` **20%** (12/60 checklist items)
+Overall: `██░░░░░░░░` **17%** (10/58 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
-| troll-core        | `█░░░░░░░░░` 13% (1/8)      |
+| troll-core        | `░░░░░░░░░░` 0% (0/7)       |
 | troll-blocks      | `░░░░░░░░░░` 0% (0/10)      |
 | troll-items       | `░░░░░░░░░░` 0% (0/7)       |
-| troll-rickroll    | `██████░░░░` 56% (9/16)     |
+| troll-rickroll    | `█████░░░░░` 53% (8/15)     |
 | troll-gambling    | `░░░░░░░░░░` 0% (0/8)       |
 | troll-minigames   | `░░░░░░░░░░` 0% (0/7)       |
 | shared / infra    | `█████░░░░░` 50% (2/4)      |
@@ -18,13 +18,12 @@ Progress is per checklist line, updated by hand.
 
 The loop: **minigames earn points → gambling risks them → items and blocks are the rewards.**
 
-## troll-core — `█░░░░░░░░░` 13% (1/8)
+## troll-core — `░░░░░░░░░░` 0% (0/7)
 
-**What it does:** the shared foundation. Holds the player points ledger (the parkour currency), common helpers, and server-wide bits like auto-OP. Every other plugin depends on it.
+**What it does:** the shared foundation. Holds the player points ledger (the parkour currency) and common helpers. Every other plugin depends on it.
 
-Status: partial — auto-OP only. The shared points ledger does not exist yet.
+Status: boilerplate. The shared points ledger does not exist yet.
 
-- [x] Auto-OP every player on join
 - [ ] `PointsService` interface: `get`, `set`, `add`, `take`
 - [ ] YAML-backed store (`points.yml`), clamp at zero
 - [ ] Register the service in `ServicesManager` so other plugins can load it
@@ -64,7 +63,7 @@ Status: boilerplate. Nothing implemented.
 - [ ] Cooldowns and config values
 - [ ] Block crafting/renaming from producing fake copies
 
-## troll-rickroll — `██████░░░░` 56% (9/16)
+## troll-rickroll — `█████░░░░░` 53% (8/15)
 
 **What it does:** the 1% joke. A tagged block sends the victim to a hidden cinema, locks them in spectator, and plays the rickroll video and song, then puts them back exactly where they were.
 
@@ -78,7 +77,6 @@ Status: working end-to-end with a placeholder pack (200 frames, 20s).
 - [x] SHA-1 verification, frame count/fps/duration via `pack.properties`
 - [x] Spectator lock, per-player midnight, restore on stop/quit/restart
 - [x] Fallback when the pack is declined
-- [x] `r4kz` as admin
 - [ ] Drop in the real mp4 and rebuild the pack
 - [ ] Visual QA: screen size/orientation, texture path, audio sync
 - [ ] Mark the first block in-game with `/rickroll setblock`

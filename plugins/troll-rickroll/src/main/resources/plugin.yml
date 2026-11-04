@@ -9,7 +9,7 @@ commands:
   rickroll:
     description: Manage the rickroll block and cinema show
     usage: /rickroll <setblock|remove|test|stop|verify|reload>
-    permission: troll.rickroll
 permissions:
-  troll.rickroll:
+  troll.rickroll.admin:
+    description: Manage rickroll blocks and shows
     default: op

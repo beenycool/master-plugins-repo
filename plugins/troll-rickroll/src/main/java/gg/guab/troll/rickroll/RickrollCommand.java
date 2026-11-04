@@ -49,6 +49,10 @@ public final class RickrollCommand implements CommandExecutor, TabCompleter {
     }
 
     private void setBlock(CommandSender sender) {
+        if (!admin(sender)) {
+            error(sender, "You need troll.rickroll.admin to mark rickroll blocks.");
+            return;
+        }
         if (!(sender instanceof Player player)) {
             error(sender, "Run this in game so I can see the block you are looking at.");
             return;
@@ -64,6 +68,10 @@ public final class RickrollCommand implements CommandExecutor, TabCompleter {
     }
 
     private void remove(CommandSender sender) {
+        if (!admin(sender)) {
+            error(sender, "You need troll.rickroll.admin to remove rickroll blocks.");
+            return;
+        }
         if (!(sender instanceof Player player)) {
             error(sender, "Run this in game.");
             return;
@@ -180,7 +188,7 @@ public final class RickrollCommand implements CommandExecutor, TabCompleter {
         if (!(sender instanceof Player player)) {
             return true;
         }
-        return plugin.config().admins().contains(player.getName().toLowerCase());
+        return player.hasPermission("troll.rickroll.admin");
     }
 
     private void usage(CommandSender sender) {
