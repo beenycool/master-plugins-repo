@@ -80,7 +80,7 @@ public final class Cinema {
     }
 
     public ItemDisplay spawnScreen() {
-        Location location = new Location(world(), 10.5, FLOOR_Y + 4.5, 0.6, 0.0f, 0.0f);
+        Location location = new Location(world(), 10.5, FLOOR_Y + 4.5, 1.05, 0.0f, 0.0f);
         return world().spawn(location, ItemDisplay.class, display -> {
             display.setPersistent(false);
             display.setInvulnerable(true);
