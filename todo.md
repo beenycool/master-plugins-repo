@@ -2,14 +2,14 @@
 
 Last updated: 2026-11-04
 
-Overall: `██░░░░░░░░` **17%** (10/58 checklist items)
+Overall: `██░░░░░░░░` **21%** (12/58 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
 | guab-core        | `░░░░░░░░░░` 0% (0/7)       |
 | guab-blocks      | `░░░░░░░░░░` 0% (0/10)      |
 | guab-items       | `░░░░░░░░░░` 0% (0/7)       |
-| guab-rickroll    | `█████░░░░░` 53% (8/15)     |
+| guab-rickroll    | `███████░░░` 67% (10/15)    |
 | guab-gambling    | `░░░░░░░░░░` 0% (0/8)       |
 | guab-minigames   | `░░░░░░░░░░` 0% (0/7)       |
 | shared / infra    | `█████░░░░░` 50% (2/4)      |
@@ -63,11 +63,11 @@ Status: boilerplate. Nothing implemented.
 - [ ] Cooldowns and config values
 - [ ] Block crafting/renaming from producing fake copies
 
-## guab-rickroll — `█████░░░░░` 53% (8/15)
+## guab-rickroll — `███████░░░` 67% (10/15)
 
 **What it does:** the 1% joke. A tagged block sends the victim to a hidden cinema, locks them in spectator, and plays the rickroll video and song, then puts them back exactly where they were.
 
-Status: working end-to-end with a placeholder pack (200 frames, 20s).
+Status: working end-to-end with the real video (2130 frames, 213s, 53 MB pack).
 
 - [x] 1% trigger block, per-player cooldown
 - [x] `/rickroll setblock`, `remove`, `test`, `stop`, `verify`, `reload`
@@ -77,12 +77,12 @@ Status: working end-to-end with a placeholder pack (200 frames, 20s).
 - [x] SHA-1 verification, frame count/fps/duration via `pack.properties`
 - [x] Spectator lock, per-player midnight, restore on stop/quit/restart
 - [x] Fallback when the pack is declined
-- [ ] Drop in the real mp4 and rebuild the pack
+- [x] Drop in the real mp4 and rebuild the pack (10 fps, 160x90, 53 MB)
 - [ ] Visual QA: screen size/orientation, texture path, audio sync
 - [ ] Mark the first block in-game with `/rickroll setblock`
 - [ ] Full 3:33 show test, including disconnect mid-show
 - [ ] Tune `cinema.width`/`height`, `intro-ticks`, `chance`, `cooldown-seconds`
-- [ ] Decide full video vs loop for pack size and client VRAM
+- [x] Decide full video vs loop: full 3:33, no loop (bigger pack and atlas)
 - [ ] Optional: VHS static, scanlines, synced lyrics
 
 ## guab-gambling — `░░░░░░░░░░` 0% (0/8)

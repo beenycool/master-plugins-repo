@@ -6,3 +6,9 @@ plugins/*/build/
 *.iml
 run/
 .env
+
+# media is never committed
+*.mp4
+*.mkv
+*.webm
+media/
