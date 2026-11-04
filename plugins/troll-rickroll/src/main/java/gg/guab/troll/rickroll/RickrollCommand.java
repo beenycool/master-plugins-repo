@@ -49,10 +49,6 @@ public final class RickrollCommand implements CommandExecutor, TabCompleter {
     }
 
     private void setBlock(CommandSender sender) {
-        if (!admin(sender)) {
-            error(sender, "Only staff can mark rickroll blocks.");
-            return;
-        }
         if (!(sender instanceof Player player)) {
             error(sender, "Run this in game so I can see the block you are looking at.");
             return;
@@ -68,10 +64,6 @@ public final class RickrollCommand implements CommandExecutor, TabCompleter {
     }
 
     private void remove(CommandSender sender) {
-        if (!admin(sender)) {
-            error(sender, "Only staff can remove rickroll blocks.");
-            return;
-        }
         if (!(sender instanceof Player player)) {
             error(sender, "Run this in game.");
             return;
