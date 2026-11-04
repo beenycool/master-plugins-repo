@@ -2,9 +2,9 @@
 # Swap back to the previously deployed jars. Stays until a new build is published.
 set -euo pipefail
 
-cd /opt/troll-server
+cd /opt/guab-server
 
-exec 9>/run/troll-deploy.lock
+exec 9>/run/guab-deploy.lock
 flock -w 120 9
 
 [ -d previous ] && compgen -G "previous/*.jar" >/dev/null || {

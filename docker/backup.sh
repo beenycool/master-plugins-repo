@@ -2,10 +2,10 @@
 # Daily world snapshot. Keeps the last 7.
 set -euo pipefail
 
-cd /opt/troll-server
+cd /opt/guab-server
 mkdir -p backups
 
-docker exec troll-mc rcon-cli save-all flush >/dev/null 2>&1 || true
+docker exec guab-mc rcon-cli save-all flush >/dev/null 2>&1 || true
 sleep 3
 
 stamp="$(date -u +%Y%m%d-%H%M%S)"

@@ -1,0 +1,7 @@
+name: GuabGambling
+version: '${version}'
+main: gg.guab.gambling.GuabGamblingPlugin
+api-version: '26.3'
+description: Casino and wagers for the Guab parkour points.
+authors: [Guab]
+depend: [GuabCore]

@@ -1,0 +1,6 @@
+[Unit]
+Description=Back up the Guab server world
+
+[Service]
+Type=oneshot
+ExecStart=/opt/guab-server/backup.sh

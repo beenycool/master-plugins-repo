@@ -3,7 +3,7 @@ import org.gradle.language.jvm.tasks.ProcessResources
 val paperVersion = "26.3.build.240-stable"
 
 allprojects {
-    group = "gg.guab.troll"
+    group = "gg.guab"
     version = "0.2.0"
 }
 

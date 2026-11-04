@@ -6,12 +6,12 @@ Small Paper plugins for the Guab Christmas parkour. Paper `26.3`, Java 25, one p
 
 | Module                    | Purpose                                  |
 | ------------------------- | ---------------------------------------- |
-| `plugins/troll-core`      | Shared points ledger and helpers.        |
-| `plugins/troll-blocks`    | Fake blocks, potion blocks, swap blocks. |
-| `plugins/troll-items`     | Wind charges, jump boost feathers.       |
-| `plugins/troll-rickroll`  | The 1% rickroll block.                   |
-| `plugins/troll-gambling`  | Casino and wagers.                       |
-| `plugins/troll-minigames` | Battle pit and point minigames.          |
+| `plugins/guab-core`      | Shared points ledger and helpers.        |
+| `plugins/guab-blocks`    | Fake blocks, potion blocks, swap blocks. |
+| `plugins/guab-items`     | Wind charges, jump boost feathers.       |
+| `plugins/guab-rickroll`  | The 1% rickroll block.                   |
+| `plugins/guab-gambling`  | Casino and wagers.                       |
+| `plugins/guab-minigames` | Battle pit and point minigames.          |
 
 ## Build
 
@@ -28,29 +28,29 @@ the VM's authenticated deploy webhook (`:39001`). The VM announces the restart i
 jars and restarts Paper. A 2-minute timer still polls as a fallback if the ping is missed.
 
 - Server: `145.241.198.214:30565` — 3 GB heap, 4 GB cap, superflat, 20 slots, no whitelist.
-- Rickroll admin commands use `troll.rickroll.admin` (OP by default).
-- World and plugin configs live in `/opt/troll-server/data` and survive every deploy.
-- `backup.sh` snapshots the world daily at `/opt/troll-server/backups` (last 7 kept).
+- Rickroll admin commands use `guab.rickroll.admin` (OP by default).
+- World and plugin configs live in `/opt/guab-server/data` and survive every deploy.
+- `backup.sh` snapshots the world daily at `/opt/guab-server/backups` (last 7 kept).
 
 ```bash
 sudo docker/install.sh                    # first-time install
-sudo /opt/troll-server/deploy.sh          # no-op if current
-sudo /opt/troll-server/deploy.sh --force  # re-apply latest
-sudo /opt/troll-server/rollback.sh        # revert, sticks until the next push
+sudo /opt/guab-server/deploy.sh          # no-op if current
+sudo /opt/guab-server/deploy.sh --force  # re-apply latest
+sudo /opt/guab-server/rollback.sh        # revert, sticks until the next push
 ```
 
 ## Rickroll
 
-`TrollRickroll` tags blocks with `/rickroll setblock`; stepping on one has a 1% chance to send
+`GuabRickroll` tags blocks with `/rickroll setblock`; stepping on one has a 1% chance to send
 the player to a hidden cinema for the video and song. `/rickroll test` rickrolls yourself.
 
 Build a pack from your own mp4 (media stays on the VM, never in git):
 
 ```bash
-sudo tools/build-rickroll-pack.sh /opt/troll-server/media/rickroll.mp4
-sudo systemctl restart troll-server-pack.service
-sudo docker exec troll-mc rcon-cli rickroll reload
-sudo docker exec troll-mc rcon-cli rickroll verify
+sudo tools/build-rickroll-pack.sh /opt/guab-server/media/rickroll.mp4
+sudo systemctl restart guab-server-pack.service
+sudo docker exec guab-mc rcon-cli rickroll reload
+sudo docker exec guab-mc rcon-cli rickroll verify
 ```
 
 The pack is served at `:39002/rickroll.zip`. `pack.properties` feeds frame count, fps, duration
@@ -58,6 +58,6 @@ and SHA-1 to the plugin.
 
 ## Add a plugin
 
-1. Add `"plugins:troll-name"` to `settings.gradle.kts`.
+1. Add `"plugins:guab-name"` to `settings.gradle.kts`.
 2. Copy a module folder, rename the package, main class and `plugin.yml`.
-3. Add `depend: [TrollCore]` if it needs the points ledger.
+3. Add `depend: [GuabCore]` if it needs the points ledger.

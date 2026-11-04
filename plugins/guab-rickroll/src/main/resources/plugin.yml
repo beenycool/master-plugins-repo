@@ -1,0 +1,15 @@
+name: GuabRickroll
+version: '${version}'
+main: gg.guab.rickroll.GuabRickrollPlugin
+api-version: '26.3'
+description: The 1% rickroll block, now with a cinema screen.
+authors: [Guab]
+depend: [GuabCore]
+commands:
+  rickroll:
+    description: Manage the rickroll block and cinema show
+    usage: /rickroll <setblock|remove|test|stop|verify|reload>
+permissions:
+  guab.rickroll.admin:
+    description: Manage rickroll blocks and shows
+    default: op

@@ -1,9 +1,9 @@
-name: troll-server
+name: guab-server
 
 services:
   mc:
     image: itzg/minecraft-server:2026.10.1-java25
-    container_name: troll-mc
+    container_name: guab-mc
     restart: unless-stopped
     tty: true
     stdin_open: true
@@ -24,7 +24,7 @@ services:
       VIEW_DISTANCE: "4"
       SIMULATION_DISTANCE: "4"
       MAX_PLAYERS: "20"
-      MOTD: "Guab Troll Parkour - dev"
+      MOTD: "Guab Parkour - dev"
       ENABLE_RCON: "true"
       RCON_PASSWORD: "${RCON_PASSWORD}"
       PLUGINS_SYNC_UPDATE: "false"

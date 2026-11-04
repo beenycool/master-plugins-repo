@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 TOKEN = os.environ.get("DEPLOY_TOKEN", "")
 PORT = int(os.environ.get("DEPLOY_PORT", "39001"))
-SCRIPT = "/opt/troll-server/deploy.sh"
+SCRIPT = "/opt/guab-server/deploy.sh"
 COOLDOWN = 30
 
 last_run = 0.0

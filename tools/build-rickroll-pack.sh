@@ -16,7 +16,7 @@ HEIGHT=$(( HEIGHT / 2 * 2 ))
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="$ROOT/build/pack"
-DEST="${DEST:-/opt/troll-server}"
+DEST="${DEST:-/opt/guab-server}"
 PACK_FORMAT=97
 
 rm -rf "$BUILD"
@@ -73,9 +73,9 @@ ZIP="$BUILD/rickroll.zip"
 (cd "$BUILD" && zip -qr "$ZIP" pack.mcmeta assets)
 SHA1=$(sha1sum "$ZIP" | cut -d' ' -f1)
 
-mkdir -p "$DEST/resourcepack" "$DEST/data/plugins/TrollRickroll"
+mkdir -p "$DEST/resourcepack" "$DEST/data/plugins/GuabRickroll"
 cp "$ZIP" "$DEST/resourcepack/rickroll.zip"
-cat > "$DEST/data/plugins/TrollRickroll/pack.properties" <<EOF
+cat > "$DEST/data/plugins/GuabRickroll/pack.properties" <<EOF
 frames=${COUNT}
 fps=${FPS}
 duration=${DURATION}

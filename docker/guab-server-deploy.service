@@ -1,0 +1,8 @@
+[Unit]
+Description=Deploy the latest Guab plugin build
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/guab-server/deploy.sh

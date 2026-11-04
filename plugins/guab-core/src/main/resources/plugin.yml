@@ -1,0 +1,6 @@
+name: GuabCore
+version: '${version}'
+main: gg.guab.core.GuabCorePlugin
+api-version: '26.3'
+description: Shared helpers and points ledger for the Guab parkour plugins.
+authors: [Guab]

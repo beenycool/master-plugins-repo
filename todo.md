@@ -6,19 +6,19 @@ Overall: `██░░░░░░░░` **17%** (10/58 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
-| troll-core        | `░░░░░░░░░░` 0% (0/7)       |
-| troll-blocks      | `░░░░░░░░░░` 0% (0/10)      |
-| troll-items       | `░░░░░░░░░░` 0% (0/7)       |
-| troll-rickroll    | `█████░░░░░` 53% (8/15)     |
-| troll-gambling    | `░░░░░░░░░░` 0% (0/8)       |
-| troll-minigames   | `░░░░░░░░░░` 0% (0/7)       |
+| guab-core        | `░░░░░░░░░░` 0% (0/7)       |
+| guab-blocks      | `░░░░░░░░░░` 0% (0/10)      |
+| guab-items       | `░░░░░░░░░░` 0% (0/7)       |
+| guab-rickroll    | `█████░░░░░` 53% (8/15)     |
+| guab-gambling    | `░░░░░░░░░░` 0% (0/8)       |
+| guab-minigames   | `░░░░░░░░░░` 0% (0/7)       |
 | shared / infra    | `█████░░░░░` 50% (2/4)      |
 
 Progress is per checklist line, updated by hand.
 
 The loop: **minigames earn points → gambling risks them → items and blocks are the rewards.**
 
-## troll-core — `░░░░░░░░░░` 0% (0/7)
+## guab-core — `░░░░░░░░░░` 0% (0/7)
 
 **What it does:** the shared foundation. Holds the player points ledger (the parkour currency) and common helpers. Every other plugin depends on it.
 
@@ -32,14 +32,14 @@ Status: boilerplate. The shared points ledger does not exist yet.
 - [ ] Shared cooldown helper and message helpers
 - [ ] Decide if core also owns the parkour scoreboard
 
-## troll-blocks — `░░░░░░░░░░` 0% (0/10)
+## guab-blocks — `░░░░░░░░░░` 0% (0/10)
 
-**What it does:** the parkour's troll blocks. Staff tag blocks; stepping on one can drop the player through the floor, hit them with a random bad potion effect, or swap them with another player.
+**What it does:** the parkour's prank blocks. Staff tag blocks; stepping on one can drop the player through the floor, hit them with a random bad potion effect, or swap them with another player.
 
 Status: boilerplate. Nothing implemented.
 
 - [ ] `blocks.yml` store keyed by `world;x;y;z`
-- [ ] `/trollblocks add <fake|potion|swap>`, `remove`, `list`, `reload`
+- [ ] `/guabblocks add <fake|potion|swap>`, `remove`, `list`, `reload`
 - [ ] Tab completion + permission
 - [ ] Fake block: fall-through chance, restore delay, break sound
 - [ ] Potion block: random effect from a list, duration and amplifier
@@ -49,21 +49,21 @@ Status: boilerplate. Nothing implemented.
 - [ ] Config for chances/durations; restore fake blocks after a show
 - [ ] Make sure blocks do not fire twice while standing still
 
-## troll-items — `░░░░░░░░░░` 0% (0/7)
+## guab-items — `░░░░░░░░░░` 0% (0/7)
 
-**What it does:** the troll items players earn or gamble for. A wind charge that boosts you forward or knocks others off, and a feather that grants permanent jump boost.
+**What it does:** the prank items players earn or gamble for. A wind charge that boosts you forward or knocks others off, and a feather that grants permanent jump boost.
 
 Status: boilerplate. Nothing implemented.
 
 - [ ] PDC-tagged items so names cannot be faked
 - [ ] Wind charge item: boost self forward, knock nearby players away
 - [ ] Jump boost feather: permanent jump boost, consumed on use
-- [ ] `/trollitems give <player> <wind_charge|jump_boost> [amount]`
+- [ ] `/guabitems give <player> <wind_charge|jump_boost> [amount]`
 - [ ] Right-click handling for main and off hand
 - [ ] Cooldowns and config values
 - [ ] Block crafting/renaming from producing fake copies
 
-## troll-rickroll — `█████░░░░░` 53% (8/15)
+## guab-rickroll — `█████░░░░░` 53% (8/15)
 
 **What it does:** the 1% joke. A tagged block sends the victim to a hidden cinema, locks them in spectator, and plays the rickroll video and song, then puts them back exactly where they were.
 
@@ -85,13 +85,13 @@ Status: working end-to-end with a placeholder pack (200 frames, 20s).
 - [ ] Decide full video vs loop for pack size and client VRAM
 - [ ] Optional: VHS static, scanlines, synced lyrics
 
-## troll-gambling — `░░░░░░░░░░` 0% (0/8)
+## guab-gambling — `░░░░░░░░░░` 0% (0/8)
 
 **What it does:** the point sink. Players wager the points they earn from minigames on casino games; a configurable house edge keeps the economy in check.
 
 Status: blocked on the core points ledger.
 
-- [ ] Load `PointsService` from TrollCore
+- [ ] Load `PointsService` from GuabCore
 - [ ] Min/max bet validation and balance checks
 - [ ] `/casino coinflip <bet> <heads|tails>`
 - [ ] 50/50 payout at 2x, configurable house edge
@@ -100,7 +100,7 @@ Status: blocked on the core points ledger.
 - [ ] Stats: biggest win, biggest loss, net profit
 - [ ] Announce big wins to the guild
 
-## troll-minigames — `░░░░░░░░░░` 0% (0/7)
+## guab-minigames — `░░░░░░░░░░` 0% (0/7)
 
 **What it does:** the point faucet. Battle pit and other small games outside the main parkour award points for kills and wins, which then feed gambling and item rewards.
 

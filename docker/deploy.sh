@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Pulls the latest rolling plugin build and restarts the Minecraft container.
-# Runs as root from troll-server-deploy.timer, every 2 minutes.
+# Runs as root from guab-server-deploy.timer, every 2 minutes.
 set -euo pipefail
 
-cd /opt/troll-server
+cd /opt/guab-server
 
-exec 9>/run/troll-deploy.lock
+exec 9>/run/guab-deploy.lock
 flock -n 9 || exit 0
 
 BASE="https://github.com/beenycool/master-plugins-repo/releases/download/deploy-latest"
@@ -31,8 +31,8 @@ compgen -G "$tmp/jars/*.jar" >/dev/null || { echo "tarball had no jars"; exit 1;
 
 echo "Deploying build ${remote}"
 
-if docker ps --format '{{.Names}}' | grep -qx troll-mc; then
-  docker exec troll-mc rcon-cli say "Plugins updated - restarting in 15s" || true
+if docker ps --format '{{.Names}}' | grep -qx guab-mc; then
+  docker exec guab-mc rcon-cli say "Plugins updated - restarting in 15s" || true
   sleep 15
 fi
 

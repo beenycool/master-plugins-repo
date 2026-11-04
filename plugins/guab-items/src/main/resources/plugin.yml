@@ -1,0 +1,7 @@
+name: GuabItems
+version: '${version}'
+main: gg.guab.items.GuabItemsPlugin
+api-version: '26.3'
+description: Wind charges, jump boost feathers and other prank items.
+authors: [Guab]
+depend: [GuabCore]

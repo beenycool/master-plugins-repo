@@ -1,0 +1,7 @@
+name: GuabMinigames
+version: '${version}'
+main: gg.guab.minigames.GuabMinigamesPlugin
+api-version: '26.3'
+description: Battle pit and other point-earning minigames.
+authors: [Guab]
+depend: [GuabCore]
