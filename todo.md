@@ -67,7 +67,7 @@ Status: boilerplate. Nothing implemented.
 
 **What it does:** the 1% joke. A tagged block sends the victim to a hidden cinema, locks them in spectator, and plays the rickroll video and song, then puts them back exactly where they were.
 
-Status: working end-to-end with the real video (2130 frames, 213s, 53 MB pack).
+Status: working end-to-end with the real video (2130 frames, 213s, 71 MB pack).
 
 - [x] 1% trigger block, per-player cooldown
 - [x] `/rickroll setblock`, `remove`, `test`, `stop`, `verify`, `reload`
@@ -77,7 +77,7 @@ Status: working end-to-end with the real video (2130 frames, 213s, 53 MB pack).
 - [x] SHA-1 verification, frame count/fps/duration via `pack.properties`
 - [x] Spectator lock, per-player midnight, restore on stop/quit/restart
 - [x] Fallback when the pack is declined
-- [x] Drop in the real mp4 and rebuild the pack (10 fps, 160x90, 53 MB)
+- [x] Drop in the real mp4 and rebuild the pack (10 fps, 192x108, 71 MB)
 - [ ] Visual QA: screen size/orientation, texture path, audio sync
 - [ ] Mark the first block in-game with `/rickroll setblock`
 - [ ] Full 3:33 show test, including disconnect mid-show

@@ -54,7 +54,7 @@ sudo docker exec guab-mc rcon-cli rickroll verify
 ```
 
 The pack is served at `:39002/rickroll.zip`. `pack.properties` feeds frame count, fps, duration
-and SHA-1 to the plugin. The current pack is the full 3:33 at 10 fps and 160x90 (~53 MB);
+and SHA-1 to the plugin. The current pack is the full 3:33 at 10 fps and 192x108 (~71 MB);
 rebuild with lower fps/width if clients struggle with the item atlas or download size.
 
 ## Add a plugin
