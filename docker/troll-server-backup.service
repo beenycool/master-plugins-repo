@@ -1,0 +1,6 @@
+[Unit]
+Description=Back up the troll server world
+
+[Service]
+Type=oneshot
+ExecStart=/opt/troll-server/backup.sh

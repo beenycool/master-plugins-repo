@@ -1,0 +1,7 @@
+name: TrollBlocks
+version: '${version}'
+main: gg.guab.troll.blocks.TrollBlocksPlugin
+api-version: '26.3'
+description: Fake, potion and swap blocks for the Guab parkour.
+authors: [Guab]
+depend: [TrollCore]

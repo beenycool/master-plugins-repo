@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily world backup for the troll server
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target

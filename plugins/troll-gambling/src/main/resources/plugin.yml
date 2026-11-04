@@ -1,0 +1,7 @@
+name: TrollGambling
+version: '${version}'
+main: gg.guab.troll.gambling.TrollGamblingPlugin
+api-version: '26.3'
+description: Casino and wagers for the Guab parkour points.
+authors: [Guab]
+depend: [TrollCore]

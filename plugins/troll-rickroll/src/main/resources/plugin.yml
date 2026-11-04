@@ -1,0 +1,7 @@
+name: TrollRickroll
+version: '${version}'
+main: gg.guab.troll.rickroll.TrollRickrollPlugin
+api-version: '26.3'
+description: The 1% rickroll block.
+authors: [Guab]
+depend: [TrollCore]

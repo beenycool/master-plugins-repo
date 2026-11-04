@@ -1,0 +1,48 @@
+name: Build plugins
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build
+        run: ./gradlew build --no-daemon
+
+      - name: Package
+        run: |
+          mkdir dist
+          cp plugins/*/build/libs/*.jar dist/
+          tar -czf plugins.tar.gz -C dist .
+          sha256sum plugins.tar.gz > plugins.sha256
+          git rev-parse HEAD > build.txt
+
+      - name: Publish rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view deploy-latest >/dev/null 2>&1 || \
+            gh release create deploy-latest \
+              --title "Deploy latest" \
+              --notes "Rolling build of every plugin jar. Consumed by the game server." \
+              --prerelease
+          gh release upload deploy-latest plugins.tar.gz plugins.sha256 build.txt --clobber

@@ -1,0 +1,7 @@
+name: TrollMinigames
+version: '${version}'
+main: gg.guab.troll.minigames.TrollMinigamesPlugin
+api-version: '26.3'
+description: Battle pit and other point-earning minigames.
+authors: [Guab]
+depend: [TrollCore]

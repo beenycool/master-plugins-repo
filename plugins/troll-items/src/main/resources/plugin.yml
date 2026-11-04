@@ -1,0 +1,7 @@
+name: TrollItems
+version: '${version}'
+main: gg.guab.troll.items.TrollItemsPlugin
+api-version: '26.3'
+description: Wind charges, jump boost feathers and other troll items.
+authors: [Guab]
+depend: [TrollCore]
