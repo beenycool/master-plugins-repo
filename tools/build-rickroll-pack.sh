@@ -18,6 +18,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="$ROOT/build/pack"
 DEST="${DEST:-/opt/guab-server}"
 PACK_FORMAT=97
+COLORS="${COLORS:-128}"
+AUDIO_QUALITY="${AUDIO_QUALITY:-5}"
 
 rm -rf "$BUILD"
 mkdir -p "$BUILD/assets/guab/textures/item/frame" "$BUILD/assets/guab/sounds"
@@ -34,9 +36,18 @@ if [ "$COUNT" -lt 1 ]; then
 fi
 
 if command -v pngquant >/dev/null 2>&1; then
-  echo "Quantizing ${COUNT} frames..."
+  echo "Quantizing ${COUNT} frames to ${COLORS} colors..."
   find "$BUILD/assets/guab/textures/item/frame" -name '*.png' -print0 \
-    | xargs -0 -P "$(nproc)" -n 32 pngquant 128 --speed 1 --force --skip-if-larger --ext .png || true
+    | xargs -0 -P "$(nproc)" -n 32 pngquant "$COLORS" --speed 1 --force --skip-if-larger --ext .png || true
+fi
+
+if command -v advpng >/dev/null 2>&1; then
+  echo "Optimizing PNGs..."
+  find "$BUILD/assets/guab/textures/item/frame" -name '*.png' -print0 \
+    | xargs -0 -P "$(nproc)" -n 32 advpng -z4 -q || true
+elif command -v optipng >/dev/null 2>&1; then
+  find "$BUILD/assets/guab/textures/item/frame" -name '*.png' -print0 \
+    | xargs -0 -P "$(nproc)" -n 32 optipng -o2 -quiet || true
 fi
 
 echo "Writing ${COUNT} item models..."
@@ -46,13 +57,13 @@ import os
 import sys
 
 build, count = sys.argv[1], int(sys.argv[2])
-for folder in ("models/item/frame", "models/frame", "items/frame"):
+for folder in ("models/item/frame", "items/frame"):
     os.makedirs(os.path.join(build, "assets/guab", folder), exist_ok=True)
 
 for index in range(1, count + 1):
     name = f"{index:04d}"
     model = {"parent": "minecraft:item/generated", "textures": {"layer0": f"guab:item/frame/{name}"}}
-    for folder in ("models/item/frame", "models/frame"):
+    for folder in ("models/item/frame",):
         path = os.path.join(build, "assets/guab", folder, name + ".json")
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(model, handle, separators=(",", ":"))
@@ -66,7 +77,7 @@ PY
 echo "Encoding audio..."
 HAS_AUDIO=0
 if ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 "$VIDEO" | grep -q audio; then
-  ffmpeg -loglevel error -y -i "$VIDEO" -vn -c:a libvorbis -q:a 5 "$BUILD/assets/guab/sounds/rickroll.ogg"
+  ffmpeg -loglevel error -y -i "$VIDEO" -vn -c:a libvorbis -q:a "$AUDIO_QUALITY" "$BUILD/assets/guab/sounds/rickroll.ogg"
   cat > "$BUILD/assets/guab/sounds.json" <<'JSON'
 {"rickroll":{"sounds":[{"name":"guab:rickroll","stream":true}]}}
 JSON
