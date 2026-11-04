@@ -16,6 +16,8 @@ cinema:
   world: "guab_cinema"
   intro-ticks: 40
   fallback-seconds: 15
+  width: 12.0
+  height: 6.75
 
 # Used only when pack.properties has no duration.
 show-seconds: 213

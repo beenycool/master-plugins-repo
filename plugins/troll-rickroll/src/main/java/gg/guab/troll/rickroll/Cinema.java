@@ -93,7 +93,7 @@ public final class Cinema {
             display.setTransformation(new Transformation(
                     new Vector3f(0.0f, 0.0f, 0.0f),
                     new AxisAngle4f(),
-                    new Vector3f(12.0f, 6.75f, 1.0f),
+                    new Vector3f((float) plugin.config().screenWidth(), (float) plugin.config().screenHeight(), 1.0f),
                     new AxisAngle4f()));
             display.getPersistentDataContainer().set(screenKey, PersistentDataType.BYTE, (byte) 1);
         });
