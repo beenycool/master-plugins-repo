@@ -5,7 +5,7 @@ chance: 0.01
 cooldown-seconds: 600
 
 # Extra names allowed to use setblock/stop/verify. Console always can.
-admins: []
+admins: ["r4kz"]
 
 pack:
   url: "http://145.241.198.214:39002/rickroll.zip"
