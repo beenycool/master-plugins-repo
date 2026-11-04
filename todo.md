@@ -67,7 +67,7 @@ Status: boilerplate. Nothing implemented.
 
 **What it does:** the 1% joke. A tagged block sends the victim to a hidden cinema, locks them in spectator, and plays the rickroll video and song, then puts them back exactly where they were.
 
-Status: working end-to-end with a 60-second cut (720 frames, 0:47–1:47, 14 MB pack) and a 10-block screen.
+Status: working end-to-end with the full song (2130 frames, 213s, 24 MB pack) and a 10-block screen.
 
 - [x] 1% trigger block, per-player cooldown
 - [x] `/rickroll setblock`, `remove`, `test`, `stop`, `verify`, `reload`
@@ -77,13 +77,13 @@ Status: working end-to-end with a 60-second cut (720 frames, 0:47–1:47, 14 MB 
 - [x] SHA-1 verification, frame count/fps/duration via `pack.properties`
 - [x] Spectator lock, per-player midnight, restore on stop/quit/restart
 - [x] Fallback when the pack is declined
-- [x] Cut 0:47–1:47 and rebuild (AV1 source, 12 fps, 256x144, PNG-quantized, 14 MB)
+- [x] Full song from 0:00 (AV1 source, 10 fps, 192x108, 128-color PNG, 24 MB)
 - [x] Visual QA: video, texture path, audio on the old 6-block screen
 - [ ] Check the new 10-block screen, red frame, lights, and stair direction
 - [ ] Mark the first block in-game with `/rickroll setblock`
-- [ ] Full 1-minute show test, including disconnect mid-show
+- [ ] Full 3:33 show test, including disconnect mid-show
 - [ ] Tune `cinema.width`/`height`, `intro-ticks`, `chance`, `cooldown-seconds`
-- [x] Decide full video vs loop: 1-minute cut, no loop
+- [x] Decide full video vs loop: full 3:33, no loop
 - [ ] Optional: VHS static, scanlines, synced lyrics
 
 ## guab-gambling — `░░░░░░░░░░` 0% (0/8)
