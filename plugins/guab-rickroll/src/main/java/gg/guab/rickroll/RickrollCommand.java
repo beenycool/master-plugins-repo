@@ -148,6 +148,7 @@ public final class RickrollCommand implements CommandExecutor, TabCompleter {
         try (ZipFile zip = new ZipFile(file)) {
             info(sender, "mcmeta=" + (zip.getEntry("pack.mcmeta") != null)
                     + " model=" + (zip.getEntry("assets/guab/models/item/frame/0001.json") != null)
+                    + " definition=" + (zip.getEntry("assets/guab/items/frame/0001.json") != null)
                     + " texture=" + (zip.getEntry("assets/guab/textures/frame/0001.png") != null)
                     + " sound=" + (zip.getEntry("assets/guab/sounds/rickroll.ogg") != null));
         } catch (IOException exception) {

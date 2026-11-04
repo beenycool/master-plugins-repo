@@ -40,7 +40,7 @@ import os
 import sys
 
 build, count = sys.argv[1], int(sys.argv[2])
-for folder in ("models/item/frame", "models/frame"):
+for folder in ("models/item/frame", "models/frame", "items/frame"):
     os.makedirs(os.path.join(build, "assets/guab", folder), exist_ok=True)
 
 for index in range(1, count + 1):
@@ -50,6 +50,11 @@ for index in range(1, count + 1):
         path = os.path.join(build, "assets/guab", folder, name + ".json")
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(model, handle, separators=(",", ":"))
+    # 1.21.4+ resolves ITEM_MODEL through assets/<ns>/items/<id>.json.
+    definition = {"model": {"type": "minecraft:model", "model": f"guab:item/frame/{name}"}}
+    path = os.path.join(build, "assets/guab/items/frame", name + ".json")
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(definition, handle, separators=(",", ":"))
 PY
 
 echo "Encoding audio..."
