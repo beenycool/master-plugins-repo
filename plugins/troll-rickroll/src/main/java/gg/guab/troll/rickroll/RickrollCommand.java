@@ -7,7 +7,6 @@ import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
@@ -186,10 +185,10 @@ public final class RickrollCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean admin(CommandSender sender) {
-        if (sender instanceof ConsoleCommandSender) {
+        if (!(sender instanceof Player player)) {
             return true;
         }
-        return sender instanceof Player player && plugin.config().admins().contains(player.getName().toLowerCase());
+        return plugin.config().admins().contains(player.getName().toLowerCase());
     }
 
     private void usage(CommandSender sender) {
