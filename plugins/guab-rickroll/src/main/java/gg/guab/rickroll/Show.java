@@ -74,7 +74,7 @@ final class Show {
                 if (!started) {
                     startFallback();
                 }
-            }, 20L * 15);
+            }, 20L * plugin.config().packTimeoutSeconds());
         }
     }
 

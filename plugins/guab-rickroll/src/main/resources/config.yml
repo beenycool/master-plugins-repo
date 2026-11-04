@@ -7,6 +7,8 @@ cooldown-seconds: 600
 pack:
   url: "http://145.241.198.214:39002/rickroll.zip"
   preload: true
+  # How long to wait for the client to accept/download the pack before falling back.
+  timeout-seconds: 180
   file: "/resourcepack/rickroll.zip"
 
 cinema:
