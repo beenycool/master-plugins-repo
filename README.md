@@ -65,9 +65,9 @@ itself is PNG frames because Minecraft item textures cannot be AV1. Tune with `C
 ## Points and the casino event
 
 `GuabCore` owns the shared wallet. Your balance sits in the sidebar and the tab-list header
-(refreshed every second), `/points` shows it in chat; staff use
-`/points set|add|take <player> <amount>`. Balances live in `plugins/GuabCore/points.yml` and are
-flushed every five minutes and on shutdown. When the Vault plugin is present, GuabCore registers
+(refreshed every second), `/points` shows it in chat and `/points top` lists the leaderboard;
+staff use `/points set|add|take <player> <amount>`. Balances live in `plugins/GuabCore/points.yml`
+and are flushed every minute and on shutdown. When the Vault plugin is present, GuabCore registers
 the ledger as the server's Vault economy, so third-party plugins spend Guab points directly.
 
 The casino is a walk-in venue for the one-night event, built by `GuabGambling` and powered by

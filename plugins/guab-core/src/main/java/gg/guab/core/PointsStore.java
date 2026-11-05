@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -86,6 +87,17 @@ public final class PointsStore implements PointsService {
             return balance - amount;
         });
         return taken[0];
+    }
+
+    @Override
+    public List<Map.Entry<UUID, Integer>> top(int limit) {
+        int wanted = Math.max(1, limit);
+        return balances.entrySet().stream()
+                .filter(entry -> entry.getValue() > 0)
+                .sorted(Map.Entry.<UUID, Integer>comparingByValue().reversed())
+                .limit(wanted)
+                .map(entry -> Map.entry(entry.getKey(), entry.getValue()))
+                .toList();
     }
 
     public int size() {

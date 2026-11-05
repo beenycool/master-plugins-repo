@@ -102,10 +102,29 @@ public final class HudManager implements Listener {
         if (raw == null) {
             return "";
         }
-        return raw
+        String out = raw
                 .replace("%player%", player.getName())
                 .replace("%points%", String.format(Locale.ROOT, "%,d", points.get(player.getUniqueId())))
                 .replace("%online%", String.valueOf(Bukkit.getOnlinePlayers().size()));
+        if (out.contains("%top")) {
+            List<Map.Entry<UUID, Integer>> ranking = points.top(3);
+            for (int i = 0; i < 3; i++) {
+                out = out.replace("%top" + (i + 1) + "%", topLine(ranking, i));
+            }
+        }
+        return out;
+    }
+
+    private String topLine(List<Map.Entry<UUID, Integer>> ranking, int index) {
+        if (index >= ranking.size()) {
+            return "";
+        }
+        Map.Entry<UUID, Integer> entry = ranking.get(index);
+        String name = Bukkit.getOfflinePlayer(entry.getKey()).getName();
+        if (name == null) {
+            name = entry.getKey().toString().substring(0, 8);
+        }
+        return name + " " + String.format(Locale.ROOT, "%,d", entry.getValue());
     }
 
     private final class Panel {

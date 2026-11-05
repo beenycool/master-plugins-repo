@@ -1,5 +1,5 @@
 # How often balances are flushed to points.yml (seconds).
-save-interval-seconds: 300
+save-interval-seconds: 60
 
 # The sidebar and the tab-list header. Both refresh on a timer so points earned
 # through the casino show up without any extra plugin hooks.
@@ -15,8 +15,13 @@ hud:
       - ""
       - "&7Online &8» &f%online%"
       - ""
+      - "&8Top points"
+      - "&6#1 &f%top1%"
+      - "&7#2 &f%top2%"
+      - "&7#3 &f%top3%"
+      - ""
       - "&8/casino &7for the casino"
-      - "&8/points &7to check your balance"
+      - "&8/points &7for the leaderboard"
 
   tab:
     enabled: true

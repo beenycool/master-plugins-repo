@@ -1,5 +1,7 @@
 package gg.guab.core;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -19,4 +21,7 @@ public interface PointsService {
 
     /** Take points if the balance covers it. Returns false and changes nothing otherwise. */
     boolean take(UUID player, int amount);
+
+    /** Highest balances first, skipping empty accounts. */
+    List<Map.Entry<UUID, Integer>> top(int limit);
 }

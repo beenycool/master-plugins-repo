@@ -13,6 +13,8 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 
 public final class PointsCommand implements CommandExecutor, TabCompleter {
 
@@ -34,6 +36,9 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
         }
 
         String first = args[0].toLowerCase(Locale.ROOT);
+        if (first.equals("top") || first.equals("leaderboard")) {
+            return top(sender, args);
+        }
         if (first.equals("set") || first.equals("add") || first.equals("take")) {
             return mutate(sender, first, args);
         }
@@ -99,6 +104,38 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    private boolean top(CommandSender sender, String[] args) {
+        int limit = 5;
+        if (args.length >= 2) {
+            try {
+                limit = Integer.parseInt(args[1]);
+            } catch (NumberFormatException exception) {
+                error(sender, "Usage: /points top [count]");
+                return true;
+            }
+        }
+        limit = Math.max(1, Math.min(20, limit));
+        List<Map.Entry<UUID, Integer>> ranking = plugin.points().top(limit);
+        if (ranking.isEmpty()) {
+            info(sender, "No points have been earned yet.");
+            return true;
+        }
+        info(sender, "Top " + ranking.size() + " balances:");
+        int rank = 1;
+        for (Map.Entry<UUID, Integer> entry : ranking) {
+            String name = Bukkit.getOfflinePlayer(entry.getKey()).getName();
+            if (name == null) {
+                name = entry.getKey().toString().substring(0, 8);
+            }
+            sender.sendMessage(Component.text("  #" + rank + " ", NamedTextColor.DARK_GRAY)
+                    .append(Component.text(name, NamedTextColor.WHITE))
+                    .append(Component.text(" — ", NamedTextColor.DARK_GRAY))
+                    .append(Component.text(String.format(Locale.ROOT, "%,d", entry.getValue()), NamedTextColor.GOLD)));
+            rank++;
+        }
+        return true;
+    }
+
     private OfflinePlayer resolve(String name) {
         Player online = Bukkit.getPlayerExact(name);
         if (online != null) {
@@ -127,6 +164,7 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> out = new ArrayList<>();
         if (args.length == 1) {
+            out.add("top");
             if (sender.hasPermission("guab.points.admin")) {
                 out.addAll(List.of("set", "add", "take"));
             }

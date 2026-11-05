@@ -10,7 +10,7 @@ loadbefore: [MineGames]
 commands:
   points:
     description: Show or change Guab points.
-    usage: /points [player] | /points <set|add|take> <player> <amount>
+    usage: /points [player] | /points top [count] | /points <set|add|take> <player> <amount>
     aliases: [guabpoints]
 
 permissions:
