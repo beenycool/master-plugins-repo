@@ -6,6 +6,8 @@ description: The Guab casino venue, backed by the shared points ledger.
 authors: [Guab]
 depend: [GuabCore]
 softdepend: [MineGames, Vault]
+# Load (and pre-load the casino world) before MineGames, which resolves station worlds on enable.
+loadbefore: [MineGames]
 
 commands:
   casino:

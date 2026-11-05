@@ -22,6 +22,14 @@ public final class GuabGamblingPlugin extends JavaPlugin {
         }
         getServer().getPluginManager().registerEvents(new CasinoGuard(venue), this);
 
+        // MineGames resolves station worlds during its own enable, so make sure the
+        // casino world exists first. It also keeps the venue warm between events.
+        try {
+            venue.world();
+        } catch (RuntimeException exception) {
+            getLogger().warning("Could not pre-load the casino world: " + exception.getMessage());
+        }
+
         getLogger().info("GuabGambling ready (casino " + (config.enabled() ? "open" : "closed") + ").");
     }
 
