@@ -31,6 +31,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "enter", "tp" -> enter(sender, true);
             case "build" -> build(sender);
+            case "setup" -> setup(sender, args);
             case "setspawn" -> setSpawn(sender);
             case "status" -> status(sender);
             case "reload" -> reload(sender);
@@ -73,8 +74,69 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         info(sender, "Then set the event open with event.enabled: true.");
     }
 
-    private void setSpawn(CommandSender sender) {
+    private void setup(CommandSender sender, String[] args) {
         if (!sender.hasPermission("guab.casino.admin")) {
+            error(sender, "You need guab.casino.admin to place the stations.");
+            return;
+        }
+        Player target;
+        if (args.length >= 2) {
+            target = Bukkit.getPlayerExact(args[1]);
+        } else if (Bukkit.getOnlinePlayers().size() == 1) {
+            target = Bukkit.getOnlinePlayers().iterator().next();
+        } else {
+            target = null;
+        }
+        if (target == null) {
+            error(sender, args.length >= 2
+                    ? "Player " + args[1] + " is not online."
+                    : "Specify a player: /casino setup <player>");
+            return;
+        }
+
+        List<SetupStep> steps = List.of(
+                new SetupStep(0.5, 65.0, 0.5, "rouletteadmin create"),
+                new SetupStep(19.5, 65.0, -9.5, "slotsadmin create 3 1"),
+                new SetupStep(19.5, 65.0, -4.5, "slotsadmin create 3 1"),
+                new SetupStep(19.5, 65.0, 0.5, "slotsadmin create 3 1"),
+                new SetupStep(19.5, 65.0, 7.5, "minegameadmin create"),
+                new SetupStep(-14.5, 65.0, 12.5, "chickenadmin create 7"),
+                new SetupStep(-14.5, 65.0, 0.5, "fightadmin create 9 2"));
+
+        var world = plugin.venue().world();
+        var home = target.getLocation().clone();
+        target.closeInventory();
+        info(sender, "Placing " + steps.size() + " stations as " + target.getName() + "...");
+        runStep(sender, target, world, steps, 0, home);
+    }
+
+    private void runStep(CommandSender sender, Player player, org.bukkit.World world,
+                         List<SetupStep> steps, int index, Location home) {
+        if (!player.isOnline()) {
+            error(sender, player.getName() + " left before the stations were placed.");
+            return;
+        }
+        if (index >= steps.size()) {
+            player.teleport(home);
+            player.setFallDistance(0.0f);
+            info(sender, "All stations placed. Walk in with /casino and check each table.");
+            return;
+        }
+        SetupStep step = steps.get(index);
+        Location at = new Location(world, step.x(), step.y(), step.z(), 180.0f, 0.0f);
+        player.teleport(at);
+        player.setFallDistance(0.0f);
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            boolean ran = Bukkit.dispatchCommand(player, step.command());
+            info(sender, "  " + step.command() + " -> " + (ran ? "ran" : "not handled"));
+            runStep(sender, player, world, steps, index + 1, home);
+        }, 4L);
+    }
+
+    private record SetupStep(double x, double y, double z, String command) {
+    }
+
+    private void setSpawn(CommandSender sender) {        if (!sender.hasPermission("guab.casino.admin")) {
             error(sender, "You need guab.casino.admin to move the casino spawn.");
             return;
         }
@@ -113,7 +175,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
     }
 
     private void usage(CommandSender sender) {
-        info(sender, "/casino [enter|build|setspawn|status|reload]");
+        info(sender, "/casino [enter|build|setup [player]|setspawn|status|reload]");
     }
 
     private void info(CommandSender sender, String message) {
@@ -132,7 +194,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             out.add("enter");
             if (sender.hasPermission("guab.casino.admin")) {
-                out.addAll(List.of("build", "setspawn", "status", "reload"));
+                out.addAll(List.of("build", "setup", "setspawn", "status", "reload"));
             }
         }
         String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
