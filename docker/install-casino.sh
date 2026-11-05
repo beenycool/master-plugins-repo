@@ -16,8 +16,9 @@ fetch() {
 }
 
 # MineGames 1.0.6 (GPL-3.0) - physical casino stations, Vault economy.
-# The installed jar carries docker/patches/minegames-world-spawn.patch, which spawns
-# fighters in the arena's world instead of the console's world. Keep it once built.
+# The installed jar carries docker/patches/minegames-fights.patch, which spawns
+# fighters in the arena's world instead of the console's world, and previews them
+# (frozen, with their real gear) during the betting window. Keep it once built.
 if [ -f "$DEST/minegames-1.0.6.jar" ]; then
   echo "Keeping the patched MineGames build already installed."
 else
