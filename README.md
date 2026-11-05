@@ -90,6 +90,17 @@ Stand on each coloured pad and create its station: `/rouletteadmin create` (red,
 `event.enabled: true` under `GuabGambling`, run `/casino reload`, and players walk in with
 `/casino`. The venue blocks non-admin building and cancels damage and hunger.
 
+Station pads, in the `guab_casino` world at `y=65` (relative to `0, 64, 0`):
+
+| Station | Stand at | Command |
+| --- | --- | --- |
+| Roulette | `0 65 0` | `/rouletteadmin create` |
+| Slots | `19 65 -10`, `19 65 -5`, `19 65 0` | `/slotsadmin create 3 1` |
+| Mines | `19 65 7` (on the beacon) | `/minegameadmin create` |
+| Chicken | `-15 65 12` | `/chickenadmin create 7` |
+| Fights | `-15 65 0` | `/fightadmin create 9 2` |
+| Dice | anywhere | `/dice` |
+
 Third-party jars are pinned in `docker/install-casino.sh` with SHA-256 checks and installed to
 `/opt/guab-server/third-party`; `deploy.sh` reinstalls them after every jar swap.
 
