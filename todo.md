@@ -2,11 +2,11 @@
 
 Last updated: 2026-11-05
 
-Overall: `████░░░░░░` **44%** (26/59 checklist items)
+Overall: `████░░░░░░` **45%** (27/60 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
-| guab-core        | `███████░░░` 75% (6/8)       |
+| guab-core        | `███████░░░` 78% (7/9)       |
 | guab-blocks      | `░░░░░░░░░░` 0% (0/10)      |
 | guab-items       | `░░░░░░░░░░` 0% (0/7)       |
 | guab-rickroll    | `████████░░` 79% (15/19)    |
@@ -17,7 +17,7 @@ Progress is per checklist line, updated by hand.
 
 The loop: **minigames earn points → gambling risks them → items and blocks are the rewards.**
 
-## guab-core — `███████░░░` 75% (6/8)
+## guab-core — `███████░░░` 78% (7/9)
 
 **What it does:** the shared foundation. Holds the player points ledger (the parkour currency) and common helpers. Every other plugin depends on it.
 
@@ -29,6 +29,7 @@ Status: live. `PointsService` is registered, `/points` works, and the ledger bac
 - [x] Async save every 5 minutes + save on disable
 - [x] `/points` command (self balance, staff can inspect others)
 - [x] Vault `Economy` bridge over the ledger (offline refunds, integer points)
+- [x] Sidebar balance, online count and tab-list header
 - [ ] Shared cooldown helper and message helpers
 - [ ] Decide if core also owns the parkour scoreboard
 

@@ -8,6 +8,7 @@ import org.bukkit.scheduler.BukkitTask;
 public final class GuabCorePlugin extends JavaPlugin {
 
     private PointsStore points;
+    private HudManager hud;
     private BukkitTask saveTask;
 
     @Override
@@ -33,12 +34,21 @@ public final class GuabCorePlugin extends JavaPlugin {
         boolean vault = getServer().getPluginManager().getPlugin("Vault") != null
                 && VaultHook.install(this, points);
 
+        if (getConfig().getBoolean("hud.enabled", true)) {
+            this.hud = new HudManager(this, points);
+            this.hud.start();
+        }
+
         getLogger().info("GuabCore ready (" + points.size() + " balances"
                 + (vault ? ", Vault economy registered" : "") + ").");
     }
 
     @Override
     public void onDisable() {
+        if (hud != null) {
+            hud.stop();
+            hud = null;
+        }
         if (saveTask != null) {
             saveTask.cancel();
             saveTask = null;
