@@ -2,34 +2,34 @@
 
 Last updated: 2026-11-05
 
-Overall: `████░░░░░░` **45%** (27/60 checklist items)
+Overall: `█████░░░░░` **49%** (32/65 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
-| guab-core        | `███████░░░` 78% (7/9)       |
+| guab-core        | `████████░░` 78% (7/9)       |
 | guab-blocks      | `░░░░░░░░░░` 0% (0/10)      |
 | guab-items       | `░░░░░░░░░░` 0% (0/7)       |
 | guab-rickroll    | `████████░░` 79% (15/19)    |
-| guab-gambling    | `██████░░░░` 63% (5/8)       |
+| guab-gambling    | `████████░░` 77% (10/13)    |
 | guab-minigames   | `░░░░░░░░░░` 0% (0/7)       |
 
 Progress is per checklist line, updated by hand.
 
 The loop: **minigames earn points → gambling risks them → items and blocks are the rewards.**
 
-## guab-core — `███████░░░` 78% (7/9)
+## guab-core — `████████░░` 78% (7/9)
 
 **What it does:** the shared foundation. Holds the player points ledger (the parkour currency) and common helpers. Every other plugin depends on it.
 
-Status: live. `PointsService` is registered, `/points` works, and the ledger backs the Vault economy so the casino spends real points.
+Status: live. `PointsService` is registered, `/points` and `/points top` work, the ledger backs the Vault economy, and the sidebar carries a top-3 leaderboard. Balances flush every 60 seconds.
 
-- [x] `PointsService` interface: `get`, `set`, `add`, `take`
+- [x] `PointsService` interface: `get`, `set`, `add`, `take`, `top`
 - [x] YAML-backed store (`points.yml`), clamp at zero
 - [x] Register the service in `ServicesManager` so other plugins can load it
-- [x] Async save every 5 minutes + save on disable
-- [x] `/points` command (self balance, staff can inspect others)
+- [x] Async save every minute (60s) + save on disable
+- [x] `/points` command (self balance, staff can inspect others, `/points top` leaderboard)
 - [x] Vault `Economy` bridge over the ledger (offline refunds, integer points)
-- [x] Sidebar balance, online count and tab-list header
+- [x] Sidebar balance, top-3 leaderboard, online count and tab-list header
 - [ ] Shared cooldown helper and message helpers
 - [ ] Decide if core also owns the parkour scoreboard
 
@@ -90,20 +90,27 @@ Status: live on build `cc5b645`. One-minute cut from 0:19 (720 frames, 60s, 7.62
 - [x] Decide full video vs loop: 1-minute cut, no loop
 - [ ] Optional: VHS static, scanlines
 
-## guab-gambling — `██████░░░░` 63% (5/8)
+## guab-gambling — `████████░░` 77% (10/13)
 
 **What it does:** the point sink. A walk-in casino for the one-night event: MineGames runs the physical tables (roulette, slots, mines, chicken, mob fights, dice) on top of the Guab points ledger, inside a venue built by this plugin.
 
-Status: live in production. Venue built, all six station types placed, event open, points flowing through Vault.
+Status: live in production. Venue built, all six station types placed, event open, points flowing through Vault. Bets are uncapped, roulette idles until the first wager, fights preview frozen fighters with their real gear, holograms no longer duplicate, and the slots are retuned to roughly 92% RTP. Chicken still needs its paytable fixed.
 
 - [x] Load `PointsService` from GuabCore
 - [x] Vault economy bridge so MineGames spends and refunds Guab points
-- [x] Walk-in venue: `/casino build|status|reload|setspawn`, protected world
+- [x] Walk-in venue: `/casino build|setup|dispatch|status|reload|setspawn`, protected world
 - [x] Pin VaultUnlocked + MineGames in the deploy pipeline
 - [x] Place stations: roulette, three slots, mines, chicken, fight arena
-- [ ] Set event limits: bet caps, house funding, permissions
+- [x] Event limits: no per-bet cap, `/casino` open to everyone, 1,000-point first-join stake
+- [x] Roulette idles until the first wager
+- [x] Fight preview: fighters spawn frozen with their real gear during betting
+- [x] Fix fight holograms duplicating across chunk unloads
+- [x] Retune slots: 8 weighted reels (3 diamonds), 1.5x pair / 10x triple, ~92% RTP
+- [ ] Retune chicken: `green-bonus: 8.0` is +EV, early cash-out is risk-free, offline wins are not paid
 - [ ] Rehearse with two accounts, including a disconnect mid-round refund
 - [ ] Teardown: remove stations, close the casino
+
+Event-night ops: freeze the auto-deploy timer, snapshot `points.yml`, and close with `event.enabled: false` + `/casino reload`.
 
 ## guab-minigames — `░░░░░░░░░░` 0% (0/7)
 
