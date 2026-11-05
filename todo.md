@@ -1,15 +1,15 @@
 # Plugin TODOs
 
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
-Overall: `███░░░░░░░` **25%** (14/57 checklist items)
+Overall: `███░░░░░░░` **26%** (15/58 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
 | guab-core        | `░░░░░░░░░░` 0% (0/7)       |
 | guab-blocks      | `░░░░░░░░░░` 0% (0/10)      |
 | guab-items       | `░░░░░░░░░░` 0% (0/7)       |
-| guab-rickroll    | `████████░░` 78% (14/18)    |
+| guab-rickroll    | `████████░░` 79% (15/19)    |
 | guab-gambling    | `░░░░░░░░░░` 0% (0/8)       |
 | guab-minigames   | `░░░░░░░░░░` 0% (0/7)       |
 
@@ -62,21 +62,22 @@ Status: boilerplate. Nothing implemented.
 - [ ] Cooldowns and config values
 - [ ] Block crafting/renaming from producing fake copies
 
-## guab-rickroll — `████████░░` 78% (14/18)
+## guab-rickroll — `████████░░` 79% (15/19)
 
-**What it does:** the 1% joke. A tagged block sends the victim to a hidden cinema, locks them in spectator, and plays the rickroll video and song, then puts them back exactly where they were.
+**What it does:** the 5% joke. A tagged block sends the victim to a hidden cinema, locks them in spectator, and plays the rickroll video and song, then puts them back exactly where they were.
 
-Status: one-minute cut from 0:19 (720 frames, 60s, 7.6 MB pack), 12 fps, synced lyrics, notched 1:00 boss bar, brighter cinema, disconnect restore, and 5%/5 min trigger.
+Status: live on build `cc5b645`. One-minute cut from 0:19 (720 frames, 60s, 7.62 MB pack), 12 fps, shared 256-color palette, synced lyrics, notched 1:00 boss bar, brighter cinema, disconnect restore, and 5%/5 min trigger.
 
-- [x] 1% trigger block, per-player cooldown
+- [x] 5% trigger block, per-player cooldown (300s)
 - [x] `/rickroll setblock`, `remove`, `test`, `stop`, `verify`, `reload`
 - [x] Hidden void cinema world + room
 - [x] ItemDisplay screen with per-frame `ITEM_MODEL` swapping
 - [x] Resource pack build script + pack server (`:39002`)
+- [x] Shared-palette 256-color pipeline (dedupe, oxipng/advpng, `zip -9 -X`)
 - [x] SHA-1 verification, frame count/fps/duration via `pack.properties`
 - [x] Spectator lock, per-player midnight, restore on stop/quit/restart
 - [x] Fallback when the pack is declined
-- [x] 60-second cut from 0:19 (AV1 source, 12 fps, 192x108, shared 256-color palette, 7.6 MB lossless)
+- [x] 60-second cut from 0:19 (AV1 source, 12 fps, 192x108, shared 256-color palette, 7.62 MB lossless)
 - [x] Visual QA: video, texture path, audio on the old 6-block screen
 - [x] Synced lyrics on the action bar (LRC timestamps)
 - [x] Boss-bar countdown timer (1:00 to 0:00, notched)
@@ -115,3 +116,10 @@ Status: blocked on the core points ledger.
 - [ ] Respawn at the pit spawn, keep or drop inventory config
 - [ ] Action bar/scoreboard for the current streak
 - [ ] Additional point-earning minigames outside the main parkour
+
+## Platform
+
+Decision (2026-11-05): stay on Paper. Pumpkin (Rust) was reviewed — it is pre-1.0, plugins are
+WASM, and rickroll's features map reasonably well, but the API is unstable and the world/render
+parity risk is not worth a cutover yet. Revisit when Pumpkin reaches 1.0, or run a parallel
+PatchBukkit spike on a spare port if curiosity wins.
