@@ -1,0 +1,13 @@
+# Set this to true on event night. When false, /casino tells players the casino is closed.
+event:
+  enabled: false
+
+venue:
+  world: guab_casino
+  # Centre of the hall. The room is 51x35 and 9 blocks tall around this point.
+  x: 0
+  y: 64
+  z: 0
+  spawn-x: 0
+  spawn-y: 65
+  spawn-z: 15

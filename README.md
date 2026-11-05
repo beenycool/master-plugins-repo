@@ -62,6 +62,37 @@ losslessly recompressed with `oxipng` or `advpng`. The source is archived as AV1
 itself is PNG frames because Minecraft item textures cannot be AV1. Tune with `COLORS` and
 `DITHER`; `DITHER=none` is smaller and sharper but can band on gradients.
 
+## Points and the casino event
+
+`GuabCore` owns the shared wallet. `/points` shows your balance; staff use
+`/points set|add|take <player> <amount>`. Balances live in `plugins/GuabCore/points.yml` and are
+flushed every five minutes and on shutdown. When the Vault plugin is present, GuabCore registers
+the ledger as the server's Vault economy, so third-party plugins spend Guab points directly.
+
+The casino is a walk-in venue for the one-night event, built by `GuabGambling` and powered by
+MineGames:
+
+```bash
+sudo /opt/guab-server/install-casino.sh     # pinned VaultUnlocked + MineGames
+sudo /opt/guab-server/deploy.sh --force
+```
+
+Then, in game as an op:
+
+```
+/casino build      # creates the guab_casino world and paints the station pads
+/casino status     # confirms MineGames, Vault and the points ledger are hooked up
+```
+
+Stand on each coloured pad and create its station: `/rouletteadmin create` (red, centre),
+`/slotsadmin create 3 1` (lime, three pads), `/minegameadmin create` (blue, on the beacon),
+`/chickenadmin create 7` (yellow), `/fightadmin create 9 2` (orange, arena origin). Set
+`event.enabled: true` under `GuabGambling`, run `/casino reload`, and players walk in with
+`/casino`. The venue blocks non-admin building and cancels damage and hunger.
+
+Third-party jars are pinned in `docker/install-casino.sh` with SHA-256 checks and installed to
+`/opt/guab-server/third-party`; `deploy.sh` reinstalls them after every jar swap.
+
 ## Add a plugin
 
 1. Add `"plugins:guab-name"` to `settings.gradle.kts`.

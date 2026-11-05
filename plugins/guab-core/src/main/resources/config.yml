@@ -1,0 +1,2 @@
+# How often balances are flushed to points.yml (seconds).
+save-interval-seconds: 300

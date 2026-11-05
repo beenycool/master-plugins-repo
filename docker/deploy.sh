@@ -10,6 +10,7 @@ flock -n 9 || exit 0
 
 BASE="https://github.com/beenycool/master-plugins-repo/releases/download/deploy-latest"
 STAMP="$(date +%s)"
+THIRD_PARTY_DIR="${THIRD_PARTY_DIR:-/opt/guab-server/third-party}"
 
 remote="$(curl -fsSL --retry 3 --retry-delay 2 "${BASE}/build.txt?${STAMP}")" || exit 0
 [ -n "$remote" ] || exit 0
@@ -49,6 +50,12 @@ fi
 
 rm -f data/plugins/*.jar plugins/*.jar
 cp "$tmp/jars"/*.jar plugins/
+
+# Third-party plugins (Vault, the casino) are pinned outside the release and are
+# reinstalled on every deploy so a jar swap never drops them.
+if compgen -G "$THIRD_PARTY_DIR/*.jar" >/dev/null; then
+  cp "$THIRD_PARTY_DIR"/*.jar plugins/
+fi
 
 docker compose up -d
 echo "$remote" > .deployed-build

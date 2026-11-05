@@ -4,3 +4,19 @@ main: gg.guab.core.GuabCorePlugin
 api-version: '26.3'
 description: Shared helpers and points ledger for the Guab parkour plugins.
 authors: [Guab]
+softdepend: [Vault]
+loadbefore: [MineGames]
+
+commands:
+  points:
+    description: Show or change Guab points.
+    usage: /points [player] | /points <set|add|take> <player> <amount>
+    aliases: [guabpoints]
+
+permissions:
+  guab.points.others:
+    description: Check another player's points.
+    default: op
+  guab.points.admin:
+    description: Set, add or take points.
+    default: op

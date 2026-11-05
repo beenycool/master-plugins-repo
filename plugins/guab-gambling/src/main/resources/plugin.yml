@@ -2,6 +2,24 @@ name: GuabGambling
 version: '${version}'
 main: gg.guab.gambling.GuabGamblingPlugin
 api-version: '26.3'
-description: Casino and wagers for the Guab parkour points.
+description: The Guab casino venue, backed by the shared points ledger.
 authors: [Guab]
 depend: [GuabCore]
+softdepend: [MineGames, Vault]
+
+commands:
+  casino:
+    description: Walk into the Guab casino, or build and inspect it.
+    usage: /casino [enter|build|setspawn|status|reload]
+    aliases: [gcasino]
+
+permissions:
+  guab.casino.use:
+    description: Enter the casino.
+    default: true
+  guab.casino.admin:
+    description: Build the casino, move its spawn and reload it.
+    default: op
+  guab.casino.build:
+    description: Change blocks inside the casino world.
+    default: op

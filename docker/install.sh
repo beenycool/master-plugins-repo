@@ -10,6 +10,7 @@ install -m 644 "$SRC/docker-compose.yml" "$DEST/docker-compose.yml"
 install -m 755 "$SRC/deploy.sh" "$DEST/deploy.sh"
 install -m 755 "$SRC/rollback.sh" "$DEST/rollback.sh"
 install -m 755 "$SRC/backup.sh" "$DEST/backup.sh"
+install -m 755 "$SRC/install-casino.sh" "$DEST/install-casino.sh"
 install -m 755 "$SRC/webhook.py" "$DEST/webhook.py"
 
 for unit in guab-server-deploy guab-server-backup; do
@@ -27,7 +28,7 @@ if ! grep -q '^DEPLOY_TOKEN=' "$DEST/.env"; then
   printf 'DEPLOY_TOKEN=%s\n' "$(openssl rand -hex 32)" >> "$DEST/.env"
 fi
 
-mkdir -p "$DEST/plugins" "$DEST/data" "$DEST/backups" "$DEST/resourcepack" "$DEST/media"
+mkdir -p "$DEST/plugins" "$DEST/data" "$DEST/backups" "$DEST/resourcepack" "$DEST/media" "$DEST/third-party"
 
 cd "$DEST"
 docker compose up -d

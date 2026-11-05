@@ -19,6 +19,11 @@ docker compose down
 rm -f data/plugins/*.jar plugins/*.jar
 cp previous/*.jar plugins/
 
+THIRD_PARTY_DIR="${THIRD_PARTY_DIR:-/opt/guab-server/third-party}"
+if compgen -G "$THIRD_PARTY_DIR/*.jar" >/dev/null; then
+  cp "$THIRD_PARTY_DIR"/*.jar plugins/
+fi
+
 if [ -s .previous-build ]; then
   cp .previous-build .installed-build
 fi
