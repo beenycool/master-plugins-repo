@@ -41,7 +41,7 @@ sudo /opt/guab-server/rollback.sh        # revert, sticks until the next push
 
 ## Rickroll
 
-`GuabRickroll` tags blocks with `/rickroll setblock`; stepping on one has a 1% chance to send
+`GuabRickroll` tags blocks with `/rickroll setblock`; stepping on one has a 5% chance to send
 the player to a hidden cinema for the video and song. `/rickroll test` rickrolls yourself.
 During the show the lyrics appear above the hotbar and a pink boss bar counts down the song.
 
@@ -55,11 +55,12 @@ sudo docker exec guab-mc rcon-cli rickroll verify
 ```
 
 The pack is served at `:39002/rickroll.zip`. `pack.properties` feeds frame count, fps, duration
-and SHA-1 to the plugin. The current pack is a 60-second cut starting at 0:19 (the first lyric) at 12 fps and 192x108
-(~7.5 MB), quantized to a 128-color palette and losslessly recompressed with `advpng`. The
-source is archived as AV1, but the pack itself is PNG frames because Minecraft item textures
-cannot be AV1. When `pngquant` is installed the build quantizes each frame; without it the same
-pack is much larger.
+and SHA-1 to the plugin. The current pack is a 60-second cut starting at 0:19 (the first lyric)
+at 12 fps and 192x108 (~7.6 MB). Frames share one 256-color palette for the whole clip, so colors
+do not flicker between frames, duplicate frames reuse a single texture, and the PNGs are
+losslessly recompressed with `oxipng` or `advpng`. The source is archived as AV1, but the pack
+itself is PNG frames because Minecraft item textures cannot be AV1. Tune with `COLORS` and
+`DITHER`; `DITHER=none` is smaller and sharper but can band on gradients.
 
 ## Add a plugin
 

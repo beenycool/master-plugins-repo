@@ -66,7 +66,7 @@ Status: boilerplate. Nothing implemented.
 
 **What it does:** the 1% joke. A tagged block sends the victim to a hidden cinema, locks them in spectator, and plays the rickroll video and song, then puts them back exactly where they were.
 
-Status: one-minute cut from 0:19 (720 frames, 60s, 7.5 MB pack), 12 fps, synced lyrics, notched 1:00 boss bar, brighter cinema, disconnect restore, and 5%/5 min trigger.
+Status: one-minute cut from 0:19 (720 frames, 60s, 7.6 MB pack), 12 fps, synced lyrics, notched 1:00 boss bar, brighter cinema, disconnect restore, and 5%/5 min trigger.
 
 - [x] 1% trigger block, per-player cooldown
 - [x] `/rickroll setblock`, `remove`, `test`, `stop`, `verify`, `reload`
@@ -76,7 +76,7 @@ Status: one-minute cut from 0:19 (720 frames, 60s, 7.5 MB pack), 12 fps, synced 
 - [x] SHA-1 verification, frame count/fps/duration via `pack.properties`
 - [x] Spectator lock, per-player midnight, restore on stop/quit/restart
 - [x] Fallback when the pack is declined
-- [x] 60-second cut from 0:19 (AV1 source, 12 fps, 192x108, 128-color PNG, 7.5 MB lossless)
+- [x] 60-second cut from 0:19 (AV1 source, 12 fps, 192x108, shared 256-color palette, 7.6 MB lossless)
 - [x] Visual QA: video, texture path, audio on the old 6-block screen
 - [x] Synced lyrics on the action bar (LRC timestamps)
 - [x] Boss-bar countdown timer (1:00 to 0:00, notched)
