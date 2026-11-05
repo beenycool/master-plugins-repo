@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-05
 
-Overall: `████░░░░░░` **42%** (25/59 checklist items)
+Overall: `████░░░░░░` **44%** (26/59 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
@@ -10,7 +10,7 @@ Overall: `████░░░░░░` **42%** (25/59 checklist items)
 | guab-blocks      | `░░░░░░░░░░` 0% (0/10)      |
 | guab-items       | `░░░░░░░░░░` 0% (0/7)       |
 | guab-rickroll    | `████████░░` 79% (15/19)    |
-| guab-gambling    | `█████░░░░░` 50% (4/8)       |
+| guab-gambling    | `██████░░░░` 63% (5/8)       |
 | guab-minigames   | `░░░░░░░░░░` 0% (0/7)       |
 
 Progress is per checklist line, updated by hand.
@@ -89,17 +89,17 @@ Status: live on build `cc5b645`. One-minute cut from 0:19 (720 frames, 60s, 7.62
 - [x] Decide full video vs loop: 1-minute cut, no loop
 - [ ] Optional: VHS static, scanlines
 
-## guab-gambling — `█████░░░░░` 50% (4/8)
+## guab-gambling — `██████░░░░` 63% (5/8)
 
 **What it does:** the point sink. A walk-in casino for the one-night event: MineGames runs the physical tables (roulette, slots, mines, chicken, mob fights, dice) on top of the Guab points ledger, inside a venue built by this plugin.
 
-Status: venue and economy are live on the test stack; stations still need placing in game before event night.
+Status: live in production. Venue built, all six station types placed, event open, points flowing through Vault.
 
 - [x] Load `PointsService` from GuabCore
 - [x] Vault economy bridge so MineGames spends and refunds Guab points
 - [x] Walk-in venue: `/casino build|status|reload|setspawn`, protected world
 - [x] Pin VaultUnlocked + MineGames in the deploy pipeline
-- [ ] Place stations: roulette, three slots, mines, chicken, fight arena
+- [x] Place stations: roulette, three slots, mines, chicken, fight arena
 - [ ] Set event limits: bet caps, house funding, permissions
 - [ ] Rehearse with two accounts, including a disconnect mid-round refund
 - [ ] Teardown: remove stations, close the casino
