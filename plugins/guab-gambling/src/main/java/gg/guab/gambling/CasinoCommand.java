@@ -32,6 +32,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
             case "enter", "tp" -> enter(sender, true);
             case "build" -> build(sender);
             case "setup" -> setup(sender, args);
+            case "dispatch" -> dispatch(sender, args);
             case "setspawn" -> setSpawn(sender);
             case "status" -> status(sender);
             case "reload" -> reload(sender);
@@ -136,6 +137,26 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
     private record SetupStep(double x, double y, double z, String command) {
     }
 
+    private void dispatch(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("guab.casino.admin")) {
+            error(sender, "You need guab.casino.admin to dispatch commands.");
+            return;
+        }
+        if (args.length < 3) {
+            error(sender, "Usage: /casino dispatch <player> <command...>");
+            return;
+        }
+        Player target = Bukkit.getPlayerExact(args[1]);
+        if (target == null) {
+            error(sender, "Player " + args[1] + " is not online.");
+            return;
+        }
+        String command = String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length));
+        boolean ran = Bukkit.dispatchCommand(target, command);
+        info(sender, "Dispatched '" + command + "' as " + target.getName()
+                + " (" + (ran ? "handled" : "not handled") + ").");
+    }
+
     private void setSpawn(CommandSender sender) {        if (!sender.hasPermission("guab.casino.admin")) {
             error(sender, "You need guab.casino.admin to move the casino spawn.");
             return;
@@ -175,7 +196,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
     }
 
     private void usage(CommandSender sender) {
-        info(sender, "/casino [enter|build|setup [player]|setspawn|status|reload]");
+        info(sender, "/casino [enter|build|setup [player]|dispatch <player> <command>|setspawn|status|reload]");
     }
 
     private void info(CommandSender sender, String message) {
@@ -194,7 +215,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             out.add("enter");
             if (sender.hasPermission("guab.casino.admin")) {
-                out.addAll(List.of("build", "setup", "setspawn", "status", "reload"));
+                out.addAll(List.of("build", "setup", "dispatch", "setspawn", "status", "reload"));
             }
         }
         String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
