@@ -118,19 +118,42 @@ public final class HudManager implements Listener, CommandExecutor {
         return !hide;
     }
 
+    private static final List<String> DEFAULT_WELCOME = List.of(
+            "&6&lWelcome to Guab, &f%player%&6!",
+            "&7Balance &8» &6%points% &7points",
+            "",
+            "&6Where everything is:",
+            "&eCasino &8» &f/casino &7— slots, roulette, chicken, fights",
+            "&eWetherspoons &8» &7inside the casino, north-west corner &8— &f1-point beer",
+            "&eBattle pit &8» &f/battlepit join &7— 50 points per kill",
+            "&eBlackjack &8» &f/bj <bet> &7— hit, stand or double",
+            "&ePoints &8» &f/points &7| &f/bal &7| &f/points top",
+            "&eHUD &8» &f/hud &7to hide or show the sidebar");
+
     private void sendWelcome(Player player) {
         if (!player.isOnline() || !plugin.getConfig().getBoolean("hud.join-message.enabled", true)) {
             return;
         }
-        int balance = points.get(player.getUniqueId());
-        player.sendMessage(Component.text("Welcome, ", NamedTextColor.GOLD)
-                .append(Component.text(player.getName(), NamedTextColor.WHITE))
-                .append(Component.text(" — balance ", NamedTextColor.GRAY))
-                .append(Component.text(String.format(Locale.ROOT, "%,d", balance), NamedTextColor.GOLD))
+        List<String> template = plugin.getConfig().getStringList("hud.join-message.lines");
+        if (template.isEmpty()) {
+            template = DEFAULT_WELCOME;
+        }
+        player.sendMessage(Component.empty());
+        for (String line : template) {
+            player.sendMessage(parse(replace(line, player)));
+        }
+        player.sendMessage(Component.empty()
+                .append(button("[Enter casino]", "/casino", NamedTextColor.GREEN, "Teleport to the casino"))
                 .append(Component.text("  "))
-                .append(Component.text("[Enter casino]", NamedTextColor.GREEN)
-                        .clickEvent(ClickEvent.runCommand("/casino"))
-                        .hoverEvent(HoverEvent.showText(Component.text("Teleport to the casino", NamedTextColor.GRAY)))));
+                .append(button("[Battle pit]", "/battlepit join", NamedTextColor.RED, "Join the free-for-all pit"))
+                .append(Component.text("  "))
+                .append(button("[Blackjack]", "/bj 10", NamedTextColor.AQUA, "Start a 10-point blackjack hand")));
+    }
+
+    private Component button(String label, String command, NamedTextColor color, String hover) {
+        return Component.text(label, color)
+                .clickEvent(ClickEvent.runCommand(command))
+                .hoverEvent(HoverEvent.showText(Component.text(hover, NamedTextColor.GRAY)));
     }
 
     private void attach(Player player) {
