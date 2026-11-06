@@ -232,8 +232,10 @@ public final class DartsManager implements Listener {
         showHud(player, game);
         present(player, game, result, point);
         if (result.kind() != DartsGame.Kind.BUST) {
-            send(player, "Hit " + result.hit().label() + " for " + result.hit().score()
-                    + " · " + result.scoreAfter() + " left", NamedTextColor.WHITE);
+            String hitText = result.hit().score() == 0
+                    ? "Missed"
+                    : "Hit " + result.hit().label() + " for " + result.hit().score();
+            send(player, hitText + " · " + result.scoreAfter() + " left", NamedTextColor.WHITE);
         }
 
         if (result.kind() == DartsGame.Kind.CHECKOUT) {
@@ -372,7 +374,9 @@ public final class DartsManager implements Listener {
             world.spawnParticle(Particle.DUST, point, 18, 0.18, 0.18, 0.18, 0.0,
                     new Particle.DustOptions(Color.fromRGB(0xF4C542), 0.9f));
             world.spawnParticle(Particle.CRIT, point, 10, 0.12, 0.12, 0.12, 0.02);
-            spawnDart(point);
+            if (!room.isInRoom(player)) {
+                spawnDart(point);
+            }
         }
 
         if (result.kind() == DartsGame.Kind.BUST) {
