@@ -1,0 +1,28 @@
+# Token-protected HTTP command endpoint.
+#
+#   curl "http://YOUR_IP:39100/command?token=SECRET&cmd=list"
+#   curl -H "Authorization: Bearer SECRET" "http://YOUR_IP:39100/command?cmd=list"
+#   curl -X POST -H "Authorization: Bearer SECRET" --data "say hello" \
+#        "http://YOUR_IP:39100/command"
+#
+# The port must be reachable from the internet. On shared Minecraft hosting only
+# the game port is usually exposed, so ask the host for an extra TCP port or run
+# a relay (see README.md).
+web:
+  enabled: true
+  bind: "0.0.0.0"
+  port: 39100
+
+  # Must be a long random string. The server refuses to start with the default.
+  token: "change-me-to-a-long-random-string"
+
+  request-timeout-seconds: 10
+  max-command-length: 1000
+  rate-limit-per-minute: 60
+
+  # Empty list = allow any source IP. Otherwise list exact IPs.
+  allowed-ips: []
+
+  # Refuse commands starting with these strings (lowercase). Example:
+  # blocked-prefixes: ["op ", "deop ", "stop", "restart"]
+  blocked-prefixes: []

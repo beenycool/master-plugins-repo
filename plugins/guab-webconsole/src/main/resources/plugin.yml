@@ -1,0 +1,6 @@
+name: GuabWebConsole
+version: '${version}'
+main: gg.guab.webconsole.GuabWebConsolePlugin
+api-version: '26.3'
+description: Token-protected HTTP endpoint for running console commands with curl.
+authors: [Guab]
