@@ -25,7 +25,6 @@ public record ItemsConfig(
         int jumpBoostAmplifier,
         int jumpBoostCooldownSeconds,
         int beerCooldownSeconds,
-        int spoonCooldownSeconds,
         List<BeerEffect> beerEffects,
         int maxGiveAmount) {
 
@@ -45,7 +44,6 @@ public record ItemsConfig(
                 Math.clamp(cfg.getInt("jump-boost.amplifier", 2), 0, 255),
                 Math.max(0, cfg.getInt("jump-boost.cooldown-seconds", 30)),
                 Math.max(0, cfg.getInt("beer.cooldown-seconds", 3)),
-                Math.max(0, cfg.getInt("spoon.cooldown-seconds", 2)),
                 loadBeerEffects(cfg),
                 Math.clamp(cfg.getInt("command.max-give-amount", 64), 1, 2304));
     }
@@ -109,10 +107,6 @@ public record ItemsConfig(
 
     public long beerCooldownMillis() {
         return beerCooldownSeconds * 1000L;
-    }
-
-    public long spoonCooldownMillis() {
-        return spoonCooldownSeconds * 1000L;
     }
 
     public long windChargeCooldownMillis() {

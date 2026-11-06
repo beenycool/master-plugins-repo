@@ -140,9 +140,13 @@ Players bet on red, blue, gold or green, then either cash out at 1.00× for exac
 
 ### Wetherspoons
 
-A small Wetherspoons pub sits in the north-west corner of the casino hall (`x -24..-16`, `z -16..-10`). Right-click the barrel on the bar at `-20, 66, -14` to buy a pint for **25 points**. Drinking gives a brief wobble and sends one random line to the drinker only — nobody else sees it.
+A small Wetherspoons pub sits in the north-west corner of the casino hall (`x -24..-16`, `z -16..-10`). Right-click the barrel on the bar at `-20, 66, -14` to buy a pint for **1 point**.
 
-Staff can hand out items with `/guabitems give <player> beer 64` or `/guabitems give <player> spoon`; the spoon clangs when right-clicked and is never consumed.
+Beer stacks to **64**, uses a custom mug texture from the resource pack, and on drinking picks a real beer name (Stella, Guinness, Carling, Peroni, …) plus a flavour line. Both lines go **only to the drinker**.
+
+Staff can hand out stacks with `/guabitems give <player> beer 64`.
+
+The item texture lives in `guab-items.zip` on the pack host (`:39002`) and is applied as the server resource pack; the same asset is embedded in the rickroll pack so beer stays textured after a show.
 
 ### Snapshots
 

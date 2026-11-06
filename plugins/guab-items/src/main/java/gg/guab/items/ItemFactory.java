@@ -27,9 +27,20 @@ public final class ItemFactory {
         ItemMeta meta = stack.getItemMeta();
         meta.displayName(type.displayName());
         meta.lore(type.lore());
+        applyModel(meta, type);
         meta.getPersistentDataContainer().set(typeKey, PersistentDataType.STRING, type.id());
         stack.setItemMeta(meta);
         return stack;
+    }
+
+    private void applyModel(ItemMeta meta, ItemType type) {
+        if (type.itemModel() == null) {
+            return;
+        }
+        NamespacedKey model = NamespacedKey.fromString(type.itemModel());
+        if (model != null) {
+            meta.setItemModel(model);
+        }
     }
 
     /**
@@ -96,6 +107,7 @@ public final class ItemFactory {
         ItemMeta meta = copy.getItemMeta();
         meta.displayName(type.displayName());
         meta.lore(type.lore());
+        applyModel(meta, type);
         meta.getPersistentDataContainer().set(typeKey, PersistentDataType.STRING, type.id());
         copy.setItemMeta(meta);
         return copy;

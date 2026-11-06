@@ -25,38 +25,48 @@ jump-boost:
 
 # Beer from the Wetherspoons tap in the casino.
 beer:
-  # Points charged per pint. 0 = free.
-  cost: 25
+  # Points charged per pint. 1 keeps it cheap enough to be a Wetherspoons.
+  cost: 1
   # Per-player cooldown between drinks, in seconds.
-  cooldown-seconds: 3
+  cooldown-seconds: 2
   # Per-player cooldown between pulls of the tap, in seconds.
-  tap-cooldown-seconds: 2
+  tap-cooldown-seconds: 1
   # Light effects so a pint feels like a pint.
   effects:
     - type: nausea
-      duration-seconds: 8
-      amplifier: 1
-    - type: slowness
       duration-seconds: 6
       amplifier: 0
-  # One line is picked at random and sent only to the drinker.
+  # Real beers that can come out of the tap. One is named in the drinker's
+  # private chat line; the item stays a single stackable "Beer".
+  names:
+    - "Stella Artois"
+    - "Guinness"
+    - "Carling"
+    - "Foster's"
+    - "San Miguel"
+    - "Peroni"
+    - "Birra Moretti"
+    - "Heineken"
+    - "Corona"
+    - "Budweiser"
+    - "John Smith's"
+    - "Strongbow"
+    - "Thatchers Gold"
+    - "London Pride"
+  # One flavour line is picked at random and sent only to the drinker.
   messages:
-    - "Ahh. A pint of Ruddles, GBP 1.99."
     - "You feel mildly Wetherspoons."
     - "Cheap beer, expensive regrets."
     - "The carpet really ties the room together."
     - "You order at the bar. Nobody comes."
     - "That is one pint closer to closing time."
+    - "A true Spoons classic."
   # The barrel that acts as the tap.
   tap:
     world: guab_casino
     x: -20
     y: 66
     z: -14
-
-spoon:
-  # Per-player cooldown between clangs, in seconds. The spoon is not consumed.
-  cooldown-seconds: 2
 
 command:
   # Upper bound accepted by /guabitems give.

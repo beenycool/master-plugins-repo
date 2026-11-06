@@ -36,29 +36,27 @@ public enum ItemType {
 
     BEER(
             "beer",
-            Material.HONEY_BOTTLE,
+            Material.GLASS_BOTTLE,
             "Beer",
             NamedTextColor.YELLOW,
             List.of(
                     "A pint from Wetherspoons.",
-                    "Right-click to drink.")),
-
-    SPOON(
-            "spoon",
-            Material.IRON_SHOVEL,
-            "Wetherspoon",
-            NamedTextColor.WHITE,
-            List.of(
-                    "Clang it against the bar.",
-                    "Right-click for a clang."));
+                    "Right-click to drink."),
+            "guab:beer");
 
     private final String id;
     private final Material material;
     private final String plainName;
     private final Component displayName;
     private final List<Component> lore;
+    private final String itemModel;
 
     ItemType(String id, Material material, String plainName, NamedTextColor color, List<String> lore) {
+        this(id, material, plainName, color, lore, null);
+    }
+
+    ItemType(String id, Material material, String plainName, NamedTextColor color, List<String> lore, String itemModel) {
+        this.itemModel = itemModel;
         this.id = id;
         this.material = material;
         this.plainName = plainName;
@@ -76,6 +74,11 @@ public enum ItemType {
 
     public Material material() {
         return material;
+    }
+
+    /** Custom item-model key from the resource pack, or null for a vanilla model. */
+    public String itemModel() {
+        return itemModel;
     }
 
     public String plainName() {

@@ -9,7 +9,7 @@ depend: [GuabCore]
 commands:
   guabitems:
     description: Give or reload the Guab prank items.
-    usage: /guabitems give <player> <wind_charge|jump_boost|beer|spoon> [amount] | /guabitems reload
+    usage: /guabitems give <player> <wind_charge|jump_boost|beer> [amount] | /guabitems reload
     permission: guab.items.admin
     aliases: [gi]
 

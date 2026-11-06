@@ -88,21 +88,18 @@ public final class ItemListener implements Listener {
             case WIND_CHARGE -> useWindCharge(player);
             case JUMP_BOOST -> useJumpBoost(player);
             case BEER -> useBeer(player);
-            case SPOON -> useSpoon(player);
         }
 
         long cooldown = switch (type) {
             case WIND_CHARGE -> plugin.config().windChargeCooldownMillis();
             case JUMP_BOOST -> plugin.config().jumpBoostCooldownMillis();
             case BEER -> plugin.config().beerCooldownMillis();
-            case SPOON -> plugin.config().spoonCooldownMillis();
         };
         plugin.cooldowns().start(player.getUniqueId(), type, cooldown);
 
         boolean consume = switch (type) {
             case WIND_CHARGE -> plugin.config().windChargeConsume();
             case JUMP_BOOST, BEER -> true;
-            case SPOON -> false;
         };
         if (consume) {
             consumeOne(player, hand);
@@ -167,16 +164,18 @@ public final class ItemListener implements Listener {
         }
         player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK, 1.0f, 0.9f);
 
-        List<String> lines = plugin.getConfig().getStringList("beer.messages");
-        String line = lines.isEmpty()
-                ? "You feel mildly Wetherspoons."
-                : lines.get(ThreadLocalRandom.current().nextInt(lines.size()));
-        player.sendMessage(Component.text(line, NamedTextColor.YELLOW));
-    }
+        List<String> names = plugin.getConfig().getStringList("beer.names");
+        String name = names.isEmpty()
+                ? "beer"
+                : names.get(ThreadLocalRandom.current().nextInt(names.size()));
+        player.sendMessage(Component.text("You crack open a cold " + name + ".", NamedTextColor.YELLOW));
 
-    private void useSpoon(Player player) {
-        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0f, 1.4f);
-        player.sendMessage(Component.text("Clang! You are now a Wetherspoon.", NamedTextColor.GRAY));
+        List<String> lines = plugin.getConfig().getStringList("beer.messages");
+        if (!lines.isEmpty()) {
+            player.sendMessage(Component.text(
+                    lines.get(ThreadLocalRandom.current().nextInt(lines.size())),
+                    NamedTextColor.GRAY));
+        }
     }
 
     private void consumeOne(Player player, EquipmentSlot hand) {

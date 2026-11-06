@@ -54,7 +54,7 @@ public final class GuabItemsCommand implements CommandExecutor, TabCompleter {
         }
         ItemType type = ItemType.byId(args[2]);
         if (type == null) {
-            error(sender, "Unknown item: " + args[2] + " (use wind_charge, jump_boost, beer or spoon).");
+            error(sender, "Unknown item: " + args[2] + " (use wind_charge, jump_boost or beer).");
             return;
         }
 
@@ -100,7 +100,7 @@ public final class GuabItemsCommand implements CommandExecutor, TabCompleter {
 
     private void usage(CommandSender sender, String label) {
         sender.sendMessage(Component.text(
-                "/" + label + " give <player> <wind_charge|jump_boost|beer|spoon> [amount]",
+                "/" + label + " give <player> <wind_charge|jump_boost|beer> [amount]",
                 NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/" + label + " reload", NamedTextColor.GRAY));
     }
