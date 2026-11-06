@@ -12,11 +12,29 @@ commands:
     usage: /guabitems give <player> <wind_charge|jump_boost|beer> [amount] | /guabitems reload
     permission: guab.items.admin
     aliases: [gi]
+  round:
+    description: Buy a round of beers for everyone in the pub.
+    usage: /round
+    permission: guab.pub.use
+  pints:
+    description: Show your pint count and the pub leaderboard.
+    usage: /pints [top]
+    permission: guab.pub.use
+  quiz:
+    description: Start a pub quiz question.
+    usage: /quiz
+    permission: guab.pub.quiz.start
 
 permissions:
   guab.items.admin:
     description: Give Guab items and reload their configuration.
     default: op
   guab.items.use:
-    description: Use tagged Guab prank items.
+    description: Use tagged Guab prank items and the beer tap.
     default: true
+  guab.pub.use:
+    description: Buy rounds and check the pint leaderboard.
+    default: true
+  guab.pub.quiz.start:
+    description: Start a pub quiz question.
+    default: op

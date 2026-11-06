@@ -163,6 +163,7 @@ public final class ItemListener implements Listener {
                     effect.type(), effect.durationTicks(), effect.amplifier(), false, true, true));
         }
         player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK, 1.0f, 0.9f);
+        plugin.pub().recordDrink(player);
 
         List<String> names = plugin.getConfig().getStringList("beer.names");
         String name = names.isEmpty()

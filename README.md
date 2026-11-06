@@ -148,6 +148,16 @@ Staff can hand out stacks with `/guabitems give <player> beer 64`.
 
 The item texture lives in `guab-items.zip` on the pack host (`:39002`) and is applied as the server resource pack; the same asset is embedded in the rickroll pack so beer stays textured after a show.
 
+**Pub features**
+
+- **Drunk meter** — pints in the last 10 minutes stack nausea/slowness and show `Tipsy → Merry → Drunk → Absolutely Wetherspoons` on the action bar.
+- **Pints leaderboard** — lifetime pints are saved to `pints.yml`, `/pints [top]` lists them, and a hologram above the bar shows the top three.
+- **`/round`** — buys a pint for everyone within 14 blocks of the pub centre, 1 point each.
+- **Pub quiz** — every 10 minutes (or `/quiz`) a question goes out in chat; the first correct answer wins 100 points.
+- **Darts** — right-click the target block on the west wall. Bullseye is 50, outer bull 25, otherwise 1–20.
+- **Beer menu** — five `pale_oak_shelf` blocks behind the bar display 15 bottle models (14 real beers). Shelf interactions are locked so the menu cannot be emptied.
+- **Carpet** — the pack overrides `red_carpet` with the Wetherspoons-style pattern, so the pub rug and the casino aisles share it.
+
 ### Snapshots
 
 `/casino snapshot` (op) writes `data/backups/casino-snapshot-<timestamp>.zip` containing `points.yml`, the GuabCore/GuabGambling configs and every MineGames YAML.

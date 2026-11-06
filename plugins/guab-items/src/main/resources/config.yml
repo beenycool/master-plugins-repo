@@ -68,6 +68,64 @@ beer:
     y: 66
     z: -14
 
+# The Wetherspoons pub side of the plugin.
+pub:
+  # Centre of the pub, used by /round and the drunk radius checks.
+  centre:
+    world: guab_casino
+    x: -20.5
+    y: 65.0
+    z: -13.0
+  pints:
+    leaderboard:
+      enabled: true
+      world: guab_casino
+      x: -17.5
+      y: 67.3
+      z: -12.5
+  drunk:
+    # Pints older than this stop counting towards the drunk meter.
+    window-seconds: 600
+  round:
+    radius: 14.0
+    cost-per-pint: 1
+    cooldown-seconds: 30
+  darts:
+    board:
+      world: guab_casino
+      x: -24
+      y: 66
+      z: -12
+    cooldown-seconds: 2
+  quiz:
+    enabled: true
+    # Seconds between automatic questions.
+    interval-seconds: 600
+    reward: 100
+    timeout-seconds: 90
+    # "question | answer" or "question | answer one/answer two"
+    questions:
+      - "What is the capital of Australia? | Canberra"
+      - "How many players from one team are on a football pitch? | 11/eleven"
+      - "What is the chemical symbol for gold? | Au"
+      - "Which stout is known as the black stuff? | Guinness"
+      - "What year did the first Wetherspoon open? | 1979"
+      - "Which is the largest planet in the solar system? | Jupiter"
+      - "What is seven multiplied by eight? | 56/fifty six"
+      - "Which country does Peroni come from? | Italy"
+      - "Which spirit is the base of a mojito? | rum/white rum"
+      - "How many pints are in a UK gallon? | 8/eight"
+      - "Which city is the home of the Cavern Club? | Liverpool"
+      - "What is the main grain in beer? | barley"
+  menu:
+    # Shelves whose contents are display-only and cannot be taken.
+    shelves:
+      - "guab_casino;-23;66;-15"
+      - "guab_casino;-22;66;-15"
+      - "guab_casino;-21;66;-15"
+      - "guab_casino;-20;66;-15"
+      - "guab_casino;-19;66;-15"
+
 command:
   # Upper bound accepted by /guabitems give.
   max-give-amount: 64
