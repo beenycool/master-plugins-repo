@@ -138,6 +138,12 @@ All pads are in the `guab_casino` world at `y=65` (relative to `0, 64, 0`).
 
 Players bet on red, blue, gold or green, then either cash out at 1.00× for exactly their stake or ride the lightning for a chance at 4.6×. The 7×7 board has 10 black (dead) tiles, so the chance of landing on the chosen colour is **39/196 ≈ 19.9%**, giving a **~91.5% return** for players who never cash out. Cash-out is a break-even escape hatch, not a profit button. Winners are paid even if they disconnect before the round resolves.
 
+### Wetherspoons
+
+A small Wetherspoons pub sits in the north-west corner of the casino hall (`x -24..-16`, `z -16..-10`). Right-click the barrel on the bar at `-20, 66, -14` to buy a pint for **25 points**. Drinking gives a brief wobble and sends one random line to the drinker only — nobody else sees it.
+
+Staff can hand out items with `/guabitems give <player> beer 64` or `/guabitems give <player> spoon`; the spoon clangs when right-clicked and is never consumed.
+
 ### Snapshots
 
 `/casino snapshot` (op) writes `data/backups/casino-snapshot-<timestamp>.zip` containing `points.yml`, the GuabCore/GuabGambling configs and every MineGames YAML.

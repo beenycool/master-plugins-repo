@@ -23,6 +23,41 @@ jump-boost:
   # Per-player cooldown between uses, in seconds.
   cooldown-seconds: 30
 
+# Beer from the Wetherspoons tap in the casino.
+beer:
+  # Points charged per pint. 0 = free.
+  cost: 25
+  # Per-player cooldown between drinks, in seconds.
+  cooldown-seconds: 3
+  # Per-player cooldown between pulls of the tap, in seconds.
+  tap-cooldown-seconds: 2
+  # Light effects so a pint feels like a pint.
+  effects:
+    - type: nausea
+      duration-seconds: 8
+      amplifier: 1
+    - type: slowness
+      duration-seconds: 6
+      amplifier: 0
+  # One line is picked at random and sent only to the drinker.
+  messages:
+    - "Ahh. A pint of Ruddles, GBP 1.99."
+    - "You feel mildly Wetherspoons."
+    - "Cheap beer, expensive regrets."
+    - "The carpet really ties the room together."
+    - "You order at the bar. Nobody comes."
+    - "That is one pint closer to closing time."
+  # The barrel that acts as the tap.
+  tap:
+    world: guab_casino
+    x: -20
+    y: 66
+    z: -14
+
+spoon:
+  # Per-player cooldown between clangs, in seconds. The spoon is not consumed.
+  cooldown-seconds: 2
+
 command:
   # Upper bound accepted by /guabitems give.
   max-give-amount: 64

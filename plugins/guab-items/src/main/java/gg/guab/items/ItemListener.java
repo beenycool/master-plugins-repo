@@ -3,6 +3,7 @@ package gg.guab.items;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.GameMode;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -20,7 +21,9 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
+import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Right-click behaviour and the guards that keep renamed/crafted lookalikes inert.
@@ -84,18 +87,26 @@ public final class ItemListener implements Listener {
         switch (type) {
             case WIND_CHARGE -> useWindCharge(player);
             case JUMP_BOOST -> useJumpBoost(player);
+            case BEER -> useBeer(player);
+            case SPOON -> useSpoon(player);
         }
 
         long cooldown = switch (type) {
             case WIND_CHARGE -> plugin.config().windChargeCooldownMillis();
             case JUMP_BOOST -> plugin.config().jumpBoostCooldownMillis();
+            case BEER -> plugin.config().beerCooldownMillis();
+            case SPOON -> plugin.config().spoonCooldownMillis();
         };
         plugin.cooldowns().start(player.getUniqueId(), type, cooldown);
 
-        if (type == ItemType.WIND_CHARGE && !plugin.config().windChargeConsume()) {
-            return;
+        boolean consume = switch (type) {
+            case WIND_CHARGE -> plugin.config().windChargeConsume();
+            case JUMP_BOOST, BEER -> true;
+            case SPOON -> false;
+        };
+        if (consume) {
+            consumeOne(player, hand);
         }
-        consumeOne(player, hand);
     }
 
     private void useWindCharge(Player player) {
@@ -147,6 +158,25 @@ public final class ItemListener implements Listener {
         actionBar(player, Component.text(
                 current == null ? "Permanent Jump Boost!" : "Jump Boost refreshed!",
                 NamedTextColor.GREEN));
+    }
+
+    private void useBeer(Player player) {
+        for (ItemsConfig.BeerEffect effect : plugin.config().beerEffects()) {
+            player.addPotionEffect(new PotionEffect(
+                    effect.type(), effect.durationTicks(), effect.amplifier(), false, true, true));
+        }
+        player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK, 1.0f, 0.9f);
+
+        List<String> lines = plugin.getConfig().getStringList("beer.messages");
+        String line = lines.isEmpty()
+                ? "You feel mildly Wetherspoons."
+                : lines.get(ThreadLocalRandom.current().nextInt(lines.size()));
+        player.sendMessage(Component.text(line, NamedTextColor.YELLOW));
+    }
+
+    private void useSpoon(Player player) {
+        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0f, 1.4f);
+        player.sendMessage(Component.text("Clang! You are now a Wetherspoon.", NamedTextColor.GRAY));
     }
 
     private void consumeOne(Player player, EquipmentSlot hand) {

@@ -32,7 +32,25 @@ public enum ItemType {
             NamedTextColor.GREEN,
             List.of(
                     "Right-click for permanent Jump Boost.",
-                    "Consumed on use."));
+                    "Consumed on use.")),
+
+    BEER(
+            "beer",
+            Material.HONEY_BOTTLE,
+            "Beer",
+            NamedTextColor.YELLOW,
+            List.of(
+                    "A pint from Wetherspoons.",
+                    "Right-click to drink.")),
+
+    SPOON(
+            "spoon",
+            Material.IRON_SHOVEL,
+            "Wetherspoon",
+            NamedTextColor.WHITE,
+            List.of(
+                    "Clang it against the bar.",
+                    "Right-click for a clang."));
 
     private final String id;
     private final Material material;

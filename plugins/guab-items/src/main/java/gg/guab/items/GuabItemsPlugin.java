@@ -17,6 +17,7 @@ public final class GuabItemsPlugin extends JavaPlugin {
         this.cooldowns = new Cooldowns();
 
         getServer().getPluginManager().registerEvents(new ItemListener(this), this);
+        getServer().getPluginManager().registerEvents(new BeerTapListener(this), this);
 
         PluginCommand command = getCommand("guabitems");
         if (command != null) {
