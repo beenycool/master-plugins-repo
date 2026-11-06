@@ -158,6 +158,10 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
                             .append(style.lethal()
                                     ? Component.text("  ☠", NamedTextColor.RED) : Component.empty()));
                 }
+                int milkCost = Math.max(0, plugin.getConfig().getInt("beer.milk.cost", 5));
+                sender.sendMessage(Component.text("  Milk", NamedTextColor.WHITE)
+                        .append(Component.text("  ·  sobers you up  ·  " + milkCost + " pt",
+                                NamedTextColor.GRAY)));
             }
             case "stats", "record" -> {
                 if (!(sender instanceof Player player)) {

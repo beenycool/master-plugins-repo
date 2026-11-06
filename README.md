@@ -168,7 +168,7 @@ It writes `/tmp/guab-pack/guab-items.zip` and `/tmp/guab-pack/rickroll.zip` and 
 
 **Pub features**
 
-- **Weighted drunk meter** — every pint contributes real alcohol units based on ABV and volume. They decay over the configured window (15 minutes by default); the action bar shows `Tipsy → Merry → Drunk → Wrecked → Absolutely Wetherspoons`, with escalating nausea, slowness, blindness and the occasional hangover. Effects are replaced as the meter drops, so they weaken and disappear instead of lingering at the old tier. Milk clears the meter immediately.
+- **Weighted drunk meter** — every pint contributes real alcohol units based on ABV and volume. They decay over the configured window (15 minutes by default); the action bar shows `Tipsy → Merry → Drunk → Wrecked → Absolutely Wetherspoons`, with escalating nausea, slowness, blindness and the occasional hangover. Effects stay on continuously at your current tier instead of blinking off between refreshes; they step down as the meter drops, and disappear when you sober up. Milk clears the meter and all drunk effects immediately.
 - **Pints leaderboard** — lifetime pints and units are saved to `pints.yml`, `/pints [top|units]` lists them, and a hologram above the bar shows the top three plus total pints served.
 - **Milestones** — the 1st, 10th, 25th, 50th and 100th lifetime pint each pay a one-off points reward.
 - **`/round [beer]`** — buys that brand (or a random brand from a style) for everyone within 14 blocks of the pub centre; the default house round stays 1 point each.

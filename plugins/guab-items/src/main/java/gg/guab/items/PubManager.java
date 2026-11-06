@@ -205,7 +205,7 @@ public final class PubManager {
         entry.peakUnits = Math.max(entry.peakUnits, units);
         int tier = tier(units);
         Integer previous = lastTier.put(player.getUniqueId(), tier);
-        applyDrunkEffects(player, tier);
+        applyDrunkEffects(player, tier, previous);
         if (previous == null || tier > previous) {
             player.sendMessage(prefix().append(Component.text(
                     "You are now " + tierLabel(units) + ".", moodColour(tier))));
@@ -235,6 +235,7 @@ public final class PubManager {
             dirty = true;
             hologramDirty = true;
         }
+        clearDrunkEffects(player);
         lastTier.remove(player.getUniqueId());
         player.sendActionBar(Component.empty());
     }
@@ -250,33 +251,36 @@ public final class PubManager {
         }
     }
 
-    private void applyDrunkEffects(Player player, int tier) {
-        // Replace the previous tier instead of letting a stronger/longer effect
-        // linger after the meter has dropped.
-        clearDrunkEffects(player);
+    private void applyDrunkEffects(Player player, int tier, Integer previousTier) {
         if (tier <= 0) {
+            clearDrunkEffects(player);
             return;
         }
+        // Only clear when the tier changes. Re-adding the same effect keeps it
+        // constant instead of making the icon blink off between refreshes.
+        if (previousTier == null || previousTier != tier) {
+            clearDrunkEffects(player);
+        }
         switch (tier) {
-            case 1 -> effect(player, PotionEffectType.NAUSEA, 5, 0);
+            case 1 -> effect(player, PotionEffectType.NAUSEA, 30, 0);
             case 2 -> {
-                effect(player, PotionEffectType.NAUSEA, 7, 0);
-                effect(player, PotionEffectType.SLOWNESS, 4, 0);
+                effect(player, PotionEffectType.NAUSEA, 30, 0);
+                effect(player, PotionEffectType.SLOWNESS, 30, 0);
             }
             case 3 -> {
-                effect(player, PotionEffectType.NAUSEA, 9, 0);
-                effect(player, PotionEffectType.SLOWNESS, 6, 0);
+                effect(player, PotionEffectType.NAUSEA, 30, 0);
+                effect(player, PotionEffectType.SLOWNESS, 30, 0);
             }
             case 4 -> {
-                effect(player, PotionEffectType.NAUSEA, 12, 1);
-                effect(player, PotionEffectType.SLOWNESS, 8, 0);
-                effect(player, PotionEffectType.BLINDNESS, 2, 0);
+                effect(player, PotionEffectType.NAUSEA, 30, 1);
+                effect(player, PotionEffectType.SLOWNESS, 30, 0);
+                effect(player, PotionEffectType.BLINDNESS, 30, 0);
             }
             default -> {
-                effect(player, PotionEffectType.NAUSEA, 15, 1);
-                effect(player, PotionEffectType.SLOWNESS, 10, 1);
-                effect(player, PotionEffectType.BLINDNESS, 3, 0);
-                effect(player, PotionEffectType.DARKNESS, 4, 0);
+                effect(player, PotionEffectType.NAUSEA, 30, 1);
+                effect(player, PotionEffectType.SLOWNESS, 30, 1);
+                effect(player, PotionEffectType.BLINDNESS, 30, 0);
+                effect(player, PotionEffectType.DARKNESS, 30, 0);
             }
         }
     }
@@ -318,7 +322,7 @@ public final class PubManager {
             }
 
             if (previous == null || previous != tier || tickCounter % 5 == 0) {
-                applyDrunkEffects(player, tier);
+                applyDrunkEffects(player, tier, previous);
             }
             if (previous == null || previous != tier) {
                 lastTier.put(id, tier);

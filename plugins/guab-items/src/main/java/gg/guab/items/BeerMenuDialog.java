@@ -71,9 +71,9 @@ public final class BeerMenuDialog {
                         options()))
                 .build());
         int milkCost = Math.max(0, plugin.getConfig().getInt("beer.milk.cost", 5));
-        actions.add(ActionButton.builder(Component.text("Milk · " + milkCost + " pt",
+        actions.add(ActionButton.builder(Component.text("Milk · " + milkCost + " pt · Sober up",
                         NamedTextColor.WHITE))
-                .tooltip(Component.text("Sober up: clears the drunk meter and potion effects."))
+                .tooltip(Component.text("Clears the drunk meter and all nausea/slowness effects."))
                 .width(180)
                 .action(DialogAction.customClick(
                         (DialogResponseView response, Audience audience) -> {
