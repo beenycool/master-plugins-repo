@@ -16,8 +16,6 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
@@ -52,7 +50,7 @@ public final class PubManager {
 
     private final GuabItemsPlugin plugin;
     private final Map<UUID, PlayerPints> players = new HashMap<>();
-    private final Map<UUID, Integer> lastTier = new HashMap<>();
+    private final Map<UUID, DrunkEffects.Tier> lastTier = new HashMap<>();
     private final File file;
     private final NamespacedKey hologramKey;
     private TextDisplay hologram;
@@ -142,33 +140,11 @@ public final class PubManager {
     }
 
     public int tier(double units) {
-        if (units < 1.0) {
-            return 0;
-        }
-        if (units < 2.5) {
-            return 1;
-        }
-        if (units < 4.5) {
-            return 2;
-        }
-        if (units < 7.0) {
-            return 3;
-        }
-        if (units < 10.0) {
-            return 4;
-        }
-        return 5;
+        return DrunkEffects.forUnits(units).level();
     }
 
     public String tierLabel(double units) {
-        return switch (tier(units)) {
-            case 1 -> "Tipsy";
-            case 2 -> "Merry";
-            case 3 -> "Drunk";
-            case 4 -> "Wrecked";
-            case 5 -> "Absolutely Wetherspoons";
-            default -> "Sober";
-        };
+        return DrunkEffects.forUnits(units).label();
     }
 
     public int rank(UUID player) {
@@ -203,12 +179,12 @@ public final class PubManager {
 
         double units = drunkUnits(player.getUniqueId());
         entry.peakUnits = Math.max(entry.peakUnits, units);
-        int tier = tier(units);
-        Integer previous = lastTier.put(player.getUniqueId(), tier);
-        applyDrunkEffects(player, tier, previous);
-        if (previous == null || tier > previous) {
+        DrunkEffects.Tier tier = DrunkEffects.forUnits(units);
+        DrunkEffects.Tier previous = lastTier.put(player.getUniqueId(), tier);
+        DrunkEffects.apply(player, tier, previous);
+        if (previous == null || tier.level() > previous.level()) {
             player.sendMessage(prefix().append(Component.text(
-                    "You are now " + tierLabel(units) + ".", moodColour(tier))));
+                    "You are now " + tier.label() + ".", tier.colour())));
         }
         awardMilestones(player, entry);
         updateHologram();
@@ -225,7 +201,7 @@ public final class PubManager {
         updateHologram();
     }
 
-    /** Milk clears the custom meter; vanilla milk clears the potion effects. */
+    /** Milk clears the meter, the drunk effects and any hangover. */
     public void soberUp(Player player) {
         PlayerPints entry = players.get(player.getUniqueId());
         if (entry != null) {
@@ -235,7 +211,7 @@ public final class PubManager {
             dirty = true;
             hologramDirty = true;
         }
-        clearDrunkEffects(player);
+        DrunkEffects.clear(player);
         lastTier.remove(player.getUniqueId());
         player.sendActionBar(Component.empty());
     }
@@ -251,51 +227,6 @@ public final class PubManager {
         }
     }
 
-    private void applyDrunkEffects(Player player, int tier, Integer previousTier) {
-        if (tier <= 0) {
-            clearDrunkEffects(player);
-            return;
-        }
-        // Only clear when the tier changes. Re-adding the same effect keeps it
-        // constant instead of making the icon blink off between refreshes.
-        if (previousTier == null || previousTier != tier) {
-            clearDrunkEffects(player);
-        }
-        switch (tier) {
-            case 1 -> effect(player, PotionEffectType.NAUSEA, 30, 0);
-            case 2 -> {
-                effect(player, PotionEffectType.NAUSEA, 30, 0);
-                effect(player, PotionEffectType.SLOWNESS, 30, 0);
-            }
-            case 3 -> {
-                effect(player, PotionEffectType.NAUSEA, 30, 0);
-                effect(player, PotionEffectType.SLOWNESS, 30, 0);
-            }
-            case 4 -> {
-                effect(player, PotionEffectType.NAUSEA, 30, 1);
-                effect(player, PotionEffectType.SLOWNESS, 30, 0);
-                effect(player, PotionEffectType.BLINDNESS, 30, 0);
-            }
-            default -> {
-                effect(player, PotionEffectType.NAUSEA, 30, 1);
-                effect(player, PotionEffectType.SLOWNESS, 30, 1);
-                effect(player, PotionEffectType.BLINDNESS, 30, 0);
-                effect(player, PotionEffectType.DARKNESS, 30, 0);
-            }
-        }
-    }
-
-    private void clearDrunkEffects(Player player) {
-        player.removePotionEffect(PotionEffectType.NAUSEA);
-        player.removePotionEffect(PotionEffectType.SLOWNESS);
-        player.removePotionEffect(PotionEffectType.BLINDNESS);
-        player.removePotionEffect(PotionEffectType.DARKNESS);
-    }
-
-    private void effect(Player player, PotionEffectType type, int seconds, int amplifier) {
-        player.addPotionEffect(new PotionEffect(type, seconds * 20, amplifier, false, true, true));
-    }
-
     private void tick() {
         tickCounter++;
         if ((hologram == null || !hologram.isValid()) && tickCounter % 10 == 0
@@ -306,13 +237,13 @@ public final class PubManager {
         for (Player player : Bukkit.getOnlinePlayers()) {
             UUID id = player.getUniqueId();
             double units = drunkUnits(id);
-            int tier = tier(units);
-            Integer previous = lastTier.get(id);
+            DrunkEffects.Tier tier = DrunkEffects.forUnits(units);
+            DrunkEffects.Tier previous = lastTier.get(id);
 
             if (units <= 0.05) {
                 if (previous != null) {
-                    clearDrunkEffects(player);
-                    if (previous >= 2) {
+                    DrunkEffects.clear(player);
+                    if (previous.level() >= 2) {
                         applyHangover(player);
                     }
                     lastTier.remove(id);
@@ -322,7 +253,7 @@ public final class PubManager {
             }
 
             if (previous == null || previous != tier || tickCounter % 5 == 0) {
-                applyDrunkEffects(player, tier, previous);
+                DrunkEffects.apply(player, tier, previous);
             }
             if (previous == null || previous != tier) {
                 lastTier.put(id, tier);
@@ -334,13 +265,13 @@ public final class PubManager {
                         .append(Component.text(String.format(Locale.ROOT, "%.1f", units) + " units",
                                 NamedTextColor.AQUA))
                         .append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
-                        .append(Component.text(tierLabel(units), moodColour(tier))));
+                        .append(Component.text(tier.label(), tier.colour())));
             }
-            if (tier >= 3 && ThreadLocalRandom.current().nextInt(100) < 8) {
+            if (tier.level() >= 3 && ThreadLocalRandom.current().nextInt(100) < 8) {
                 player.getWorld().spawnParticle(Particle.NOTE,
                         player.getLocation().add(0, 2.2, 0), 1, 0.35, 0.4, 0.35, 0.0);
             }
-            if (tier >= 4 && ThreadLocalRandom.current().nextInt(100) < 5) {
+            if (tier.level() >= 4 && ThreadLocalRandom.current().nextInt(100) < 5) {
                 player.getWorld().spawnParticle(Particle.SMOKE,
                         player.getLocation().add(0.5, 1.0, 0.5), 2, 0.2, 0.2, 0.2, 0.01);
             }
@@ -362,22 +293,9 @@ public final class PubManager {
         }
         entry.hangoverUntil = now + 90_000L;
         entry.peakUnits = 0;
-        effect(player, PotionEffectType.NAUSEA, 20, 0);
-        effect(player, PotionEffectType.SLOWNESS, 15, 0);
-        effect(player, PotionEffectType.WEAKNESS, 15, 0);
+        DrunkEffects.applyHangover(player);
         player.sendMessage(prefix().append(Component.text(
                 "Hangover. The carpet is louder than it looks.", NamedTextColor.DARK_RED)));
-    }
-
-    private NamedTextColor moodColour(int tier) {
-        return switch (tier) {
-            case 1 -> NamedTextColor.YELLOW;
-            case 2 -> NamedTextColor.GOLD;
-            case 3 -> NamedTextColor.RED;
-            case 4 -> NamedTextColor.DARK_RED;
-            case 5 -> NamedTextColor.DARK_PURPLE;
-            default -> NamedTextColor.GRAY;
-        };
     }
 
     public List<Map.Entry<String, Integer>> top(int limit) {
