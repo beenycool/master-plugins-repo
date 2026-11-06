@@ -214,6 +214,17 @@ public final class PubManager {
         updateHologram();
     }
 
+    /** A fatal pint still counts on the leaderboard, but adds no units. */
+    public void recordLethalDrink(Player player) {
+        PlayerPints entry = players.computeIfAbsent(player.getUniqueId(),
+                id -> new PlayerPints(player.getName()));
+        entry.name = player.getName();
+        entry.total++;
+        dirty = true;
+        hologramDirty = true;
+        updateHologram();
+    }
+
     /** Milk clears the custom meter; vanilla milk clears the potion effects. */
     public void soberUp(Player player) {
         PlayerPints entry = players.get(player.getUniqueId());

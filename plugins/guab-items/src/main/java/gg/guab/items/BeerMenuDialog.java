@@ -89,7 +89,8 @@ public final class BeerMenuDialog {
             actions.add(ActionButton.builder(Component.text(
                             "Pour " + brand.displayName() + " · " + style.price() + " pt", style.colour()))
                     .tooltip(Component.text(style.displayName() + ", " + style.unitsLabel() + " units, "
-                            + String.format(Locale.ROOT, "%.1f", style.abv()) + "% ABV"))
+                                    + String.format(Locale.ROOT, "%.1f", style.abv()) + "% ABV"
+                                    + (style.lethal() ? " · ☠ Kills you." : "")))
                     .width(180)
                     .action(DialogAction.customClick(
                             (DialogResponseView response, Audience audience) -> {

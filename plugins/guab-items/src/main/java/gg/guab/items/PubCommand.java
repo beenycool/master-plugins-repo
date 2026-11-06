@@ -154,7 +154,9 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
                             .append(Component.text("  ·  " + style.displayName() + "  ·  "
                                             + String.format(Locale.ROOT, "%.1f", style.abv()) + "%  ·  "
                                             + style.unitsLabel() + " units  ·  " + style.price() + " pt",
-                                    NamedTextColor.GRAY)));
+                                    NamedTextColor.GRAY))
+                            .append(style.lethal()
+                                    ? Component.text("  ☠", NamedTextColor.RED) : Component.empty()));
                 }
             }
             case "stats", "record" -> {

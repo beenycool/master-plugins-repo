@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Build the GuabItems resource pack from real product photos.
 
-The beer photos are front-of-pack images from Open Food Facts
+Most beer photos are front-of-pack images from Open Food Facts
 (https://world.openfoodfacts.org, CC BY-SA 3.0, contributed by its
-photographers). The dartboard is Wikimedia Commons "Dartboard unlabeled.svg"
-(CC BY-SA 3.0). The pack icon is a composite of those two assets.
+photographers). Baileys uses the CC0 Wikimedia Commons photo
+"BaileysIrishCream.JPG". The dartboard is Wikimedia Commons
+"Dartboard unlabeled.svg" (CC BY-SA 3.0). The pack icon is a composite of
+those assets.
 
 This tool is deliberately not part of the Gradle build: media stays on the VM.
 Run it from the repo root with Pillow installed:
@@ -48,6 +50,10 @@ BRAND_IMAGES = {
     "thatchers": "https://images.openfoodfacts.org/images/products/502/062/800/3318/front_en.3.400.jpg",
     "londonpride": "https://images.openfoodfacts.org/images/products/501/188/500/3647/front_en.9.400.jpg",
     "guinness": "https://images.openfoodfacts.org/images/products/500/021/310/1223/front_fr.60.400.jpg",
+    "baileys_lime": (
+        "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e4/"
+        "BaileysIrishCream.JPG/330px-BaileysIrishCream.JPG"
+    ),
 }
 DARTBOARD_IMAGE = (
     "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/"
@@ -213,16 +219,24 @@ def main() -> None:
 
         pint_texture(download(PINT_IMAGE)).save(beer_dir / "beer.png", optimize=True)
 
+        item_models = items / "assets/guab/models/item"
+        item_definitions = items / "assets/guab/items"
+        item_models.mkdir(parents=True, exist_ok=True)
+        item_definitions.mkdir(parents=True, exist_ok=True)
         for name, url in BRAND_IMAGES.items():
             product_texture(download(url)).save(beer_dir / f"beer_{name}.png", optimize=True)
+            (item_models / f"beer_{name}.json").write_text(
+                '{"parent":"minecraft:item/generated","textures":'
+                f'{{"layer0":"guab:item/beer_{name}"}}}}\n')
+            (item_definitions / f"beer_{name}.json").write_text(
+                '{"model": {"type": "minecraft:model", "model": '
+                f'"guab:item/beer_{name}"}}}}\n')
 
         dartboard_texture(download(DARTBOARD_IMAGE)).save(target_dir / "target_side.png", optimize=True)
         shutil.copy2(target_dir / "target_side.png", beer_dir / "dartboard.png")
-        (items / "assets/guab/models/item").mkdir(parents=True, exist_ok=True)
-        (items / "assets/guab/models/item/dartboard.json").write_text(
+        (item_models / "dartboard.json").write_text(
             '{"parent":"minecraft:item/generated","textures":{"layer0":"guab:item/dartboard"}}\n')
-        (items / "assets/guab/items").mkdir(parents=True, exist_ok=True)
-        (items / "assets/guab/items/dartboard.json").write_text(
+        (item_definitions / "dartboard.json").write_text(
             '{"model":{"type":"minecraft:model","model":"guab:item/dartboard"}}\n')
 
         icon = Image.new("RGBA", (128, 128), (24, 22, 20, 255))
@@ -238,6 +252,15 @@ def main() -> None:
         rickroll_beer.mkdir(parents=True, exist_ok=True)
         for texture in beer_dir.glob("*.png"):
             shutil.copy2(texture, rickroll_beer / texture.name)
+        rickroll_models = rickroll / "assets/guab/models/item"
+        rickroll_definitions = rickroll / "assets/guab/items"
+        rickroll_models.mkdir(parents=True, exist_ok=True)
+        rickroll_definitions.mkdir(parents=True, exist_ok=True)
+        for name in BRAND_IMAGES:
+            shutil.copy2(item_models / f"beer_{name}.json",
+                         rickroll_models / f"beer_{name}.json")
+            shutil.copy2(item_definitions / f"beer_{name}.json",
+                         rickroll_definitions / f"beer_{name}.json")
         rickroll_target = rickroll / "assets/minecraft/textures/block"
         rickroll_target.mkdir(parents=True, exist_ok=True)
         shutil.copy2(target_dir / "target_side.png", rickroll_target / "target_side.png")

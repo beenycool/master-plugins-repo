@@ -60,6 +60,7 @@ public final class BeerRegistry {
         addBrand("strongbow", "Strongbow", "cider", "guab:beer_strongbow");
         addBrand("thatchers", "Thatchers Gold", "cider", "guab:beer_thatchers");
         addBrand("alcohol_free", "Alcohol-Free", "alcohol_free", "guab:beer");
+        addBrand("baileys_lime", "Baileys and Lime", "baileys_lime", "guab:beer_baileys_lime");
     }
 
     private void addBrand(String id, String displayName, String styleId, String itemModel) {
@@ -90,7 +91,8 @@ public final class BeerRegistry {
     }
 
     public BeerStyle randomHouse() {
-        List<BeerStyle> all = all();
+        // The lethal cocktail is menu-only; a random house pint must not kill anyone.
+        List<BeerStyle> all = all().stream().filter(style -> !style.lethal()).toList();
         if (all.isEmpty()) {
             return house();
         }
@@ -189,7 +191,8 @@ public final class BeerRegistry {
             effects = fallback.effects();
         }
         return new BeerStyle(fallback.id(), displayName, abv, volume, price, model,
-                fallback.colour(), List.copyOf(names), List.copyOf(messages), List.copyOf(effects));
+                fallback.colour(), List.copyOf(names), List.copyOf(messages), List.copyOf(effects),
+                section.getBoolean("lethal", fallback.lethal()));
     }
 
     private Map<String, BeerStyle> defaults() {
@@ -210,7 +213,7 @@ public final class BeerRegistry {
 
         map.put("lager", new BeerStyle(
                 "lager", "Lager", 4.2, 568, 1, "guab:beer", NamedTextColor.GOLD,
-                houseNames, houseMessages, houseEffects));
+                houseNames, houseMessages, houseEffects, false));
 
         map.put("stout", new BeerStyle(
                 "stout", "Stout", 4.1, 568, 2, "guab:beer", NamedTextColor.DARK_RED,
@@ -219,7 +222,7 @@ public final class BeerRegistry {
                         "You feel a sudden urge to talk about rugby.",
                         "There is a shamrock in the foam, allegedly."),
                 List.of(fx(PotionEffectType.NAUSEA, 8, 0),
-                        fx(PotionEffectType.SLOWNESS, 6, 0))));
+                        fx(PotionEffectType.SLOWNESS, 6, 0)), false));
 
         map.put("ale", new BeerStyle(
                 "ale", "Ale", 4.5, 568, 2, "guab:beer", NamedTextColor.GREEN,
@@ -228,7 +231,7 @@ public final class BeerRegistry {
                         "You develop strong opinions about hops.",
                         "A proper pint for a proper pub."),
                 List.of(fx(PotionEffectType.NAUSEA, 5, 0),
-                        fx(PotionEffectType.SPEED, 20, 0))));
+                        fx(PotionEffectType.SPEED, 20, 0)), false));
 
         map.put("cider", new BeerStyle(
                 "cider", "Cider", 4.5, 568, 2, "guab:beer", NamedTextColor.YELLOW,
@@ -237,7 +240,7 @@ public final class BeerRegistry {
                         "You can hear the orchard from here.",
                         "That is not a fruit portion."),
                 List.of(fx(PotionEffectType.NAUSEA, 7, 0),
-                        fx(PotionEffectType.SPEED, 12, 0))));
+                        fx(PotionEffectType.SPEED, 12, 0)), false));
 
         map.put("alcohol_free", new BeerStyle(
                 "alcohol_free", "Alcohol-Free", 0.0, 568, 1, "guab:beer", NamedTextColor.AQUA,
@@ -245,7 +248,17 @@ public final class BeerRegistry {
                 sharedMessages("All of the pub, none of the hangover.",
                         "Designated driver energy.",
                         "You still feel left out of the round."),
-                List.of(fx(PotionEffectType.REGENERATION, 4, 0))));
+                List.of(fx(PotionEffectType.REGENERATION, 4, 0)), false));
+
+        map.put("baileys_lime", new BeerStyle(
+                "baileys_lime", "Baileys and Lime", 17.0, 284, 3, "guab:beer_baileys_lime",
+                NamedTextColor.LIGHT_PURPLE,
+                List.of("Baileys and Lime"),
+                List.of("The lime curdles the Baileys instantly.",
+                        "It tasted like a mistake. It was a mistake.",
+                        "Sweet, creamy and completely fatal.",
+                        "You will not be needing a second one."),
+                List.of(), true));
 
         return map;
     }

@@ -152,11 +152,11 @@ If the chicken sticks at `1.00×`, run `sudo docker/fix-minegames-chicken.sh` on
 
 A small Wetherspoons pub sits in the north-west corner of the casino hall (`x -24..-16`, `z -16..-10`). Right-click **any barrel in the pub** to open the 26.3 beer menu and choose exactly what you want; the menu buttons buy the pint directly. Shift-right-click a barrel for a quick random **1-point house pint**, or run `/beer` / right-click a menu shelf to open the same picker.
 
-The menu has **14 branded pints** across five styles: Lager, Stout, Ale, Cider and Alcohol-Free. Every pint carries its own real brand name and matching bottle/can picture in the inventory — Stella, Guinness, Carling, Peroni, Strongbow and the rest — instead of all saying just “Beer”. Each style still has its own ABV, price, flavour lines and potion effects. Beer stacks to **64 per brand**. Drinking is a real 26.3 `CONSUMABLE` component, and left/right-click handling is instant so a quick click always drinks. Old tagged pints are migrated to their branded item the first time they are used or when the player logs in.
+The menu has **16 branded pints** across six styles: Lager, Stout, Ale, Cider, Alcohol-Free and the lethal **Baileys and Lime**. Every pint carries its own real brand name and matching bottle/can picture in the inventory — Stella, Guinness, Carling, Peroni, Strongbow and the rest — instead of all saying just “Beer”. Each style still has its own ABV, price, flavour lines and potion effects. Beer stacks to **64 per brand**. Drinking is a real 26.3 `CONSUMABLE` component, and left/right-click handling is instant so a quick click always drinks. Old tagged pints are migrated to their branded item the first time they are used or when the player logs in.
 
 Staff can hand out stacks with `/guabitems give <player> beer 64`, a specific brand with `/guabitems give <player> beer:stella 64`, or a style with `/guabitems give <player> beer:stout 64` (styles pick a random brand).
 
-The item textures live in `guab-items.zip` on the pack host (`:39002`) and are applied as the server resource pack; the same assets are embedded in the rickroll pack so beer stays textured after a show. The pint and bottle textures are real product photos from Open Food Facts (CC BY-SA 3.0), and the dartboard face is Wikimedia Commons' unlabelled dartboard (CC BY-SA 3.0).
+The item textures live in `guab-items.zip` on the pack host (`:39002`) and are applied as the server resource pack; the same assets are embedded in the rickroll pack so beer stays textured after a show. The pint and bottle textures are real product photos from Open Food Facts (CC BY-SA 3.0), the Baileys bottle is a public-domain Wikimedia Commons photo, and the dartboard face is Wikimedia Commons' unlabelled dartboard (CC BY-SA 3.0).
 
 Rebuild both packs with:
 
@@ -174,6 +174,7 @@ It writes `/tmp/guab-pack/guab-items.zip` and `/tmp/guab-pack/rickroll.zip` and 
 - **`/round [beer]`** — buys that brand (or a random brand from a style) for everyone within 14 blocks of the pub centre; the default house round stays 1 point each.
 - **`/beer`** — opens the dialog menu; `/beer list`, `/beer buy <beer> [amount]`, `/beer milk` and `/beer stats` also work.
 - **Milk** — sold from the bar menu for 5 points. Drinking it clears the drunk meter and the nausea/slowness effects, so you can sober up without waiting.
+- **Baileys and Lime** — a 3-point cursed cocktail. Drinking it kills you instantly with a custom death message, and it is deliberately excluded from the random house tap. It still counts as a pint on the leaderboard.
 - **Pub quiz** — every 10 minutes (or `/quiz`) a question goes out in chat; the first correct answer wins 100 points.
 - **Beer menu shelves** — right-click a shelf to open the dialog menu; left-click still refuses to let anyone take the display bottles.
 - **Carpet** — the pack overrides `red_carpet` with the Wetherspoons-style pattern, so the pub rug and the casino aisles share it.

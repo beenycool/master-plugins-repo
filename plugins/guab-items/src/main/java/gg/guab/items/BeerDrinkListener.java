@@ -7,10 +7,15 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Finished-drink handling. The 26.3 CONSUMABLE component plays the animation,
@@ -20,6 +25,7 @@ import java.util.Locale;
 public final class BeerDrinkListener implements Listener {
 
     private final GuabItemsPlugin plugin;
+    private final Set<UUID> lethalDeaths = new HashSet<>();
 
     public BeerDrinkListener(GuabItemsPlugin plugin) {
         this.plugin = plugin;
@@ -66,10 +72,37 @@ public final class BeerDrinkListener implements Listener {
         }
         plugin.cooldowns().start(player.getUniqueId(), ItemType.BEER,
                 plugin.config().beerCooldownMillis());
+
+        if (brand.style().lethal()) {
+            player.sendMessage(Component.text("You drink the " + brand.displayName()
+                    + ". It is instantly, catastrophically fatal.", NamedTextColor.RED));
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (player.isOnline() && !player.isDead()) {
+                    plugin.pub().recordLethalDrink(player);
+                    lethalDeaths.add(player.getUniqueId());
+                    player.setHealth(0.0);
+                }
+            });
+            return;
+        }
+
         plugin.pub().recordDrink(player, brand.style());
 
         player.sendMessage(Component.text("You crack open a cold " + brand.displayName() + ".",
                 NamedTextColor.YELLOW));
         player.sendMessage(Component.text(brand.style().randomMessage(), NamedTextColor.GRAY));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onDeath(PlayerDeathEvent event) {
+        if (lethalDeaths.remove(event.getEntity().getUniqueId())) {
+            event.deathMessage(Component.text(event.getEntity().getName()
+                    + " drank a Baileys and Lime. It was fatal.", NamedTextColor.RED));
+        }
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        lethalDeaths.remove(event.getPlayer().getUniqueId());
     }
 }

@@ -119,6 +119,10 @@ public final class ItemFactory {
                 style.colour()).decoration(TextDecoration.ITALIC, false));
         lore.add(Component.text(style.unitsLabel() + " units per pint", NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
+        if (style.lethal()) {
+            lore.add(Component.text("☠ Fatal. Do not drink this.", NamedTextColor.RED)
+                    .decoration(TextDecoration.ITALIC, false));
+        }
         lore.add(Component.text("Right-click to drink.", NamedTextColor.DARK_GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         return lore;

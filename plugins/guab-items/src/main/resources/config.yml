@@ -45,6 +45,8 @@ beer:
     ale: 25
     cider: 15
     alcohol_free: 5
+    # The lethal cocktail is menu-only, never a random house pint.
+    baileys_lime: 0
   menu:
     enabled: true
   # Milk sobers you up and clears the drunk meter. Sold from the bar menu.
@@ -149,6 +151,15 @@ beer:
         - type: regeneration
           duration-seconds: 4
           amplifier: 0
+    # A cursed cocktail. Drinking it kills you. Keep it off the random house tap.
+    baileys_lime:
+      display-name: Baileys and Lime
+      abv: 17.0
+      volume-ml: 284
+      price: 3
+      model: "guab:beer_baileys_lime"
+      lethal: true
+      effects: []
 
 # The Wetherspoons pub side of the plugin.
 pub:

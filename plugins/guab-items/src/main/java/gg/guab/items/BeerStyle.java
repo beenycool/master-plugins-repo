@@ -20,7 +20,8 @@ public record BeerStyle(
         NamedTextColor colour,
         List<String> names,
         List<String> messages,
-        List<ItemsConfig.BeerEffect> effects) {
+        List<ItemsConfig.BeerEffect> effects,
+        boolean lethal) {
 
     public int unitsMilli() {
         return (int) Math.round(abv * volumeMl);
