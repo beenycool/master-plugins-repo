@@ -2,26 +2,29 @@
 
 Last updated: 2026-11-06
 
-Overall: `█████████░` **86%** (57/66 checklist items)
+Overall: `█████████░` **88%** (74/84 checklist items)
+
+Plugin checklist: 68/76 (89%). Server ops: 6/8 (75%).
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
-| guab-core        | `████████░░` 78% (7/9)       |
+| guab-core        | `████████░░` 80% (8/10)      |
 | guab-blocks      | `██████████` 100% (10/10)   |
-| guab-items       | `██████████` 100% (7/7)     |
-| guab-rickroll    | `████████░░` 79% (15/19)    |
+| guab-items       | `██████████` 100% (10/10)   |
+| guab-rickroll    | `█████████░` 85% (17/20)    |
 | guab-gambling    | `█████████░` 86% (12/14)    |
-| guab-minigames   | `█████████░` 86% (6/7)      |
+| guab-minigames   | `█████████░` 92% (11/12)    |
+| Server ops        | `████████░░` 75% (6/8)       |
 
 Progress is per checklist line, updated by hand.
 
 The loop: **minigames earn points → gambling risks them → items and blocks are the rewards.**
 
-## guab-core — `████████░░` 78% (7/9)
+## guab-core — `████████░░` 80% (8/10)
 
-**What it does:** the shared foundation. Holds the player points ledger (the parkour currency) and common helpers. Every other plugin depends on it.
+**What it does:** the shared foundation. Holds the player points ledger (the parkour currency), the shared stats tracker and common helpers. Every other plugin depends on it.
 
-Status: live. `PointsService` is registered, `/points` and `/points top` work, the ledger backs the Vault economy, and the sidebar carries a top-3 leaderboard. Balances flush every 60 seconds.
+Status: live. `PointsService` is registered, `/points` and `/points top` work, the ledger backs the Vault economy, and the sidebar carries a top-3 leaderboard. Balances flush every 60 seconds. The new stats tracker persists deaths, kills, rickrolls and parkour uses in `stats.yml`.
 
 - [x] `PointsService` interface: `get`, `set`, `add`, `take`, `top`
 - [x] YAML-backed store (`points.yml`), clamp at zero
@@ -30,6 +33,7 @@ Status: live. `PointsService` is registered, `/points` and `/points top` work, t
 - [x] `/points` command (self balance, staff can inspect others, `/points top` leaderboard)
 - [x] Vault `Economy` bridge over the ledger (offline refunds, integer points)
 - [x] Sidebar balance, top-3 leaderboard, online count and tab-list header
+- [x] Shared stats tracker (`stats.yml`, `/stats`, `/stats top`) for deaths, kills, rickrolls and parkour
 - [ ] Shared cooldown helper and message helpers
 - [ ] Decide if core also owns the parkour scoreboard
 
@@ -50,11 +54,11 @@ Status: implemented and built. `/guabblocks add|remove|list|reload`, `blocks.yml
 - [x] Config for chances/durations; restore fake blocks after a show
 - [x] Make sure blocks do not fire twice while standing still
 
-## guab-items — `██████████` 100% (7/7)
+## guab-items — `██████████` 100% (10/10)
 
-**What it does:** the prank items players earn or gamble for. A wind charge that boosts you forward or knocks others off, and a feather that grants permanent jump boost.
+**What it does:** the prank items, Wetherspoons pub, beer, milk and darts room.
 
-Status: implemented and built. PDC-tagged items, wind charge, jump feather, `/guabitems give`, main/off-hand handling, cooldowns and anvil/craft guards. Not yet exercised in-game.
+Status: implemented and built. PDC-tagged items, wind charge, jump feather, `/guabitems give`, main/off-hand handling, cooldowns and anvil/craft guards. The pub now has 16 branded pints, milk, lethal Baileys and Lime, a 71-question quiz, and a dedicated darts room.
 
 - [x] PDC-tagged items so names cannot be faked
 - [x] Wind charge item: boost self forward, knock nearby players away
@@ -63,12 +67,15 @@ Status: implemented and built. PDC-tagged items, wind charge, jump feather, `/gu
 - [x] Right-click handling for main and off hand
 - [x] Cooldowns and config values
 - [x] Block crafting/renaming from producing fake copies
+- [x] Wetherspoons menu with 16 branded pints, milk, lethal Baileys and constant drunken effects
+- [x] Darts room with bow, 3x3 board, oche lock and shared live-hit hologram
+- [x] Pub quiz expanded to 71 general and beer questions
 
-## guab-rickroll — `████████░░` 79% (15/19)
+## guab-rickroll — `█████████░` 85% (17/20)
 
 **What it does:** the 5% joke. A tagged block sends the victim to a hidden cinema, locks them in spectator, and plays the rickroll video and song, then puts them back exactly where they were.
 
-Status: live on build `cc5b645`. One-minute cut from 0:19 (720 frames, 60s, 7.62 MB pack), 12 fps, shared 256-color palette, synced lyrics, notched 1:00 boss bar, brighter cinema, disconnect restore, and 5%/5 min trigger.
+Status: live. One-minute cut from 0:19 (720 frames, 60s, 7.62 MB pack), 12 fps, shared 256-color palette, synced lyrics, notched 1:00 boss bar, brighter cinema, disconnect restore, and a 65%/5 min trigger. Shows are counted in the shared stats tracker.
 
 - [x] 5% trigger block, per-player cooldown (300s)
 - [x] `/rickroll setblock`, `remove`, `test`, `stop`, `verify`, `reload`
@@ -84,9 +91,10 @@ Status: live on build `cc5b645`. One-minute cut from 0:19 (720 frames, 60s, 7.62
 - [x] Synced lyrics on the action bar (LRC timestamps)
 - [x] Boss-bar countdown timer (1:00 to 0:00, notched)
 - [ ] Check the new 10-block screen, red frame, lights, and stair direction
-- [ ] Mark the first block in-game with `/rickroll setblock`
+- [x] Mark the first block in-game with `/rickroll setblock`
 - [ ] Full 1-minute show test, including disconnect mid-show
-- [x] Tune `cinema.width`/`height`, `chance`, `cooldown-seconds` (20/11.25, 5%, 5 min)
+- [x] Tune `cinema.width`/`height`, `chance`, `cooldown-seconds` (20/11.25, 65%, 5 min)
+- [x] Report every show to the shared stats tracker
 - [x] Decide full video vs loop: 1-minute cut, no loop
 - [ ] Optional: VHS static, scanlines
 
@@ -113,11 +121,11 @@ Status: live in production. Venue built, all six station types placed, event ope
 
 Event-night ops: freeze the auto-deploy timer, snapshot `points.yml`, and close with `event.enabled: false` + `/casino reload`.
 
-## guab-minigames — `█████████░` 86% (6/7)
+## guab-minigames — `█████████░` 92% (11/12)
 
 **What it does:** the point faucet. Battle pit and other small games outside the main parkour award points for kills and wins, which then feed gambling and item rewards.
 
-Status: live. Battle pit built in the overworld at `100, -61, 100` with join/leave, kill rewards, death penalties, pit respawn and a streak action bar.
+Status: live. Battle pit built in the overworld at `100, -61, 100` with join/leave, kill rewards, death penalties, pit respawn, a streak action bar, a smart PvP kit and a respawn bell. `/parkour` teleports to the parkour start.
 
 - [x] Battle pit arena spawn (`/battlepit setspawn`)
 - [x] `/battlepit join` / `leave`, teleport in and out
@@ -125,6 +133,11 @@ Status: live. Battle pit built in the overworld at `100, -61, 100` with join/lea
 - [x] Kill reward and death penalty via `PointsService`
 - [x] Respawn at the pit spawn, keep or drop inventory config
 - [x] Action bar/scoreboard for the current streak
+- [x] Build the battle pit arena platform, walls and barrier lip at `100, -61, 100`
+- [x] `/kit` PvP loadout with iron gear, bow, arrows, shield, food, blocks and pickaxe
+- [x] Smart inventory save/restore on battle pit join, leave, disconnect and graceful stop
+- [x] `/parkour` teleport command with configurable start
+- [x] Respawn bell sound for every player respawn
 - [ ] Additional point-earning minigames outside the main parkour
 
 ## Platform
@@ -133,3 +146,16 @@ Decision (2026-11-05): stay on Paper. Pumpkin (Rust) was reviewed — it is pre-
 WASM, and rickroll's features map reasonably well, but the API is unstable and the world/render
 parity risk is not worth a cutover yet. Revisit when Pumpkin reaches 1.0, or run a parallel
 PatchBukkit spike on a spare port if curiosity wins.
+
+## Server ops (PebbleHost)
+
+Status: live at `mc.guabguild.com` on Paper 26.3, with RCON on `8025`. The casino, pub, darts room and battle pit were rebuilt on the new host.
+
+- [x] Upload Guab plugin jars and configs to PebbleHost
+- [x] Rebuild the casino, pub and darts room on the new host
+- [x] Enable RCON on port `8025`
+- [x] Install Axiom Paper 6.0.1 and GrimAC 2.3.75
+- [x] Remove the ChatRestrictionBypass plugin
+- [x] Set `immediate_respawn` on
+- [ ] Move `guab-items.zip` and `rickroll.zip` to a stable public host (currently the old server URL)
+- [ ] Restart once to activate the pending GuabCore/GuabMinigames jars, Axiom and GrimAC
