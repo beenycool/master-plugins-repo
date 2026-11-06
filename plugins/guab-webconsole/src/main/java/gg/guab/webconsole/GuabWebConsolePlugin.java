@@ -240,7 +240,11 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
                 return Map.of();
             }
             if (contentType != null && contentType.toLowerCase(Locale.ROOT).contains("application/x-www-form-urlencoded")) {
-                return parseQuery(body);
+                Map<String, String> form = parseQuery(body);
+                if (form.containsKey("cmd")) {
+                    return form;
+                }
+                // curl --data sends form encoding; treat a bare body as the command.
             }
             return Map.of("cmd", body.trim());
         }
