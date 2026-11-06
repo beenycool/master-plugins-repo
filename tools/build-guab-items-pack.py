@@ -217,6 +217,13 @@ def main() -> None:
             product_texture(download(url)).save(beer_dir / f"beer_{name}.png", optimize=True)
 
         dartboard_texture(download(DARTBOARD_IMAGE)).save(target_dir / "target_side.png", optimize=True)
+        shutil.copy2(target_dir / "target_side.png", beer_dir / "dartboard.png")
+        (items / "assets/guab/models/item").mkdir(parents=True, exist_ok=True)
+        (items / "assets/guab/models/item/dartboard.json").write_text(
+            '{"parent":"minecraft:item/generated","textures":{"layer0":"guab:item/dartboard"}}\n')
+        (items / "assets/guab/items").mkdir(parents=True, exist_ok=True)
+        (items / "assets/guab/items/dartboard.json").write_text(
+            '{"model":{"type":"minecraft:model","model":"guab:item/dartboard"}}\n')
 
         icon = Image.new("RGBA", (128, 128), (24, 22, 20, 255))
         icon.alpha_composite(
@@ -234,6 +241,13 @@ def main() -> None:
         rickroll_target = rickroll / "assets/minecraft/textures/block"
         rickroll_target.mkdir(parents=True, exist_ok=True)
         shutil.copy2(target_dir / "target_side.png", rickroll_target / "target_side.png")
+        shutil.copy2(beer_dir / "dartboard.png", rickroll_beer / "dartboard.png")
+        (rickroll / "assets/guab/models/item").mkdir(parents=True, exist_ok=True)
+        shutil.copy2(items / "assets/guab/models/item/dartboard.json",
+                     rickroll / "assets/guab/models/item/dartboard.json")
+        (rickroll / "assets/guab/items").mkdir(parents=True, exist_ok=True)
+        shutil.copy2(items / "assets/guab/items/dartboard.json",
+                     rickroll / "assets/guab/items/dartboard.json")
         shutil.copy2(items / "pack.png", rickroll / "pack.png")
 
         items_zip = out / "guab-items.zip"

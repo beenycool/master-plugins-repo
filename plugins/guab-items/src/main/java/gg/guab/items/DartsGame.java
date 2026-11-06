@@ -21,6 +21,7 @@ public final class DartsGame {
     private int legsWon;
     private int legNumber = 1;
     private boolean matchOver;
+    private DartsGeometry.Hit lastHit;
 
     public DartsGame(UUID playerId, String playerName, int mode, int legsToWin) {
         this.playerId = playerId;
@@ -33,6 +34,7 @@ public final class DartsGame {
     }
 
     public Result throwDart(DartsGeometry.Hit hit) {
+        this.lastHit = hit;
         if (matchOver) {
             return new Result(Kind.THROW, hit, score, score, 0, dartsThisLeg,
                     legsWon, true, turnTotal, false, false);
@@ -132,6 +134,10 @@ public final class DartsGame {
 
     public boolean matchOver() {
         return matchOver;
+    }
+
+    public DartsGeometry.Hit lastHit() {
+        return lastHit;
     }
 
     public String checkoutHint() {

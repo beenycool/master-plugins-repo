@@ -164,9 +164,16 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
                 }
                 plugin.beerMenu().openStats(player);
             }
+            case "milk" -> {
+                if (!(sender instanceof Player player)) {
+                    error(sender, "Only players can buy milk.");
+                    return;
+                }
+                plugin.beerService().buyMilk(player, true);
+            }
             case "buy", "pour" -> buy(sender, args);
             default -> {
-                error(sender, "Use /beer [menu|list|stats|buy <beer> [amount]].");
+                error(sender, "Use /beer [menu|list|stats|milk|buy <beer> [amount]].");
             }
         }
     }
@@ -233,7 +240,7 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
         if (args.length == 1) {
-            return matching(List.of("menu", "list", "stats", "buy"), args[0]);
+            return matching(List.of("menu", "list", "stats", "milk", "buy"), args[0]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("buy")) {
             return matching(styleIds(), args[1]);

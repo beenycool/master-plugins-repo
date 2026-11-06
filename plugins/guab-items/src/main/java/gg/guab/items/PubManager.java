@@ -214,6 +214,20 @@ public final class PubManager {
         updateHologram();
     }
 
+    /** Milk clears the custom meter; vanilla milk clears the potion effects. */
+    public void soberUp(Player player) {
+        PlayerPints entry = players.get(player.getUniqueId());
+        if (entry != null) {
+            entry.recent.clear();
+            entry.peakUnits = 0;
+            entry.hangoverUntil = 0;
+            dirty = true;
+            hologramDirty = true;
+        }
+        lastTier.remove(player.getUniqueId());
+        player.sendActionBar(Component.empty());
+    }
+
     public void recordDrink(Player player) {
         recordDrink(player, plugin.beer().house());
     }
@@ -226,6 +240,9 @@ public final class PubManager {
     }
 
     private void applyDrunkEffects(Player player, int tier) {
+        // Replace the previous tier instead of letting a stronger/longer effect
+        // linger after the meter has dropped.
+        clearDrunkEffects(player);
         if (tier <= 0) {
             return;
         }
@@ -253,6 +270,13 @@ public final class PubManager {
         }
     }
 
+    private void clearDrunkEffects(Player player) {
+        player.removePotionEffect(PotionEffectType.NAUSEA);
+        player.removePotionEffect(PotionEffectType.SLOWNESS);
+        player.removePotionEffect(PotionEffectType.BLINDNESS);
+        player.removePotionEffect(PotionEffectType.DARKNESS);
+    }
+
     private void effect(Player player, PotionEffectType type, int seconds, int amplifier) {
         player.addPotionEffect(new PotionEffect(type, seconds * 20, amplifier, false, true, true));
     }
@@ -272,6 +296,7 @@ public final class PubManager {
 
             if (units <= 0.05) {
                 if (previous != null) {
+                    clearDrunkEffects(player);
                     if (previous >= 2) {
                         applyHangover(player);
                     }
@@ -457,9 +482,9 @@ public final class PubManager {
             return null;
         }
         return new Location(worldInstance,
-                plugin.getConfig().getDouble("pub.pints.leaderboard.x", -17.5),
+                plugin.getConfig().getDouble("pub.pints.leaderboard.x", -20.5),
                 plugin.getConfig().getDouble("pub.pints.leaderboard.y", 67.3),
-                plugin.getConfig().getDouble("pub.pints.leaderboard.z", -12.5));
+                plugin.getConfig().getDouble("pub.pints.leaderboard.z", -13.0));
     }
 
     public Location centre() {

@@ -28,10 +28,19 @@ public final class BeerDrinkListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onConsume(PlayerItemConsumeEvent event) {
         ItemStack item = event.getItem();
+        Player player = event.getPlayer();
+        if (plugin.items().isMilk(item)) {
+            if (!player.hasPermission("guab.items.use")) {
+                event.setCancelled(true);
+                return;
+            }
+            plugin.pub().soberUp(player);
+            player.sendMessage(Component.text("The milk sobers you up.", NamedTextColor.WHITE));
+            return;
+        }
         if (plugin.items().typeOf(item) != ItemType.BEER) {
             return;
         }
-        Player player = event.getPlayer();
         if (player.getGameMode() == GameMode.SPECTATOR) {
             event.setCancelled(true);
             return;

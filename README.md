@@ -138,7 +138,7 @@ All pads are in the `guab_casino` world at `y=65` (relative to `0, 64, 0`).
 
 ### Blackjack
 
-A dedicated **Blackjack Dealer** NPC stands in the pub at `-18, 65, -14`. Right-click the dealer to open a 26.3 dialog, type a bet and press **Deal**. Right-click again during a hand to reprint your cards and the Hit / Stand / Double buttons. Staff can move the dealer to their current position with `/blackjack setdealer`.
+A dedicated **Blackjack Dealer** NPC stands in the main casino hall near the bar at `-5.5, 65, -13`, outside the pub. Right-click the dealer to open a 26.3 dialog, type a bet and press **Deal**. Right-click again during a hand to reprint your cards and the Hit / Stand / Double buttons. Staff can move the dealer to their current position with `/blackjack setdealer`.
 
 `/blackjack <bet>` (aliases `/bj`, `/21`) also deals a hand directly. `/bj hit`, `/bj stand` and `/bj double` play it out; the chat buttons do the same. Blackjack pays 3:2, the dealer stands on 17, and the table settles directly against the points ledger. Hands auto-stand after `blackjack.timeout-seconds` and settle if the player disconnects.
 
@@ -150,7 +150,7 @@ If the chicken sticks at `1.00×`, run `sudo docker/fix-minegames-chicken.sh` on
 
 ### Wetherspoons
 
-A small Wetherspoons pub sits in the north-west corner of the casino hall (`x -24..-16`, `z -16..-10`). Right-click the barrel on the bar at `-20, 66, -14` to open the full 26.3 beer menu and **choose exactly what you want**. Shift-right-click the barrel for a quick random **1-point house pint**, or run `/beer` / right-click a menu shelf to open the same picker.
+A small Wetherspoons pub sits in the north-west corner of the casino hall (`x -24..-16`, `z -16..-10`). Right-click **any barrel in the pub** to open the 26.3 beer menu and choose exactly what you want; the menu buttons buy the pint directly. Shift-right-click a barrel for a quick random **1-point house pint**, or run `/beer` / right-click a menu shelf to open the same picker.
 
 The menu has **14 branded pints** across five styles: Lager, Stout, Ale, Cider and Alcohol-Free. Every pint carries its own real brand name and matching bottle/can picture in the inventory — Stella, Guinness, Carling, Peroni, Strongbow and the rest — instead of all saying just “Beer”. Each style still has its own ABV, price, flavour lines and potion effects. Beer stacks to **64 per brand**. Drinking is a real 26.3 `CONSUMABLE` component, and left/right-click handling is instant so a quick click always drinks. Old tagged pints are migrated to their branded item the first time they are used or when the player logs in.
 
@@ -168,11 +168,12 @@ It writes `/tmp/guab-pack/guab-items.zip` and `/tmp/guab-pack/rickroll.zip` and 
 
 **Pub features**
 
-- **Weighted drunk meter** — every pint contributes real alcohol units based on ABV and volume. They decay over the configured window (15 minutes by default); the action bar shows `Tipsy → Merry → Drunk → Wrecked → Absolutely Wetherspoons`, with escalating nausea, slowness, blindness and the occasional hangover.
+- **Weighted drunk meter** — every pint contributes real alcohol units based on ABV and volume. They decay over the configured window (15 minutes by default); the action bar shows `Tipsy → Merry → Drunk → Wrecked → Absolutely Wetherspoons`, with escalating nausea, slowness, blindness and the occasional hangover. Effects are replaced as the meter drops, so they weaken and disappear instead of lingering at the old tier. Milk clears the meter immediately.
 - **Pints leaderboard** — lifetime pints and units are saved to `pints.yml`, `/pints [top|units]` lists them, and a hologram above the bar shows the top three plus total pints served.
 - **Milestones** — the 1st, 10th, 25th, 50th and 100th lifetime pint each pay a one-off points reward.
 - **`/round [beer]`** — buys that brand (or a random brand from a style) for everyone within 14 blocks of the pub centre; the default house round stays 1 point each.
-- **`/beer`** — opens the dialog menu; `/beer list`, `/beer buy <beer> [amount]` and `/beer stats` also work.
+- **`/beer`** — opens the dialog menu; `/beer list`, `/beer buy <beer> [amount]`, `/beer milk` and `/beer stats` also work.
+- **Milk** — sold from the bar menu for 5 points. Drinking it clears the drunk meter and the nausea/slowness effects, so you can sober up without waiting.
 - **Pub quiz** — every 10 minutes (or `/quiz`) a question goes out in chat; the first correct answer wins 100 points.
 - **Beer menu shelves** — right-click a shelf to open the dialog menu; left-click still refuses to let anyone take the display bottles.
 - **Carpet** — the pack overrides `red_carpet` with the Wetherspoons-style pattern, so the pub rug and the casino aisles share it.
@@ -181,10 +182,11 @@ It writes `/tmp/guab-pack/guab-items.zip` and `/tmp/guab-pack/rickroll.zip` and 
 
 The pub target block is the **entrance** to a dedicated darts room. Right-click it, pick **101, 301 or 501**, and you are teleported to a private oche with a bow and 64 arrows. Shoot the target block on the far wall; the arrow impact is scored on the real board geometry.
 
-**How to play:** right-click the pub dartboard, pick a leg, then hold right-click to draw the bow and release to shoot the target. Shift-right-click the pub board for a fast default 501 leg. Three arrows per visit; count down to exactly zero and finish on a double or bullseye 50. `/darts quit` returns you to the pub; `/darts help` prints the instructions, and the checkout hint appears on the action bar.
+**How to play:** right-click the pub dartboard, pick a leg, then hold right-click to draw the bow and release to shoot the target. You are locked to your oche, so you cannot walk closer or further away. Shift-right-click the pub board for a fast default 501 leg. Three arrows per visit; count down to exactly zero and finish on a double or bullseye 50. `/darts quit` returns you to the pub; `/darts help` prints the instructions, and the checkout hint appears on the action bar. Up to four players can share the room.
 
-- **Real arrows.** The arrow's impact point decides the score. The board uses the twenty standard sectors, plus singles, doubles, trebles, outer bull (25) and bullseye (50). Hitting T20 shows a **TRIPLE 20 / 60** title in the middle of the screen.
-- **Dedicated room.** The `guab_darts` world has a lit oche, a target block, a bow, arrows, and no mobs or PvP. You are returned automatically after the match or with `/darts quit`.
+- **Real arrows.** The arrow sticks in the board for a moment, and chat tells you exactly what you hit (`T20`, `D16`, `Bullseye 50`, `Miss`). The 3×3 board uses the twenty standard sectors, plus singles, doubles, trebles, outer bull (25) and bullseye (50). Hitting T20 shows a **TRIPLE 20 / 60** title in the middle of the screen.
+- **Dedicated room.** The `guab_darts` world has a lit oche, a 3×3 target, a bow, arrows, and no mobs or PvP. Movement is locked while the leg is live. You are returned automatically after the match or with `/darts quit`.
+- **Shared hit hologram.** A hologram between the oches shows every active player's current score and last hit, so you and a friend can see each other's darts.
 - **Proper legs.** Each visit is three arrows, the score counts down, and the last arrow must be a double (bullseye 50 counts). Bust overshoots, leaves 1, or finishes on a non-double.
 - **Checkout hints.** The action bar and the room display show the shortest finish, e.g. `T20 T20 BULL` for 170.
 - **Drunk wobble.** Every pint in the last window adds Gaussian aim error, so the target genuinely gets harder as the night goes on.

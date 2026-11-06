@@ -33,17 +33,20 @@ public final class ItemFactory {
     public static final String TYPE_KEY = "item_type";
     public static final String STYLE_KEY = "beer_style";
     public static final String BRAND_KEY = "beer_brand";
+    public static final String MILK_KEY = "pub_milk";
 
     private final GuabItemsPlugin plugin;
     private final NamespacedKey typeKey;
     private final NamespacedKey styleKey;
     private final NamespacedKey brandKey;
+    private final NamespacedKey milkKey;
 
     public ItemFactory(GuabItemsPlugin plugin) {
         this.plugin = plugin;
         this.typeKey = new NamespacedKey(plugin, TYPE_KEY);
         this.styleKey = new NamespacedKey(plugin, STYLE_KEY);
         this.brandKey = new NamespacedKey(plugin, BRAND_KEY);
+        this.milkKey = new NamespacedKey(plugin, MILK_KEY);
     }
 
     public ItemStack create(ItemType type, int amount) {
@@ -59,6 +62,26 @@ public final class ItemFactory {
         meta.getPersistentDataContainer().set(typeKey, PersistentDataType.STRING, type.id());
         stack.setItemMeta(meta);
         return stack;
+    }
+
+    public ItemStack createMilk() {
+        ItemStack milk = new ItemStack(Material.MILK_BUCKET);
+        ItemMeta meta = milk.getItemMeta();
+        meta.displayName(Component.text("Pint of Milk", NamedTextColor.WHITE)
+                .decoration(TextDecoration.ITALIC, false));
+        meta.lore(List.of(
+                Component.text("Sober up.", NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false),
+                Component.text("Clears the drunk meter and potion effects.", NamedTextColor.DARK_GRAY)
+                        .decoration(TextDecoration.ITALIC, false)));
+        meta.getPersistentDataContainer().set(milkKey, PersistentDataType.BYTE, (byte) 1);
+        milk.setItemMeta(meta);
+        return milk;
+    }
+
+    public boolean isMilk(ItemStack stack) {
+        return stack != null && !stack.getType().isAir() && stack.hasItemMeta()
+                && stack.getItemMeta().getPersistentDataContainer().has(milkKey, PersistentDataType.BYTE);
     }
 
     public ItemStack createBeer(BeerStyle style, int amount) {

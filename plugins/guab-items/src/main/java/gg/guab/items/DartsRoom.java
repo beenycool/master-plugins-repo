@@ -17,6 +17,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
@@ -24,12 +25,17 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
+import org.joml.AxisAngle4f;
+import org.joml.Vector3f;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -45,14 +51,22 @@ public final class DartsRoom implements Listener {
     private static final int TARGET_X = 0;
     private static final int TARGET_Y = 66;
     private static final int TARGET_Z = -6;
+    public static final double BOARD_RADIUS = 1.5;
     private static final int[] GLASS_LIGHTS = {-3, 0, 3};
+    private static final double[][] OCHES = {
+            {0.5, 6.5}, {-2.5, 6.5}, {3.5, 6.5}, {0.5, 4.5}
+    };
 
     private final GuabItemsPlugin plugin;
     private final NamespacedKey bowKey;
     private final NamespacedKey arrowKey;
     private final NamespacedKey signKey;
+    private final NamespacedKey boardKey;
+    private final NamespacedKey liveKey;
     private final Map<UUID, ReturnState> returns = new HashMap<>();
     private World world;
+    private ItemDisplay boardDisplay;
+    private TextDisplay liveBoard;
     private boolean built;
 
     public DartsRoom(GuabItemsPlugin plugin) {
@@ -60,6 +74,8 @@ public final class DartsRoom implements Listener {
         this.bowKey = new NamespacedKey(plugin, "darts_bow");
         this.arrowKey = new NamespacedKey(plugin, "darts_arrow");
         this.signKey = new NamespacedKey(plugin, "darts_room_sign");
+        this.boardKey = new NamespacedKey(plugin, "darts_room_board");
+        this.liveKey = new NamespacedKey(plugin, "darts_room_live");
     }
 
     public boolean enter(Player player) {
@@ -72,8 +88,9 @@ public final class DartsRoom implements Listener {
         if (returns.containsKey(player.getUniqueId()) && isInRoom(player)) {
             return true;
         }
+        int slot = returns.size() % OCHES.length;
         returns.put(player.getUniqueId(), new ReturnState(player.getLocation().clone(), player.getGameMode()));
-        player.teleport(spawn(roomWorld));
+        player.teleport(oche(roomWorld, slot));
         player.setGameMode(GameMode.ADVENTURE);
         giveKit(player);
         player.showTitle(net.kyori.adventure.title.Title.title(
@@ -84,7 +101,7 @@ public final class DartsRoom implements Listener {
                         java.time.Duration.ofMillis(1100),
                         java.time.Duration.ofMillis(350))));
         player.sendMessage(Component.text("[Darts] ", NamedTextColor.GOLD)
-                .append(Component.text("Shoot the target with the bow. /darts quit to leave.",
+                .append(Component.text("You are locked on the oche. Shoot the target with the bow. /darts quit to leave.",
                         NamedTextColor.GRAY)));
         return true;
     }
@@ -124,8 +141,8 @@ public final class DartsRoom implements Listener {
 
     private boolean isTarget(Block block) {
         return block.getWorld().getName().equals(WORLD_NAME)
-                && block.getX() == TARGET_X
-                && block.getY() == TARGET_Y
+                && block.getX() >= TARGET_X - 1 && block.getX() <= TARGET_X + 1
+                && block.getY() >= TARGET_Y - 1 && block.getY() <= TARGET_Y + 1
                 && block.getZ() == TARGET_Z
                 && block.getType() == Material.TARGET;
     }
@@ -142,8 +159,33 @@ public final class DartsRoom implements Listener {
             return;
         }
         Location point = arrow.getLocation().clone();
-        event.getEntity().remove();
+        arrow.setPickupStatus(Arrow.PickupStatus.DISALLOWED);
+        arrow.setPersistent(false);
+        Bukkit.getScheduler().runTaskLater(plugin, arrow::remove, 100L);
         plugin.darts().scoreArrow(player, point);
+    }
+
+    /** Lock the player to their oche while a leg is live; looking is still free. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onMove(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        if (!isInRoom(player) || !plugin.darts().isPlaying(player.getUniqueId())) {
+            return;
+        }
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (from.getWorld() == null || to.getWorld() == null
+                || !from.getWorld().equals(to.getWorld())
+                || from.distanceSquared(to) > 4.0) {
+            return;
+        }
+        if (from.getX() != to.getX() || from.getZ() != to.getZ()) {
+            Location fixed = from.clone();
+            fixed.setYaw(to.getYaw());
+            fixed.setPitch(to.getPitch());
+            fixed.setY(to.getY());
+            event.setTo(fixed);
+        }
     }
 
     @EventHandler
@@ -198,7 +240,12 @@ public final class DartsRoom implements Listener {
     }
 
     private Location spawn(World roomWorld) {
-        return new Location(roomWorld, 0.5, 65.0, 6.5, 180.0f, 0.0f);
+        return oche(roomWorld, 0);
+    }
+
+    private Location oche(World roomWorld, int slot) {
+        double[] point = OCHES[Math.floorMod(slot, OCHES.length)];
+        return new Location(roomWorld, point[0], 65.0, point[1], 180.0f, 0.0f);
     }
 
     private Location fallback() {
@@ -233,8 +280,14 @@ public final class DartsRoom implements Listener {
                 roomWorld.getBlockAt(x, 70, z).setType(Material.SEA_LANTERN, false);
             }
         }
-        roomWorld.getBlockAt(TARGET_X, TARGET_Y, TARGET_Z).setType(Material.TARGET, false);
+        for (int x = TARGET_X - 1; x <= TARGET_X + 1; x++) {
+            for (int y = TARGET_Y - 1; y <= TARGET_Y + 1; y++) {
+                roomWorld.getBlockAt(x, y, TARGET_Z).setType(Material.TARGET, false);
+            }
+        }
         cleanupSigns(roomWorld);
+        spawnBoardDisplay(roomWorld);
+        spawnLiveBoard(roomWorld);
         sign(roomWorld, new Location(roomWorld, 0.5, 68.0, 6.0),
                 Component.text("DARTS", NamedTextColor.GOLD)
                         .append(Component.newline())
@@ -270,7 +323,81 @@ public final class DartsRoom implements Listener {
                     && text.getPersistentDataContainer().has(signKey, PersistentDataType.BYTE)) {
                 text.remove();
             }
+            if (entity.getPersistentDataContainer().has(boardKey, PersistentDataType.BYTE)
+                    || entity.getPersistentDataContainer().has(liveKey, PersistentDataType.BYTE)) {
+                entity.remove();
+            }
         }
+        boardDisplay = null;
+        liveBoard = null;
+    }
+
+    private void spawnBoardDisplay(World roomWorld) {
+        Location location = new Location(roomWorld, 0.5, 66.5, -4.97);
+        boardDisplay = roomWorld.spawn(location, ItemDisplay.class, display -> {
+            ItemStack item = new ItemStack(Material.PAPER);
+            ItemMeta meta = item.getItemMeta();
+            NamespacedKey model = NamespacedKey.fromString("guab:dartboard");
+            if (model != null) {
+                meta.setItemModel(model);
+            }
+            item.setItemMeta(meta);
+            display.setItemStack(item);
+            display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+            display.setBillboard(Display.Billboard.CENTER);
+            display.setBrightness(new Display.Brightness(15, 15));
+            display.setPersistent(false);
+            display.setViewRange(1.0f);
+            display.setTransformation(new Transformation(
+                    new Vector3f(), new AxisAngle4f(),
+                    new Vector3f(3.0f, 3.0f, 1.0f), new AxisAngle4f()));
+            display.getPersistentDataContainer().set(boardKey, PersistentDataType.BYTE, (byte) 1);
+        });
+    }
+
+    private void spawnLiveBoard(World roomWorld) {
+        Location location = new Location(roomWorld, 0.5, 68.2, 2.5);
+        liveBoard = roomWorld.spawn(location, TextDisplay.class, display -> {
+            display.text(Component.text("DARTS  ·  LIVE HITS", NamedTextColor.GOLD)
+                    .append(Component.newline())
+                    .append(Component.text("Waiting for players", NamedTextColor.GRAY)));
+            display.setBillboard(Display.Billboard.CENTER);
+            display.setSeeThrough(false);
+            display.setShadowed(true);
+            display.setPersistent(true);
+            display.setViewRange(1.0f);
+            display.setDefaultBackground(false);
+            display.setBackgroundColor(Color.fromARGB(120, 0, 0, 0));
+            display.getPersistentDataContainer().set(liveKey, PersistentDataType.BYTE, (byte) 1);
+        });
+    }
+
+    /** Redraw the shared hit board between the oches and the target. */
+    public void updateLiveBoard(Collection<DartsGame> games) {
+        World roomWorld = world();
+        if (roomWorld == null) {
+            return;
+        }
+        if (liveBoard == null || !liveBoard.isValid()) {
+            spawnLiveBoard(roomWorld);
+        }
+        if (liveBoard == null || !liveBoard.isValid()) {
+            return;
+        }
+        Component text = Component.text("DARTS  ·  LIVE HITS", NamedTextColor.GOLD);
+        if (games.isEmpty()) {
+            text = text.append(Component.newline())
+                    .append(Component.text("Waiting for players", NamedTextColor.GRAY));
+        } else {
+            for (DartsGame game : games) {
+                String hit = game.lastHit() == null ? "—" : game.lastHit().label();
+                text = text.append(Component.newline())
+                        .append(Component.text(game.playerName(), NamedTextColor.WHITE))
+                        .append(Component.text("  " + game.score() + " left  ·  " + hit,
+                                NamedTextColor.GRAY));
+            }
+        }
+        liveBoard.text(text);
     }
 
     private void giveKit(Player player) {

@@ -4,6 +4,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -68,6 +69,14 @@ public final class BeerTapListener implements Listener {
     }
 
     private boolean isTap(Block block) {
+        if (block.getType() != Material.BARREL) {
+            return false;
+        }
+        var centre = plugin.pub().centre();
+        if (centre != null && block.getWorld().equals(centre.getWorld())) {
+            double radius = Math.max(4.0, plugin.getConfig().getDouble("beer.tap.radius", 12.0));
+            return block.getLocation().distanceSquared(centre) <= radius * radius;
+        }
         String world = plugin.getConfig().getString("beer.tap.world", "guab_casino");
         int x = plugin.getConfig().getInt("beer.tap.x", -20);
         int y = plugin.getConfig().getInt("beer.tap.y", 66);

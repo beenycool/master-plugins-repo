@@ -17,9 +17,9 @@ blackjack:
   dealer:
     enabled: true
     world: guab_casino
-    x: -18.0
+    x: -5.5
     y: 65.0
-    z: -14.0
+    z: -13.0
     yaw: 0.0
 
 venue:

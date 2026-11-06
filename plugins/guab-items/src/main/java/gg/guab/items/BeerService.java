@@ -76,6 +76,37 @@ public final class BeerService {
         return true;
     }
 
+    public boolean buyMilk(Player player, boolean requirePub) {
+        if (!plugin.getConfig().getBoolean("beer.milk.enabled", true)) {
+            error(player, "The milk is off tonight.");
+            return false;
+        }
+        if (!player.hasPermission("guab.items.use")) {
+            error(player, "You are not allowed to buy milk.");
+            return false;
+        }
+        if (requirePub && !inPub(player) && !player.hasPermission("guab.pub.menu.remote")) {
+            error(player, "Order at the bar. The pub is over there.");
+            return false;
+        }
+        int cost = Math.max(0, plugin.getConfig().getInt("beer.milk.cost", 5));
+        if (cost > 0) {
+            PointsService points = points();
+            if (points == null || !points.take(player.getUniqueId(), cost)) {
+                error(player, "Milk is " + cost + " points and you cannot cover it.");
+                return false;
+            }
+        }
+        player.getInventory().addItem(plugin.items().createMilk()).values()
+                .forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
+        player.playSound(player.getLocation(), Sound.ENTITY_COW_MILK,
+                SoundCategory.PLAYERS, 1.0f, 1.0f);
+        player.sendMessage(prefix().append(Component.text(
+                "Poured a pint of milk" + (cost > 0 ? " for " + cost + " points." : " for free.")
+                        + " Drink it to sober up.", NamedTextColor.WHITE)));
+        return true;
+    }
+
     public void give(Player player, BeerStyle style, int amount) {
         give(player, plugin.beer().randomBrand(style), amount);
     }

@@ -47,6 +47,10 @@ beer:
     alcohol_free: 5
   menu:
     enabled: true
+  # Milk sobers you up and clears the drunk meter. Sold from the bar menu.
+  milk:
+    enabled: true
+    cost: 5
   # Legacy house-pint pools. Style-specific pools below override these.
   names:
     - "Stella Artois"
@@ -81,6 +85,8 @@ beer:
     x: -20
     y: 66
     z: -14
+    # Any barrel within this radius of the pub centre works as a tap.
+    radius: 12.0
   # The full menu. Unknown style IDs in this section are ignored. Set
   # enabled: false on a style to take it off the bar.
   styles:
@@ -156,9 +162,9 @@ pub:
     leaderboard:
       enabled: true
       world: guab_casino
-      x: -17.5
+      x: -20.5
       y: 67.3
-      z: -12.5
+      z: -13.0
   drunk:
     # Drinks older than this stop counting towards the meter. Each pint decays
     # linearly across this window, so the room gradually stops spinning.

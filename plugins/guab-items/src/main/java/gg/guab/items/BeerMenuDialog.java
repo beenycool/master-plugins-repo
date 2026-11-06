@@ -51,16 +51,9 @@ public final class BeerMenuDialog {
                         + " units   ·   " + tier,
                 NamedTextColor.GOLD), 300));
         body.add(DialogBody.plainMessage(Component.text(
-                "House pint  ·  " + houseCost + " pt  ·  random cheap tap pint",
-                NamedTextColor.YELLOW), 300));
-        for (BeerBrand brand : plugin.beer().allBrands()) {
-            BeerStyle style = brand.style();
-            body.add(DialogBody.plainMessage(Component.text(
-                    brand.displayName() + "  ·  " + style.displayName() + "  ·  "
-                            + String.format(Locale.ROOT, "%.1f", style.abv())
-                            + "%  ·  " + style.unitsLabel() + " units  ·  " + style.price() + " pt",
-                    style.colour()), 300));
-        }
+                "Pick a pint below. The buttons buy it directly; "
+                        + "the house pint is a random cheap tap pint.",
+                NamedTextColor.WHITE), 300));
 
         List<ActionButton> actions = new ArrayList<>();
         actions.add(ActionButton.builder(Component.text("House pint · " + houseCost + " pt",
@@ -73,6 +66,20 @@ public final class BeerMenuDialog {
                                 plugin.getServer().getScheduler().runTask(plugin,
                                         () -> plugin.beerService().purchase(clicker,
                                                 plugin.beer().randomHouseBrand(), 1, houseCost, true));
+                            }
+                        },
+                        options()))
+                .build());
+        int milkCost = Math.max(0, plugin.getConfig().getInt("beer.milk.cost", 5));
+        actions.add(ActionButton.builder(Component.text("Milk · " + milkCost + " pt",
+                        NamedTextColor.WHITE))
+                .tooltip(Component.text("Sober up: clears the drunk meter and potion effects."))
+                .width(180)
+                .action(DialogAction.customClick(
+                        (DialogResponseView response, Audience audience) -> {
+                            if (audience instanceof Player clicker) {
+                                plugin.getServer().getScheduler().runTask(plugin,
+                                        () -> plugin.beerService().buyMilk(clicker, true));
                             }
                         },
                         options()))

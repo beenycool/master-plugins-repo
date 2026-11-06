@@ -97,7 +97,7 @@ public final class BlackjackDealer implements Listener {
         }
         World world = location.getWorld();
         world.getChunkAt(location).load();
-        removeOld(world, location);
+        removeOld(world);
 
         dealer = world.spawn(location, Villager.class, villager -> {
             villager.setAI(false);
@@ -132,8 +132,8 @@ public final class BlackjackDealer implements Listener {
         hologram.setPersistent(true);
     }
 
-    private void removeOld(World world, Location location) {
-        for (Entity entity : world.getNearbyEntities(location, 6, 6, 6)) {
+    private void removeOld(World world) {
+        for (Entity entity : world.getEntities()) {
             if (entity.getPersistentDataContainer().has(dealerKey, PersistentDataType.BYTE)
                     || entity.getPersistentDataContainer().has(hologramKey, PersistentDataType.BYTE)) {
                 entity.remove();
@@ -148,9 +148,9 @@ public final class BlackjackDealer implements Listener {
             return null;
         }
         return new Location(world,
-                plugin.getConfig().getDouble("blackjack.dealer.x", -18.0),
+                plugin.getConfig().getDouble("blackjack.dealer.x", -5.5),
                 plugin.getConfig().getDouble("blackjack.dealer.y", 65.0),
-                plugin.getConfig().getDouble("blackjack.dealer.z", -14.0),
+                plugin.getConfig().getDouble("blackjack.dealer.z", -13.0),
                 (float) plugin.getConfig().getDouble("blackjack.dealer.yaw", 0.0),
                 0.0f);
     }

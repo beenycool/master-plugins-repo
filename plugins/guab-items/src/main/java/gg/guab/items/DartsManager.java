@@ -142,8 +142,8 @@ public final class DartsManager implements Listener {
             actionBar(player, Component.text("You already have a leg on the board.", NamedTextColor.YELLOW));
             return false;
         }
-        if (!games.isEmpty()) {
-            actionBar(player, Component.text("Someone else is throwing. Wait for the board.", NamedTextColor.YELLOW));
+        if (games.size() >= 4) {
+            actionBar(player, Component.text("The darts room is full (4 players).", NamedTextColor.YELLOW));
             return false;
         }
         int normalisedMode = mode == 101 || mode == 301 || mode == 501 ? mode : config.defaultMode();
@@ -175,7 +175,7 @@ public final class DartsManager implements Listener {
         if (game == null || centre == null || point == null) {
             return;
         }
-        resolveThrow(player, game, point, centre, BlockFace.SOUTH, 0.5);
+        resolveThrow(player, game, point, centre, BlockFace.SOUTH, DartsRoom.BOARD_RADIUS);
     }
 
     /** Legacy pub-board throw, kept as a fallback if the room is unavailable. */
@@ -231,6 +231,10 @@ public final class DartsManager implements Listener {
 
         showHud(player, game);
         present(player, game, result, point);
+        if (result.kind() != DartsGame.Kind.BUST) {
+            send(player, "Hit " + result.hit().label() + " for " + result.hit().score()
+                    + " · " + result.scoreAfter() + " left", NamedTextColor.WHITE);
+        }
 
         if (result.kind() == DartsGame.Kind.CHECKOUT) {
             int reward = reward(player, game, result);
@@ -502,7 +506,10 @@ public final class DartsManager implements Listener {
         Component line = Component.text("[Darts] ", NamedTextColor.GOLD)
                 .append(Component.text(message, NamedTextColor.WHITE));
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (player.getWorld().equals(centre.getWorld())
+            if (player.getWorld().getName().equals("guab_darts")
+                    && isPlaying(player.getUniqueId())) {
+                player.sendMessage(line);
+            } else if (player.getWorld().equals(centre.getWorld())
                     && player.getLocation().distanceSquared(centre) <= 48.0 * 48.0) {
                 player.sendMessage(line);
             }
@@ -515,11 +522,13 @@ public final class DartsManager implements Listener {
     private void updateDisplay() {
         if (!config.enabled() || games.isEmpty()) {
             removeDisplay();
+            room.updateLiveBoard(games.values());
             return;
         }
         Location centre = boardCentre();
         if (centre == null || centre.getWorld() == null) {
             removeDisplay();
+            room.updateLiveBoard(games.values());
             return;
         }
         World world = centre.getWorld();
@@ -550,6 +559,7 @@ public final class DartsManager implements Listener {
                 .append(Component.text("\n" + (hint == null ? "no checkout" : "checkout  " + hint),
                         hint == null ? NamedTextColor.DARK_GRAY : NamedTextColor.GREEN));
         display.text(text);
+        room.updateLiveBoard(games.values());
     }
 
     private void removeDisplay() {
