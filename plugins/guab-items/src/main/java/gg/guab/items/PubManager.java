@@ -34,7 +34,7 @@ import java.util.UUID;
  */
 public final class PubManager {
 
-    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
+    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
 
     private final GuabItemsPlugin plugin;
     private final Map<UUID, PlayerPints> players = new HashMap<>();
