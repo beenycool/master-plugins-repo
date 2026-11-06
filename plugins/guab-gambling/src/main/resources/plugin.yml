@@ -12,7 +12,7 @@ loadbefore: [MineGames]
 commands:
   casino:
     description: Walk into the Guab casino, or build and inspect it.
-    usage: /casino [enter|build|setspawn|status|reload]
+    usage: /casino [enter|build|setspawn|status|snapshot|reload]
     aliases: [gcasino]
 
 permissions:

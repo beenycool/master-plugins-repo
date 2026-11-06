@@ -28,6 +28,10 @@ hud:
     header: "&6&lGUAB PARKOUR\n&7Casino night"
     footer: "&7Points &8» &6%points% &8| &7Online &f%online%"
 
+  # Welcome chat line with the balance and a clickable casino link.
+  join-message:
+    enabled: true
+
   # Balance floating under each player's nametag, right above their head.
   # Uses the vanilla below_name scoreboard slot, so it follows players and works
   # for every player whose scoreboard is managed here.

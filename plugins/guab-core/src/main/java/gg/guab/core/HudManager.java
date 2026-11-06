@@ -1,8 +1,14 @@
 package gg.guab.core;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -18,9 +24,11 @@ import org.bukkit.scoreboard.Team;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -28,13 +36,14 @@ import java.util.UUID;
  * the event needs players to remember. Refreshed on a timer so point changes show up
  * even when they come from a third-party plugin through the Vault bridge.
  */
-public final class HudManager implements Listener {
+public final class HudManager implements Listener, CommandExecutor {
 
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
 
     private final GuabCorePlugin plugin;
     private final PointsService points;
     private final Map<UUID, Panel> panels = new HashMap<>();
+    private final Set<UUID> sidebarHidden = new HashSet<>();
     private BukkitTask task;
 
     public HudManager(GuabCorePlugin plugin, PointsService points) {
@@ -67,12 +76,61 @@ public final class HudManager implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         // One tick later so the player is fully in the world before the sidebar lands.
-        plugin.getServer().getScheduler().runTask(plugin, () -> attach(event.getPlayer()));
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            attach(event.getPlayer());
+            sendWelcome(event.getPlayer());
+        });
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         panels.remove(event.getPlayer().getUniqueId());
+        sidebarHidden.remove(event.getPlayer().getUniqueId());
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("[HUD] Only players can toggle their own HUD.", NamedTextColor.RED));
+            return true;
+        }
+        boolean visible = toggleSidebar(player);
+        player.sendMessage(Component.text("[HUD] ", NamedTextColor.GOLD)
+                .append(Component.text(visible
+                        ? "Sidebar shown."
+                        : "Sidebar hidden. Your balance stays under your nametag.", NamedTextColor.GRAY)));
+        return true;
+    }
+
+    /** Returns whether the sidebar is now visible. */
+    private boolean toggleSidebar(Player player) {
+        UUID id = player.getUniqueId();
+        boolean hide = !sidebarHidden.contains(id);
+        if (hide) {
+            sidebarHidden.add(id);
+        } else {
+            sidebarHidden.remove(id);
+        }
+        Panel panel = panels.get(id);
+        if (panel != null) {
+            panel.setSidebarVisible(!hide);
+        }
+        return !hide;
+    }
+
+    private void sendWelcome(Player player) {
+        if (!player.isOnline() || !plugin.getConfig().getBoolean("hud.join-message.enabled", true)) {
+            return;
+        }
+        int balance = points.get(player.getUniqueId());
+        player.sendMessage(Component.text("Welcome, ", NamedTextColor.GOLD)
+                .append(Component.text(player.getName(), NamedTextColor.WHITE))
+                .append(Component.text(" — balance ", NamedTextColor.GRAY))
+                .append(Component.text(String.format(Locale.ROOT, "%,d", balance), NamedTextColor.GOLD))
+                .append(Component.text("  "))
+                .append(Component.text("[Enter casino]", NamedTextColor.GREEN)
+                        .clickEvent(ClickEvent.runCommand("/casino"))
+                        .hoverEvent(HoverEvent.showText(Component.text("Teleport to the casino", NamedTextColor.GRAY)))));
     }
 
     private void attach(Player player) {
@@ -82,6 +140,7 @@ public final class HudManager implements Listener {
         Panel panel = new Panel(player);
         panels.put(player.getUniqueId(), panel);
         panel.refresh();
+        panel.setSidebarVisible(!sidebarHidden.contains(player.getUniqueId()));
     }
 
     private void updateAll() {
@@ -200,6 +259,14 @@ public final class HudManager implements Listener {
                 Score score = belowName.getScore(online.getName());
                 score.setScore(Math.max(0, value));
                 lastScores.put(online.getName(), value);
+            }
+        }
+
+        private void setSidebarVisible(boolean visible) {
+            if (visible && plugin.getConfig().getBoolean("hud.scoreboard.enabled", true)) {
+                objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+            } else {
+                board.clearSlot(DisplaySlot.SIDEBAR);
             }
         }
 

@@ -11,7 +11,11 @@ commands:
   points:
     description: Show or change Guab points.
     usage: /points [player] | /points top [count] | /points <set|add|take> <player> <amount>
-    aliases: [guabpoints]
+    aliases: [guabpoints, bal, balance]
+  hud:
+    description: Show or hide your Guab sidebar.
+    usage: /hud
+    aliases: [sidebar]
 
 permissions:
   guab.points.others:

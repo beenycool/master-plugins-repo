@@ -36,6 +36,10 @@ public final class GuabCorePlugin extends JavaPlugin {
 
         if (getConfig().getBoolean("hud.enabled", true)) {
             this.hud = new HudManager(this, points);
+            PluginCommand hudCommand = getCommand("hud");
+            if (hudCommand != null) {
+                hudCommand.setExecutor(this.hud);
+            }
             this.hud.start();
         }
 

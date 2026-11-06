@@ -10,9 +10,18 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public final class CasinoCommand implements CommandExecutor, TabCompleter {
 
@@ -35,6 +44,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
             case "dispatch" -> dispatch(sender, args);
             case "setspawn" -> setSpawn(sender);
             case "status" -> status(sender);
+            case "snapshot", "backup" -> snapshot(sender);
             case "reload" -> reload(sender);
             default -> usage(sender);
         }
@@ -195,8 +205,61 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         info(sender, "Casino config reloaded.");
     }
 
+    /**
+     * Zips the points ledger and every casino-side config into {@code data/backups}, so a
+     * staff member can take a pre-event snapshot without touching the shell.
+     */
+    private void snapshot(CommandSender sender) {
+        if (!sender.hasPermission("guab.casino.admin")) {
+            error(sender, "You need guab.casino.admin to take a snapshot.");
+            return;
+        }
+        Path data = plugin.getServer().getWorldContainer().toPath().toAbsolutePath().normalize();
+        Path plugins = data.resolve("plugins");
+        List<Path> sources = new ArrayList<>();
+        addIfFile(sources, plugins.resolve("GuabCore/points.yml"));
+        addIfFile(sources, plugins.resolve("GuabCore/config.yml"));
+        addIfFile(sources, plugins.resolve("GuabGambling/config.yml"));
+        Path mineGames = plugins.resolve("MineGames");
+        if (Files.isDirectory(mineGames)) {
+            try (Stream<Path> files = Files.list(mineGames)) {
+                files.filter(path -> path.getFileName().toString().endsWith(".yml")).forEach(sources::add);
+            } catch (IOException exception) {
+                error(sender, "Could not list MineGames configs: " + exception.getMessage());
+                return;
+            }
+        }
+        if (sources.isEmpty()) {
+            error(sender, "Nothing to snapshot yet; plugin data is missing.");
+            return;
+        }
+        String stamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").format(LocalDateTime.now());
+        Path out = data.resolve("backups").resolve("casino-snapshot-" + stamp + ".zip");
+        try {
+            Files.createDirectories(out.getParent());
+            try (OutputStream stream = Files.newOutputStream(out);
+                 ZipOutputStream zip = new ZipOutputStream(stream)) {
+                for (Path source : sources) {
+                    zip.putNextEntry(new ZipEntry(data.relativize(source).toString().replace('\\', '/')));
+                    Files.copy(source, zip);
+                    zip.closeEntry();
+                }
+            }
+        } catch (IOException exception) {
+            error(sender, "Snapshot failed: " + exception.getMessage());
+            return;
+        }
+        info(sender, "Snapshot saved to " + out + " (" + sources.size() + " files).");
+    }
+
+    private void addIfFile(List<Path> sources, Path path) {
+        if (Files.isRegularFile(path)) {
+            sources.add(path);
+        }
+    }
+
     private void usage(CommandSender sender) {
-        info(sender, "/casino [enter|build|setup [player]|dispatch <player> <command>|setspawn|status|reload]");
+        info(sender, "/casino [enter|build|setup [player]|dispatch <player> <command>|setspawn|status|snapshot|reload]");
     }
 
     private void info(CommandSender sender, String message) {
@@ -215,7 +278,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             out.add("enter");
             if (sender.hasPermission("guab.casino.admin")) {
-                out.addAll(List.of("build", "setup", "dispatch", "setspawn", "status", "reload"));
+                out.addAll(List.of("build", "setup", "dispatch", "setspawn", "status", "snapshot", "reload"));
             }
         }
         String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
