@@ -351,12 +351,12 @@ public final class DartsManager implements Listener {
                 .append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
                 .append(Component.text(game.score() + " left", NamedTextColor.WHITE))
                 .append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
-                .append(Component.text("darts " + game.dartsLeft() + "/3", NamedTextColor.AQUA))
+                .append(Component.text(game.dartsLeft() + " darts", NamedTextColor.AQUA))
                 .append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
-                .append(Component.text("leg " + game.legNumber() + "/" + game.legsToWin(), NamedTextColor.GRAY));
+                .append(Component.text("L" + game.legNumber() + "/" + game.legsToWin(), NamedTextColor.GRAY));
         if (hint != null) {
             line = line.append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
-                    .append(Component.text("checkout " + hint, NamedTextColor.GREEN));
+                    .append(Component.text(hint, NamedTextColor.GREEN));
         }
         player.sendActionBar(line);
     }
