@@ -59,19 +59,6 @@ public final class GuabItemsCommand implements CommandExecutor, TabCompleter {
             styleId = rawType.substring(colon + 1);
             rawType = rawType.substring(0, colon);
         }
-        ItemType type = ItemType.byId(rawType);
-        if (type == null) {
-            error(sender, "Unknown item: " + args[2] + " (use wind_charge, jump_boost, beer or beer:<brand|style>).");
-            return;
-        }
-        BeerBrand beerBrand = null;
-        if (type == ItemType.BEER) {
-            beerBrand = styleId == null ? plugin.beer().houseBrand() : plugin.beer().brandFor(styleId);
-            if (beerBrand == null) {
-                error(sender, "Unknown beer: " + styleId + ". Try /beer list.");
-                return;
-            }
-        }
 
         int amount = 1;
         if (args.length >= 4) {
@@ -83,6 +70,40 @@ public final class GuabItemsCommand implements CommandExecutor, TabCompleter {
             }
         }
         amount = Math.clamp(amount, 1, plugin.config().maxGiveAmount());
+
+        if (rawType.equalsIgnoreCase("milk") || rawType.equalsIgnoreCase("pint_of_milk")) {
+            int remaining = amount;
+            while (remaining-- > 0) {
+                target.getInventory().addItem(plugin.items().createMilk()).values()
+                        .forEach(leftover -> target.getWorld().dropItemNaturally(target.getLocation(), leftover));
+            }
+            Component given = Component.text("Pint of Milk", NamedTextColor.WHITE);
+            sender.sendMessage(prefix()
+                    .append(Component.text("Gave " + amount + "x ", NamedTextColor.GRAY))
+                    .append(given)
+                    .append(Component.text(" to " + target.getName() + ".", NamedTextColor.GRAY)));
+            if (!sender.equals(target)) {
+                target.sendMessage(prefix()
+                        .append(Component.text("You received " + amount + "x ", NamedTextColor.GRAY))
+                        .append(given)
+                        .append(Component.text(".", NamedTextColor.GRAY)));
+            }
+            return;
+        }
+
+        ItemType type = ItemType.byId(rawType);
+        if (type == null) {
+            error(sender, "Unknown item: " + args[2] + " (use wind_charge, jump_boost, beer, beer:<brand|style> or milk).");
+            return;
+        }
+        BeerBrand beerBrand = null;
+        if (type == ItemType.BEER) {
+            beerBrand = styleId == null ? plugin.beer().houseBrand() : plugin.beer().brandFor(styleId);
+            if (beerBrand == null) {
+                error(sender, "Unknown beer: " + styleId + ". Try /beer list.");
+                return;
+            }
+        }
 
         int remaining = amount;
         int stackSize = Math.max(1, type.material().getMaxStackSize());
@@ -120,7 +141,7 @@ public final class GuabItemsCommand implements CommandExecutor, TabCompleter {
 
     private void usage(CommandSender sender, String label) {
         sender.sendMessage(Component.text(
-                "/" + label + " give <player> <wind_charge|jump_boost|beer[:brand|style]> [amount]",
+                "/" + label + " give <player> <wind_charge|jump_boost|beer[:brand|style]|milk> [amount]",
                 NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/" + label + " reload", NamedTextColor.GRAY));
     }
@@ -160,6 +181,7 @@ public final class GuabItemsCommand implements CommandExecutor, TabCompleter {
             for (ItemType type : ItemType.values()) {
                 types.add(type.id());
             }
+            types.add("milk");
             for (BeerBrand brand : plugin.beer().allBrands()) {
                 types.add("beer:" + brand.id());
             }
