@@ -19,6 +19,7 @@ public final class BeerRegistry {
 
     private final GuabItemsPlugin plugin;
     private final Map<String, BeerStyle> styles = new LinkedHashMap<>();
+    private final Map<String, BeerBrand> brands = new LinkedHashMap<>();
 
     public BeerRegistry(GuabItemsPlugin plugin) {
         this.plugin = plugin;
@@ -41,6 +42,30 @@ public final class BeerRegistry {
 
         if (styles.isEmpty()) {
             styles.put("lager", defaults.get("lager"));
+        }
+
+        brands.clear();
+        addBrand("stella", "Stella Artois", "lager", "guab:beer_stella");
+        addBrand("carling", "Carling", "lager", "guab:beer_carling");
+        addBrand("fosters", "Foster's", "lager", "guab:beer_fosters");
+        addBrand("sanmiguel", "San Miguel", "lager", "guab:beer_sanmiguel");
+        addBrand("peroni", "Peroni", "lager", "guab:beer_peroni");
+        addBrand("moretti", "Birra Moretti", "lager", "guab:beer_moretti");
+        addBrand("heineken", "Heineken", "lager", "guab:beer_heineken");
+        addBrand("corona", "Corona", "lager", "guab:beer_corona");
+        addBrand("budweiser", "Budweiser", "lager", "guab:beer_budweiser");
+        addBrand("guinness", "Guinness", "stout", "guab:beer_guinness");
+        addBrand("johnsmiths", "John Smith's", "ale", "guab:beer_johnsmiths");
+        addBrand("londonpride", "London Pride", "ale", "guab:beer_londonpride");
+        addBrand("strongbow", "Strongbow", "cider", "guab:beer_strongbow");
+        addBrand("thatchers", "Thatchers Gold", "cider", "guab:beer_thatchers");
+        addBrand("alcohol_free", "Alcohol-Free", "alcohol_free", "guab:beer");
+    }
+
+    private void addBrand(String id, String displayName, String styleId, String itemModel) {
+        BeerStyle style = styles.get(styleId);
+        if (style != null) {
+            brands.put(id, new BeerBrand(id, displayName, style, itemModel));
         }
     }
 
@@ -98,6 +123,45 @@ public final class BeerRegistry {
 
     public List<BeerStyle> all() {
         return List.copyOf(styles.values());
+    }
+
+    public List<BeerBrand> allBrands() {
+        return List.copyOf(brands.values());
+    }
+
+    public BeerBrand findBrand(String id) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
+        return brands.get(normalise(id));
+    }
+
+    public BeerBrand randomBrand(BeerStyle style) {
+        List<BeerBrand> candidates = brands.values().stream()
+                .filter(brand -> brand.style().id().equals(style.id()))
+                .toList();
+        if (candidates.isEmpty()) {
+            return brands.isEmpty() ? null : brands.values().iterator().next();
+        }
+        return candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
+    }
+
+    public BeerBrand houseBrand() {
+        return randomBrand(house());
+    }
+
+    public BeerBrand randomHouseBrand() {
+        return randomBrand(randomHouse());
+    }
+
+    /** Accepts either a brand id or a style id (styles pick a random brand). */
+    public BeerBrand brandFor(String id) {
+        BeerBrand brand = findBrand(id);
+        if (brand != null) {
+            return brand;
+        }
+        BeerStyle style = find(id);
+        return style == null ? null : randomBrand(style);
     }
 
     private BeerStyle read(ConfigurationSection section, BeerStyle fallback) {

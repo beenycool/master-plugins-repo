@@ -12,12 +12,11 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.util.RayTraceResult;
-import org.bukkit.util.Vector;
 
 /**
- * The physical dartboard. Right-clicking it opens the mode dialog while idle and
- * throws a dart while a leg is live. The actual scoring is in {@link DartsGeometry}.
+ * The pub dartboard is the entry point. Right-clicking it opens the mode dialog
+ * and sends the player to the dedicated bow-and-target room. Scoring happens on
+ * arrow impact in {@link DartsRoom}.
  */
 public final class DartsBoard implements Listener {
 
@@ -37,7 +36,7 @@ public final class DartsBoard implements Listener {
         if (block == null || event.getBlockFace() != plugin.darts().config().face()) {
             return;
         }
-        Location point = interactionPoint(event);
+        Location point = event.getInteractionPoint();
         if (!plugin.darts().isBoard(block, point)) {
             return;
         }
@@ -66,34 +65,15 @@ public final class DartsBoard implements Listener {
             return;
         }
 
-        if (!plugin.darts().isPlaying(player.getUniqueId())) {
-            if (player.isSneaking()) {
-                plugin.darts().startDefault(player);
-            } else {
-                plugin.darts().openMenu(player);
-            }
+        if (plugin.darts().isPlaying(player.getUniqueId())) {
+            player.sendActionBar(Component.text("You are already on the oche. Shoot the target; /darts quit to leave.",
+                    NamedTextColor.GRAY));
             return;
         }
-
-        Location throwPoint = point != null ? point : rayPoint(player, centre);
-        plugin.darts().throwDart(player, throwPoint);
-    }
-
-    private Location interactionPoint(PlayerInteractEvent event) {
-        return event.getInteractionPoint();
-    }
-
-    /**
-     * Fallback for servers where the interaction point is unavailable: trace the
-     * player's eye ray into the board plane so aim is still respected.
-     */
-    private Location rayPoint(Player player, Location centre) {
-        Vector direction = player.getEyeLocation().getDirection();
-        RayTraceResult result = player.getWorld().rayTraceBlocks(
-                player.getEyeLocation(), direction, 16.0, org.bukkit.FluidCollisionMode.NEVER, true);
-        if (result != null && result.getHitPosition() != null) {
-            return result.getHitPosition().toLocation(player.getWorld());
+        if (player.isSneaking()) {
+            plugin.darts().startDefault(player);
+        } else {
+            plugin.darts().openMenu(player);
         }
-        return centre.clone();
     }
 }

@@ -45,6 +45,7 @@ If the ping is missed, a 2-minute timer on the VM polls for new releases as a fa
 - Resources: 3 GB heap, 4 GB cap
 - World: superflat, 20 slots, no whitelist
 - Rickroll admin commands require `guab.rickroll.admin` (OP by default)
+- Command blocks are disabled (`enable-command-block=false` in `data/server.properties`)
 - World and plugin configs live in `/opt/guab-server/data` and survive every deploy
 - `backup.sh` snapshots the world daily to `/opt/guab-server/backups` (last 7 kept)
 
@@ -137,7 +138,9 @@ All pads are in the `guab_casino` world at `y=65` (relative to `0, 64, 0`).
 
 ### Blackjack
 
-`/blackjack <bet>` (aliases `/bj`, `/21`) deals a hand against the dealer. `/bj hit`, `/bj stand` and `/bj double` play it out; the chat buttons do the same. Blackjack pays 3:2, the dealer stands on 17, and the table settles directly against the points ledger. Hands auto-stand after `blackjack.timeout-seconds` and settle if the player disconnects.
+A dedicated **Blackjack Dealer** NPC stands in the pub at `-18, 65, -14`. Right-click the dealer to open a 26.3 dialog, type a bet and press **Deal**. Right-click again during a hand to reprint your cards and the Hit / Stand / Double buttons. Staff can move the dealer to their current position with `/blackjack setdealer`.
+
+`/blackjack <bet>` (aliases `/bj`, `/21`) also deals a hand directly. `/bj hit`, `/bj stand` and `/bj double` play it out; the chat buttons do the same. Blackjack pays 3:2, the dealer stands on 17, and the table settles directly against the points ledger. Hands auto-stand after `blackjack.timeout-seconds` and settle if the player disconnects.
 
 ### Chicken
 
@@ -147,11 +150,11 @@ If the chicken sticks at `1.00×`, run `sudo docker/fix-minegames-chicken.sh` on
 
 ### Wetherspoons
 
-A small Wetherspoons pub sits in the north-west corner of the casino hall (`x -24..-16`, `z -16..-10`). Right-click the barrel on the bar at `-20, 66, -14` for a cheap **1-point house pint**. Sneak-right-click the barrel, right-click a menu shelf, or run `/beer` to open the full 26.3 dialog menu.
+A small Wetherspoons pub sits in the north-west corner of the casino hall (`x -24..-16`, `z -16..-10`). Right-click the barrel on the bar at `-20, 66, -14` to open the full 26.3 beer menu and **choose exactly what you want**. Shift-right-click the barrel for a quick random **1-point house pint**, or run `/beer` / right-click a menu shelf to open the same picker.
 
-The menu has five real styles: **Lager, Stout, Ale, Cider and Alcohol-Free**. Each one has its own ABV, price, real-brand name pool, flavour lines and potion effects. Beer stacks to **64 per style** and still uses the custom mug texture from the resource pack. Drinking is a real 26.3 `CONSUMABLE` component, so the client plays the drink animation, sound and cooldown. Old tagged pints are migrated to components the first time they are used.
+The menu has **14 branded pints** across five styles: Lager, Stout, Ale, Cider and Alcohol-Free. Every pint carries its own real brand name and matching bottle/can picture in the inventory — Stella, Guinness, Carling, Peroni, Strongbow and the rest — instead of all saying just “Beer”. Each style still has its own ABV, price, flavour lines and potion effects. Beer stacks to **64 per brand**. Drinking is a real 26.3 `CONSUMABLE` component, and left/right-click handling is instant so a quick click always drinks. Old tagged pints are migrated to their branded item the first time they are used or when the player logs in.
 
-Staff can hand out stacks with `/guabitems give <player> beer 64`, or a specific style with `/guabitems give <player> beer:stout 64`.
+Staff can hand out stacks with `/guabitems give <player> beer 64`, a specific brand with `/guabitems give <player> beer:stella 64`, or a style with `/guabitems give <player> beer:stout 64` (styles pick a random brand).
 
 The item textures live in `guab-items.zip` on the pack host (`:39002`) and are applied as the server resource pack; the same assets are embedded in the rickroll pack so beer stays textured after a show. The pint and bottle textures are real product photos from Open Food Facts (CC BY-SA 3.0), and the dartboard face is Wikimedia Commons' unlabelled dartboard (CC BY-SA 3.0).
 
@@ -168,25 +171,28 @@ It writes `/tmp/guab-pack/guab-items.zip` and `/tmp/guab-pack/rickroll.zip` and 
 - **Weighted drunk meter** — every pint contributes real alcohol units based on ABV and volume. They decay over the configured window (15 minutes by default); the action bar shows `Tipsy → Merry → Drunk → Wrecked → Absolutely Wetherspoons`, with escalating nausea, slowness, blindness and the occasional hangover.
 - **Pints leaderboard** — lifetime pints and units are saved to `pints.yml`, `/pints [top|units]` lists them, and a hologram above the bar shows the top three plus total pints served.
 - **Milestones** — the 1st, 10th, 25th, 50th and 100th lifetime pint each pay a one-off points reward.
-- **`/round [style]`** — buys that style for everyone within 14 blocks of the pub centre; the default house round stays 1 point each.
-- **`/beer`** — opens the dialog menu; `/beer list`, `/beer buy <style> [amount]` and `/beer stats` also work.
+- **`/round [beer]`** — buys that brand (or a random brand from a style) for everyone within 14 blocks of the pub centre; the default house round stays 1 point each.
+- **`/beer`** — opens the dialog menu; `/beer list`, `/beer buy <beer> [amount]` and `/beer stats` also work.
 - **Pub quiz** — every 10 minutes (or `/quiz`) a question goes out in chat; the first correct answer wins 100 points.
 - **Beer menu shelves** — right-click a shelf to open the dialog menu; left-click still refuses to let anyone take the display bottles.
 - **Carpet** — the pack overrides `red_carpet` with the Wetherspoons-style pattern, so the pub rug and the casino aisles share it.
 
 ### Darts
 
-The target block on the west wall is now a full dartboard, not a random-number button.
+The pub target block is the **entrance** to a dedicated darts room. Right-click it, pick **101, 301 or 501**, and you are teleported to a private oche with a bow and 64 arrows. Shoot the target block on the far wall; the arrow impact is scored on the real board geometry.
 
-- **Aim is real.** Your eye ray decides where the dart lands. The board uses the twenty standard sectors, plus singles, doubles, trebles, outer bull (25) and bullseye (50).
-- **Proper legs.** `/darts` opens a dialog for **101, 301 or 501**. Each visit is three darts, the score counts down, and the last dart must be a double (bullseye 50 counts). Bust overshoots, leaves 1, or finishes on a non-double.
-- **Checkout hints.** The action bar and the board hologram show the shortest finish, e.g. `T20 T20 BULL` for 170.
-- **Drunk wobble.** Every pint in the last window adds Gaussian aim error, so the board genuinely gets harder as the night goes on.
+**How to play:** right-click the pub dartboard, pick a leg, then hold right-click to draw the bow and release to shoot the target. Shift-right-click the pub board for a fast default 501 leg. Three arrows per visit; count down to exactly zero and finish on a double or bullseye 50. `/darts quit` returns you to the pub; `/darts help` prints the instructions, and the checkout hint appears on the action bar.
+
+- **Real arrows.** The arrow's impact point decides the score. The board uses the twenty standard sectors, plus singles, doubles, trebles, outer bull (25) and bullseye (50). Hitting T20 shows a **TRIPLE 20 / 60** title in the middle of the screen.
+- **Dedicated room.** The `guab_darts` world has a lit oche, a target block, a bow, arrows, and no mobs or PvP. You are returned automatically after the match or with `/darts quit`.
+- **Proper legs.** Each visit is three arrows, the score counts down, and the last arrow must be a double (bullseye 50 counts). Bust overshoots, leaves 1, or finishes on a non-double.
+- **Checkout hints.** The action bar and the room display show the shortest finish, e.g. `T20 T20 BULL` for 170.
+- **Drunk wobble.** Every pint in the last window adds Gaussian aim error, so the target genuinely gets harder as the night goes on.
 - **Career records.** `darts.yml` stores legs played/won, darts thrown, best leg, 180s, checkouts, highest checkout and best visit. `/darts stats [player]` and `/darts top [legs|180s|checkout|best]` read it.
 - **Match night.** `/darts start [101|301|501] [legs]` starts directly. Checkouts pay points based on the mode, darts used and checkout value, capped by config. 180s get fireworks and a title; checkouts get a celebration and a pub-wide announcement.
-- **Admin.** `/darts board` sets the board from the block you are looking at; `/darts reload` reloads the rules.
+- **Admin.** `/darts board` sets the pub entrance from the block you are looking at; `/darts reload` reloads the rules.
 
-The board location, face, radius, ring sizes, wobble, rewards and cooldowns are all in `pub.darts` in `GuabItems/config.yml`.
+The pub entrance, face, ring sizes, wobble, rewards and cooldowns are all in `pub.darts` in `GuabItems/config.yml`.
 
 ### Snapshots
 

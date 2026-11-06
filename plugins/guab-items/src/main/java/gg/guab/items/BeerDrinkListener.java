@@ -51,16 +51,16 @@ public final class BeerDrinkListener implements Listener {
             return;
         }
 
-        BeerStyle style = plugin.items().beerStyleOf(item);
-        if (style == null) {
-            style = plugin.beer().house();
+        BeerBrand brand = plugin.items().beerBrandOf(item);
+        if (brand == null) {
+            brand = plugin.beer().houseBrand();
         }
         plugin.cooldowns().start(player.getUniqueId(), ItemType.BEER,
                 plugin.config().beerCooldownMillis());
-        plugin.pub().recordDrink(player, style);
+        plugin.pub().recordDrink(player, brand.style());
 
-        player.sendMessage(Component.text("You crack open a cold " + style.randomName() + ".",
+        player.sendMessage(Component.text("You crack open a cold " + brand.displayName() + ".",
                 NamedTextColor.YELLOW));
-        player.sendMessage(Component.text(style.randomMessage(), NamedTextColor.GRAY));
+        player.sendMessage(Component.text(brand.style().randomMessage(), NamedTextColor.GRAY));
     }
 }

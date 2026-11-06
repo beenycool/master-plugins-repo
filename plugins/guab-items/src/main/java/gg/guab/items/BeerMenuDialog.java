@@ -42,32 +42,53 @@ public final class BeerMenuDialog {
         String tier = plugin.pub().tierLabel(units);
 
         List<DialogBody> body = new ArrayList<>();
+        int houseCost = Math.max(0, plugin.getConfig().getInt("beer.cost", 1));
         body.add(DialogBody.plainMessage(Component.text(
                 "Cheap pints, real beer names and absolutely no table service. "
-                        + "Pick a style and the tap does the rest.", NamedTextColor.GRAY), 300));
+                        + "Pick exactly what you want below.", NamedTextColor.GRAY), 300));
         body.add(DialogBody.plainMessage(Component.text(
                 "Balance " + balance + " points   ·   " + String.format(Locale.ROOT, "%.1f", units)
                         + " units   ·   " + tier,
                 NamedTextColor.GOLD), 300));
-        for (BeerStyle style : plugin.beer().all()) {
+        body.add(DialogBody.plainMessage(Component.text(
+                "House pint  ·  " + houseCost + " pt  ·  random cheap tap pint",
+                NamedTextColor.YELLOW), 300));
+        for (BeerBrand brand : plugin.beer().allBrands()) {
+            BeerStyle style = brand.style();
             body.add(DialogBody.plainMessage(Component.text(
-                    style.displayName() + "  ·  " + String.format(Locale.ROOT, "%.1f", style.abv())
+                    brand.displayName() + "  ·  " + style.displayName() + "  ·  "
+                            + String.format(Locale.ROOT, "%.1f", style.abv())
                             + "%  ·  " + style.unitsLabel() + " units  ·  " + style.price() + " pt",
                     style.colour()), 300));
         }
 
         List<ActionButton> actions = new ArrayList<>();
-        for (BeerStyle style : plugin.beer().all()) {
+        actions.add(ActionButton.builder(Component.text("House pint · " + houseCost + " pt",
+                        NamedTextColor.YELLOW))
+                .tooltip(Component.text("A random cheap pint from the tap."))
+                .width(180)
+                .action(DialogAction.customClick(
+                        (DialogResponseView response, Audience audience) -> {
+                            if (audience instanceof Player clicker) {
+                                plugin.getServer().getScheduler().runTask(plugin,
+                                        () -> plugin.beerService().purchase(clicker,
+                                                plugin.beer().randomHouseBrand(), 1, houseCost, true));
+                            }
+                        },
+                        options()))
+                .build());
+        for (BeerBrand brand : plugin.beer().allBrands()) {
+            BeerStyle style = brand.style();
             actions.add(ActionButton.builder(Component.text(
-                            "Pour " + style.displayName() + " · " + style.price() + " pt", style.colour()))
-                    .tooltip(Component.text(style.unitsLabel() + " units, "
+                            "Pour " + brand.displayName() + " · " + style.price() + " pt", style.colour()))
+                    .tooltip(Component.text(style.displayName() + ", " + style.unitsLabel() + " units, "
                             + String.format(Locale.ROOT, "%.1f", style.abv()) + "% ABV"))
                     .width(180)
                     .action(DialogAction.customClick(
                             (DialogResponseView response, Audience audience) -> {
                                 if (audience instanceof Player clicker) {
                                     plugin.getServer().getScheduler().runTask(plugin,
-                                            () -> plugin.beerService().purchase(clicker, style, 1,
+                                            () -> plugin.beerService().purchase(clicker, brand, 1,
                                                     style.price(), true));
                                 }
                             },
@@ -87,7 +108,7 @@ public final class BeerMenuDialog {
                 .build());
 
         player.showDialog(build("The Wetherspoons Bar", body, actions,
-                Component.text("Back to the carpet", NamedTextColor.GRAY), 1));
+                Component.text("Back to the carpet", NamedTextColor.GRAY), 2));
     }
 
     public void openStats(Player player) {

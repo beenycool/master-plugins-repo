@@ -4,6 +4,8 @@ import io.papermc.paper.datacomponent.DataComponentTypes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.GameMode;
+import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -13,6 +15,7 @@ import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -63,22 +66,22 @@ public final class ItemListener implements Listener {
             return;
         }
 
-        // Beer is a real 26.3 consumable: let vanilla run the drink animation and
-        // fire PlayerItemConsumeEvent. The old-tagged item is migrated to components
-        // in place so paints bought before this update keep working.
+        // Beer is deliberately handled on the click rather than waiting for the
+        // client to hold right-click. That keeps drinking reliable even when a
+        // player taps the mouse, and it still carries the 26.3 CONSUMABLE
+        // component for tooltips and any vanilla fallback path.
         if (type == ItemType.BEER) {
+            event.setCancelled(true);
             if (player.getGameMode() == GameMode.SPECTATOR) {
-                event.setCancelled(true);
                 return;
             }
             if (!player.hasPermission("guab.items.use")) {
-                event.setCancelled(true);
                 actionBar(player, Component.text("You cannot use Guab items.", NamedTextColor.RED));
                 return;
             }
-            if (!stack.hasData(DataComponentTypes.CONSUMABLE)) {
-                inventory.setItem(hand, plugin.items().canonicalize(stack));
-            }
+            stack = plugin.items().canonicalize(stack);
+            inventory.setItem(hand, stack);
+            useBeer(player, stack, hand);
             return;
         }
 
@@ -115,6 +118,37 @@ public final class ItemListener implements Listener {
         if (consume) {
             consumeOne(player, hand);
         }
+    }
+
+    private void useBeer(Player player, ItemStack stack, EquipmentSlot hand) {
+        long remaining = plugin.cooldowns().remainingMillis(player.getUniqueId(), ItemType.BEER);
+        if (remaining > 0L) {
+            actionBar(player, Component.text("Beer ready in "
+                    + String.format(Locale.ROOT, "%.1f", remaining / 1000.0) + "s", NamedTextColor.GRAY));
+            return;
+        }
+
+        BeerBrand brand = plugin.items().beerBrandOf(stack);
+        if (brand == null) {
+            brand = plugin.beer().houseBrand();
+        }
+        BeerStyle style = brand.style();
+        plugin.cooldowns().start(player.getUniqueId(), ItemType.BEER,
+                plugin.config().beerCooldownMillis());
+
+        for (ItemsConfig.BeerEffect effect : style.effects()) {
+            player.addPotionEffect(new PotionEffect(effect.type(), effect.durationTicks(),
+                    effect.amplifier(), false, true, true));
+        }
+        player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK,
+                SoundCategory.PLAYERS, 1.0f, 0.9f);
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_BURP,
+                SoundCategory.PLAYERS, 0.6f, 1.1f);
+        plugin.pub().recordDrink(player, style);
+        player.sendMessage(Component.text("You crack open a cold " + brand.displayName() + ".",
+                NamedTextColor.YELLOW));
+        player.sendMessage(Component.text(style.randomMessage(), NamedTextColor.GRAY));
+        consumeOne(player, hand);
     }
 
     private void useWindCharge(Player player) {
@@ -185,6 +219,20 @@ public final class ItemListener implements Listener {
 
     private void actionBar(Player player, Component message) {
         player.sendActionBar(message);
+    }
+
+    /** Refresh old pints on login so their names and brand models update too. */
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        PlayerInventory inventory = event.getPlayer().getInventory();
+        ItemStack[] contents = inventory.getContents();
+        for (int slot = 0; slot < contents.length; slot++) {
+            ItemStack item = contents[slot];
+            if (item == null || plugin.items().typeOf(item) != ItemType.BEER) {
+                continue;
+            }
+            inventory.setItem(slot, plugin.items().canonicalize(item));
+        }
     }
 
     @EventHandler

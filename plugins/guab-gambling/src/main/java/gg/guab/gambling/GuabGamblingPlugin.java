@@ -8,6 +8,7 @@ public final class GuabGamblingPlugin extends JavaPlugin {
     private CasinoConfig config;
     private CasinoVenue venue;
     private Blackjack blackjack;
+    private BlackjackDealer dealer;
 
     @Override
     public void onEnable() {
@@ -22,16 +23,6 @@ public final class GuabGamblingPlugin extends JavaPlugin {
             command.setTabCompleter(executor);
         }
 
-        this.blackjack = new Blackjack(this);
-        this.blackjack.start();
-        PluginCommand blackjackCommand = getCommand("blackjack");
-        if (blackjackCommand != null) {
-            BlackjackCommand executor = new BlackjackCommand(this, blackjack);
-            blackjackCommand.setExecutor(executor);
-            blackjackCommand.setTabCompleter(executor);
-        }
-        getServer().getPluginManager().registerEvents(new CasinoGuard(venue), this);
-
         // MineGames resolves station worlds during its own enable, so make sure the
         // casino world exists first. It also keeps the venue warm between events.
         try {
@@ -40,6 +31,19 @@ public final class GuabGamblingPlugin extends JavaPlugin {
             getLogger().warning("Could not pre-load the casino world: " + exception.getMessage());
         }
 
+        this.blackjack = new Blackjack(this);
+        this.blackjack.start();
+        this.dealer = new BlackjackDealer(this, blackjack);
+        this.dealer.start();
+        PluginCommand blackjackCommand = getCommand("blackjack");
+        if (blackjackCommand != null) {
+            BlackjackCommand executor = new BlackjackCommand(this, blackjack, dealer);
+            blackjackCommand.setExecutor(executor);
+            blackjackCommand.setTabCompleter(executor);
+        }
+        getServer().getPluginManager().registerEvents(new CasinoGuard(venue), this);
+        getServer().getPluginManager().registerEvents(dealer, this);
+
         getLogger().info("GuabGambling ready (casino " + (config.enabled() ? "open" : "closed") + ").");
     }
 
@@ -47,6 +51,9 @@ public final class GuabGamblingPlugin extends JavaPlugin {
         reloadConfig();
         this.config = CasinoConfig.load(this);
         this.venue = new CasinoVenue(this);
+        if (dealer != null) {
+            dealer.reload();
+        }
     }
 
     public CasinoConfig config() {
@@ -57,8 +64,16 @@ public final class GuabGamblingPlugin extends JavaPlugin {
         return venue;
     }
 
+    public BlackjackDealer dealer() {
+        return dealer;
+    }
+
     @Override
     public void onDisable() {
+        if (dealer != null) {
+            dealer.stop();
+            dealer = null;
+        }
         if (blackjack != null) {
             blackjack.stop();
             blackjack = null;

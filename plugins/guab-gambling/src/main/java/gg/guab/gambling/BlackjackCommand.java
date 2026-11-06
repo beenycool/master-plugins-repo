@@ -16,10 +16,12 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
 
     private final GuabGamblingPlugin plugin;
     private final Blackjack blackjack;
+    private final BlackjackDealer dealer;
 
-    public BlackjackCommand(GuabGamblingPlugin plugin, Blackjack blackjack) {
+    public BlackjackCommand(GuabGamblingPlugin plugin, Blackjack blackjack, BlackjackDealer dealer) {
         this.plugin = plugin;
         this.blackjack = blackjack;
+        this.dealer = dealer;
     }
 
     @Override
@@ -40,6 +42,13 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
             case "hit", "h" -> blackjack.hit(player);
             case "stand", "s", "stay" -> blackjack.stand(player);
             case "double", "d", "dd" -> blackjack.doubleDown(player);
+            case "dealer", "setdealer" -> {
+                if (!player.hasPermission("guab.casino.admin")) {
+                    error(player, "You need guab.casino.admin to move the dealer.");
+                    return true;
+                }
+                dealer.moveTo(player);
+            }
             default -> {
                 try {
                     int bet = Integer.parseInt(args[0]);
@@ -70,6 +79,9 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
                 out.addAll(List.of("hit", "stand", "double"));
             } else {
                 out.add("10");
+            }
+            if (sender.hasPermission("guab.casino.admin")) {
+                out.add("setdealer");
             }
         }
         String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);

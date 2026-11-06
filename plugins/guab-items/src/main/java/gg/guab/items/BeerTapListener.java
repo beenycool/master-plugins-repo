@@ -52,12 +52,14 @@ public final class BeerTapListener implements Listener {
             return;
         }
 
-        if (player.isSneaking()) {
+        if (!player.isSneaking()) {
             cooldowns.put(player.getUniqueId(), now);
             plugin.beerMenu().open(player);
             return;
         }
 
+        // Shift-right-click is the quick "house pint" shortcut: random style,
+        // cheap tap price. Normal right-click opens the picker.
         BeerStyle style = plugin.beer().randomHouse();
         int cost = Math.max(0, plugin.getConfig().getInt("beer.cost", 1));
         if (plugin.beerService().purchase(player, style, 1, cost, false)) {

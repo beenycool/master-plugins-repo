@@ -1,8 +1,10 @@
 package gg.guab.gambling;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Difficulty;
-import org.bukkit.GameRule;
+import org.bukkit.GameRules;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -10,6 +12,7 @@ import org.bukkit.WorldCreator;
 import org.bukkit.WorldType;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
+import org.bukkit.block.sign.Side;
 
 /**
  * Builds the walk-in casino hall. The hall is deliberately empty inside each painted
@@ -49,10 +52,10 @@ public final class CasinoVenue {
             world = created;
         }
         world.setDifficulty(Difficulty.EASY);
-        world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
-        world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
-        world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
-        world.setPVP(false);
+        world.setGameRule(GameRules.SPAWN_MOBS, false);
+        world.setGameRule(GameRules.ADVANCE_TIME, false);
+        world.setGameRule(GameRules.ADVANCE_WEATHER, false);
+        world.setGameRule(GameRules.PVP, false);
         world.setStorm(false);
         world.setTime(6000L);
         world.setSpawnLocation(spawn());
@@ -189,10 +192,11 @@ public final class CasinoVenue {
         Block block = world.getBlockAt(x, y, z);
         block.setType(Material.OAK_SIGN, false);
         if (block.getState() instanceof Sign sign) {
-            sign.setLine(0, "§6" + line0);
-            sign.setLine(1, "§f" + line1);
-            sign.setLine(2, "§7" + line2);
-            sign.setLine(3, "§7" + line3);
+            var side = sign.getSide(Side.FRONT);
+            side.line(0, Component.text(line0, NamedTextColor.GOLD));
+            side.line(1, Component.text(line1, NamedTextColor.WHITE));
+            side.line(2, Component.text(line2, NamedTextColor.GRAY));
+            side.line(3, Component.text(line3, NamedTextColor.GRAY));
             sign.update(true, false);
         }
     }

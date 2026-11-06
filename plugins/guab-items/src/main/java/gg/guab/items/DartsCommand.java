@@ -41,6 +41,7 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
             case "quit", "stop", "leave" -> quit(sender);
             case "stats", "record" -> stats(sender, args);
             case "top", "leaderboard" -> top(sender, args);
+            case "help", "howto" -> help(sender);
             case "board", "setboard" -> board(sender);
             case "reload" -> reload(sender);
             default -> usage(sender, label);
@@ -128,6 +129,20 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private void help(CommandSender sender) {
+        sender.sendMessage(prefix().append(Component.text("How to play darts", NamedTextColor.GOLD)));
+        sender.sendMessage(Component.text("  1. Right-click the dartboard on the pub's west wall.",
+                NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("  2. Pick 101, 301 or 501. You'll be teleported to the darts room.",
+                NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("  3. Hold right-click to draw the bow, release to shoot the target.",
+                NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("  4. Three arrows per visit. Reach exactly 0; the last arrow must be a double "
+                + "(bullseye 50 counts).", NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("  Checkout hints show on the action bar. Use /darts stats, /darts top or /darts quit.",
+                NamedTextColor.DARK_GRAY));
+    }
+
     private void board(CommandSender sender) {
         if (!sender.hasPermission(ADMIN)) {
             error(sender, "You need " + ADMIN + " to move the board.");
@@ -165,7 +180,7 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
 
     private void usage(CommandSender sender, String label) {
         sender.sendMessage(Component.text("/" + label + " start [101|301|501] [legs]", NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("/" + label + " quit | stats [player] | top [legs|180s|checkout|best]",
+        sender.sendMessage(Component.text("/" + label + " quit | stats [player] | top [legs|180s|checkout|best] | help",
                 NamedTextColor.GRAY));
         if (sender.hasPermission(ADMIN)) {
             sender.sendMessage(Component.text("/" + label + " board | reload", NamedTextColor.DARK_GRAY));
@@ -195,7 +210,7 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
         if (args.length == 1) {
-            List<String> options = new ArrayList<>(List.of("start", "quit", "stats", "top", "menu"));
+            List<String> options = new ArrayList<>(List.of("start", "quit", "stats", "top", "menu", "help"));
             if (sender.hasPermission(ADMIN)) {
                 options.add("board");
                 options.add("reload");

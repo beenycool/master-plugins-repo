@@ -57,6 +57,18 @@ public final class Blackjack implements Listener {
         return hands.containsKey(player.getUniqueId());
     }
 
+    /** Re-print the current hand and its action buttons (used by the dealer NPC). */
+    public void showHand(Player player) {
+        Hand hand = hands.get(player.getUniqueId());
+        if (hand == null) {
+            msg(player, "&eNo hand in play. Right-click the dealer to start one.", NamedTextColor.YELLOW);
+            return;
+        }
+        player.sendMessage(handLine("Dealer: ", hand.dealer, true, total(hand.dealer.subList(0, 1))));
+        player.sendMessage(handLine("You: ", hand.cards, false, total(hand.cards)));
+        buttons(player, hand);
+    }
+
     public void start(Player player, int bet) {
         if (!plugin.getConfig().getBoolean("blackjack.enabled", true)) {
             msg(player, "&cBlackjack is closed.", NamedTextColor.RED);

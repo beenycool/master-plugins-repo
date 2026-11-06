@@ -47,6 +47,7 @@ public final class DartsManager implements Listener {
 
     private final GuabItemsPlugin plugin;
     private final DartsStatsStore store;
+    private final DartsRoom room;
     private final Map<UUID, DartsGame> games = new HashMap<>();
     private final Map<UUID, Long> cooldowns = new HashMap<>();
     private final NamespacedKey displayKey;
@@ -60,6 +61,7 @@ public final class DartsManager implements Listener {
     public DartsManager(GuabItemsPlugin plugin) {
         this.plugin = plugin;
         this.store = new DartsStatsStore(plugin);
+        this.room = new DartsRoom(plugin);
         this.displayKey = new NamespacedKey(plugin, "darts_board_display");
         this.dartKey = new NamespacedKey(plugin, "darts_throw_display");
         this.config = DartsConfig.load(plugin);
@@ -97,6 +99,10 @@ public final class DartsManager implements Listener {
 
     public DartsConfig config() {
         return config;
+    }
+
+    public DartsRoom room() {
+        return room;
     }
 
     public DartsStatsStore.Stats stats(UUID player) {
@@ -152,11 +158,27 @@ public final class DartsManager implements Listener {
                 Component.text(normalisedMode + " · double out", NamedTextColor.GRAY),
                 Title.Times.times(Duration.ofMillis(200), Duration.ofMillis(900), Duration.ofMillis(400))));
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.PLAYERS, 0.8f, 1.4f);
-        send(player, "Leg on: " + normalisedMode + ". Three darts, double out. Good luck.", NamedTextColor.GOLD);
+        send(player, "Leg on: " + normalisedMode + ". Take the bow, aim at the target. "
+                + "Three darts, double out. Good luck.", NamedTextColor.GOLD);
         showHud(player, game);
+        if (!room.enter(player)) {
+            games.remove(player.getUniqueId());
+            return false;
+        }
         return true;
     }
 
+    /** Arrow impact in the dedicated darts room. */
+    public void scoreArrow(Player player, Location point) {
+        DartsGame game = games.get(player.getUniqueId());
+        Location centre = room.targetCentre();
+        if (game == null || centre == null || point == null) {
+            return;
+        }
+        resolveThrow(player, game, point, centre, BlockFace.SOUTH, 0.5);
+    }
+
+    /** Legacy pub-board throw, kept as a fallback if the room is unavailable. */
     public void throwDart(Player player, Location point) {
         DartsGame game = games.get(player.getUniqueId());
         if (game == null) {
@@ -164,17 +186,9 @@ public final class DartsManager implements Listener {
             return;
         }
         if (point == null) {
-            actionBar(player, Component.text("Aim at the board and right-click again.", NamedTextColor.GRAY));
+            actionBar(player, Component.text("Aim at the target and shoot again.", NamedTextColor.GRAY));
             return;
         }
-        long now = System.currentTimeMillis();
-        long remaining = cooldowns.getOrDefault(player.getUniqueId(), 0L) - now;
-        if (remaining > 0L) {
-            actionBar(player, Component.text("Steady... " + remaining + "ms", NamedTextColor.GRAY));
-            return;
-        }
-        cooldowns.put(player.getUniqueId(), now + config.cooldownMillis());
-
         Location centre = boardCentre();
         if (centre == null || point.getWorld() == null || !point.getWorld().equals(centre.getWorld())) {
             actionBar(player, Component.text("The board is not in this world.", NamedTextColor.RED));
@@ -186,11 +200,22 @@ public final class DartsManager implements Listener {
             actionBar(player, Component.text("Stand closer to the oche.", NamedTextColor.RED));
             return;
         }
+        resolveThrow(player, game, point, centre, config.face(), config.boardRadius());
+    }
+
+    private void resolveThrow(Player player, DartsGame game, Location point,
+                              Location centre, BlockFace face, double radius) {
+        long now = System.currentTimeMillis();
+        long remaining = cooldowns.getOrDefault(player.getUniqueId(), 0L) - now;
+        if (remaining > 0L) {
+            actionBar(player, Component.text("Steady... " + remaining + "ms", NamedTextColor.GRAY));
+            return;
+        }
+        cooldowns.put(player.getUniqueId(), now + config.cooldownMillis());
 
         double drunk = plugin.pub() == null ? 0 : plugin.pub().impairment(player.getUniqueId()) * 10.0;
         double wobble = Math.min(config.wobbleMax(), config.wobbleSober() + drunk * config.wobblePerDrunk());
-        DartsGeometry.Hit hit = DartsGeometry.score(centre, config.face(), config.boardRadius(),
-                point, config, wobble);
+        DartsGeometry.Hit hit = DartsGeometry.score(centre, face, radius, point, config, wobble);
 
         DartsGame.Result result = game.throwDart(hit);
         store.recordThrow(player.getUniqueId());
@@ -218,9 +243,12 @@ public final class DartsManager implements Listener {
                 send(player, "Match won " + result.legsWon() + "–0. The bar is impressed.", NamedTextColor.GOLD);
                 player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE,
                         SoundCategory.PLAYERS, 1.0f, 1.0f);
+                if (room.isInRoom(player)) {
+                    room.exit(player);
+                }
             } else {
                 store.recordLegStart(player.getUniqueId(), player.getName());
-                send(player, "Leg won. Next leg: " + game.mode() + ".", NamedTextColor.GREEN);
+                send(player, "Leg won. Next leg: " + game.mode() + ". Stay on the oche.", NamedTextColor.GREEN);
             }
         } else if (result.kind() == DartsGame.Kind.BUST) {
             send(player, "Bust. Back to " + result.scoreAfter() + ".", NamedTextColor.RED);
@@ -234,6 +262,9 @@ public final class DartsManager implements Listener {
     public void endGame(Player player, String reason) {
         if (games.remove(player.getUniqueId()) != null) {
             send(player, reason, NamedTextColor.GRAY);
+            if (room.isInRoom(player)) {
+                room.exit(player);
+            }
             updateDisplay();
         }
     }
@@ -246,6 +277,9 @@ public final class DartsManager implements Listener {
             Player player = Bukkit.getPlayer(id);
             if (player != null) {
                 send(player, reason, NamedTextColor.GRAY);
+                if (room.isInRoom(player)) {
+                    room.exit(player);
+                }
             }
         }
         games.clear();
@@ -562,6 +596,7 @@ public final class DartsManager implements Listener {
         UUID id = event.getPlayer().getUniqueId();
         cooldowns.remove(id);
         if (games.remove(id) != null) {
+            room.handleQuit(event.getPlayer());
             updateDisplay();
         }
     }

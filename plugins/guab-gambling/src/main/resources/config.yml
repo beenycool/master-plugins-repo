@@ -12,6 +12,15 @@ blackjack:
   blackjack-payout: 1.5
   timeout-seconds: 120
   decks: 6
+  # Physical dealer in the pub. Right-click opens the 26.3 bet dialog.
+  # Staff can move it with /blackjack setdealer.
+  dealer:
+    enabled: true
+    world: guab_casino
+    x: -18.0
+    y: 65.0
+    z: -14.0
+    yaw: 0.0
 
 venue:
   world: guab_casino

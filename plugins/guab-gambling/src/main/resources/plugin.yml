@@ -16,7 +16,7 @@ commands:
     aliases: [gcasino]
   blackjack:
     description: Play a hand of blackjack against the dealer.
-    usage: /blackjack <bet> | /blackjack hit|stand|double
+    usage: /blackjack <bet> | /blackjack hit|stand|double | /blackjack setdealer
     aliases: [bj, 21]
 
 permissions:

@@ -32,20 +32,23 @@ public final class ItemFactory {
 
     public static final String TYPE_KEY = "item_type";
     public static final String STYLE_KEY = "beer_style";
+    public static final String BRAND_KEY = "beer_brand";
 
     private final GuabItemsPlugin plugin;
     private final NamespacedKey typeKey;
     private final NamespacedKey styleKey;
+    private final NamespacedKey brandKey;
 
     public ItemFactory(GuabItemsPlugin plugin) {
         this.plugin = plugin;
         this.typeKey = new NamespacedKey(plugin, TYPE_KEY);
         this.styleKey = new NamespacedKey(plugin, STYLE_KEY);
+        this.brandKey = new NamespacedKey(plugin, BRAND_KEY);
     }
 
     public ItemStack create(ItemType type, int amount) {
         if (type == ItemType.BEER) {
-            return createBeer(plugin.beer().house(), amount);
+            return createBeer(plugin.beer().houseBrand(), amount);
         }
         int max = Math.max(1, type.material().getMaxStackSize());
         ItemStack stack = new ItemStack(type.material(), Math.clamp(amount, 1, max));
@@ -59,24 +62,34 @@ public final class ItemFactory {
     }
 
     public ItemStack createBeer(BeerStyle style, int amount) {
+        return createBeer(plugin.beer().randomBrand(style), amount);
+    }
+
+    public ItemStack createBeer(BeerBrand brand, int amount) {
+        if (brand == null) {
+            brand = plugin.beer().houseBrand();
+        }
+        BeerStyle style = brand.style();
         int max = Math.max(1, ItemType.BEER.material().getMaxStackSize());
         ItemStack stack = new ItemStack(ItemType.BEER.material(), Math.clamp(amount, 1, max));
         ItemMeta meta = stack.getItemMeta();
-        meta.displayName(Component.text("Beer", NamedTextColor.YELLOW)
+        meta.displayName(Component.text(brand.displayName(), style.colour())
                 .decoration(TextDecoration.ITALIC, false));
-        meta.lore(beerLore(style));
-        applyModel(meta, style.itemModel());
+        meta.lore(beerLore(brand));
+        applyModel(meta, brand.itemModel());
         if (plugin.config().beerReturnEmptyBottle()) {
             meta.setUseRemainder(new ItemStack(Material.GLASS_BOTTLE));
         }
         meta.getPersistentDataContainer().set(typeKey, PersistentDataType.STRING, ItemType.BEER.id());
         meta.getPersistentDataContainer().set(styleKey, PersistentDataType.STRING, style.id());
+        meta.getPersistentDataContainer().set(brandKey, PersistentDataType.STRING, brand.id());
         stack.setItemMeta(meta);
         applyBeerComponents(stack, style);
         return stack;
     }
 
-    private List<Component> beerLore(BeerStyle style) {
+    private List<Component> beerLore(BeerBrand brand) {
+        BeerStyle style = brand.style();
         List<Component> lore = new ArrayList<>();
         lore.add(Component.text(style.displayName() + "  ·  "
                         + String.format(Locale.ROOT, "%.1f", style.abv()) + "% ABV",
@@ -134,14 +147,26 @@ public final class ItemFactory {
         return ItemType.byId(id);
     }
 
-    /** The specific beer style, falling back to the house pint for legacy items. */
-    public BeerStyle beerStyleOf(ItemStack stack) {
+    /** The specific branded pint, falling back to the house brand for legacy items. */
+    public BeerBrand beerBrandOf(ItemStack stack) {
         if (typeOf(stack) != ItemType.BEER) {
             return null;
         }
         ItemMeta meta = stack.getItemMeta();
-        String id = meta.getPersistentDataContainer().get(styleKey, PersistentDataType.STRING);
-        return plugin.beer().byId(id);
+        String id = meta.getPersistentDataContainer().get(brandKey, PersistentDataType.STRING);
+        BeerBrand brand = plugin.beer().findBrand(id);
+        if (brand != null) {
+            return brand;
+        }
+        String styleId = meta.getPersistentDataContainer().get(styleKey, PersistentDataType.STRING);
+        BeerStyle style = plugin.beer().find(styleId);
+        return style == null ? plugin.beer().houseBrand() : plugin.beer().randomBrand(style);
+    }
+
+    /** The specific beer style, falling back to the house pint for legacy items. */
+    public BeerStyle beerStyleOf(ItemStack stack) {
+        BeerBrand brand = beerBrandOf(stack);
+        return brand == null ? null : brand.style();
     }
 
     public boolean isTagged(ItemStack stack) {
@@ -171,6 +196,11 @@ public final class ItemFactory {
                 return true;
             }
         }
+        for (BeerBrand brand : plugin.beer().allBrands()) {
+            if (plain.equalsIgnoreCase(brand.displayName())) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -185,6 +215,7 @@ public final class ItemFactory {
         ItemMeta meta = stack.getItemMeta();
         meta.getPersistentDataContainer().remove(typeKey);
         meta.getPersistentDataContainer().remove(styleKey);
+        meta.getPersistentDataContainer().remove(brandKey);
         stack.setItemMeta(meta);
     }
 
@@ -198,8 +229,8 @@ public final class ItemFactory {
             return stack;
         }
         if (type == ItemType.BEER) {
-            BeerStyle style = beerStyleOf(stack);
-            return createBeer(style == null ? plugin.beer().house() : style, stack.getAmount());
+            BeerBrand brand = beerBrandOf(stack);
+            return createBeer(brand == null ? plugin.beer().houseBrand() : brand, stack.getAmount());
         }
         ItemStack copy = stack.clone();
         ItemMeta meta = copy.getItemMeta();

@@ -67,11 +67,12 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        BeerStyle style = args.length > 0 ? plugin.beer().find(args[0]) : plugin.beer().house();
-        if (style == null) {
-            error(sender, "Unknown beer style: " + args[0] + ". Try /beer list.");
+        BeerBrand brand = args.length > 0 ? plugin.beer().brandFor(args[0]) : plugin.beer().houseBrand();
+        if (brand == null) {
+            error(sender, "Unknown beer: " + args[0] + ". Try /beer list.");
             return;
         }
+        BeerStyle style = brand.style();
         List<Player> drinkers = new ArrayList<>();
         for (Player nearby : centre.getWorld().getPlayers()) {
             if (nearby.getGameMode() == org.bukkit.GameMode.SPECTATOR) {
@@ -101,12 +102,12 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
         roundCooldowns.put(player.getUniqueId(), now);
 
         for (Player drinker : drinkers) {
-            plugin.beerService().give(drinker, style, 1);
+            plugin.beerService().give(drinker, brand, 1);
             drinker.playSound(drinker.getLocation(), Sound.ENTITY_PLAYER_LEVELUP,
                     SoundCategory.PLAYERS, 0.8f, 1.1f);
             drinker.sendMessage(Component.text("[Spoons] ", NamedTextColor.GOLD)
                     .append(Component.text(player.getName() + " bought the round — "
-                            + style.displayName() + " for everyone. Get it down you.",
+                            + brand.displayName() + " for everyone. Get it down you.",
                             NamedTextColor.YELLOW)));
         }
     }
@@ -147,9 +148,10 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "list" -> {
                 info(sender, "The Wetherspoons menu:");
-                for (BeerStyle style : plugin.beer().all()) {
-                    sender.sendMessage(Component.text("  " + style.displayName(), style.colour())
-                            .append(Component.text("  ·  "
+                for (BeerBrand brand : plugin.beer().allBrands()) {
+                    BeerStyle style = brand.style();
+                    sender.sendMessage(Component.text("  " + brand.displayName(), style.colour())
+                            .append(Component.text("  ·  " + style.displayName() + "  ·  "
                                             + String.format(Locale.ROOT, "%.1f", style.abv()) + "%  ·  "
                                             + style.unitsLabel() + " units  ·  " + style.price() + " pt",
                                     NamedTextColor.GRAY)));
@@ -164,7 +166,7 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
             }
             case "buy", "pour" -> buy(sender, args);
             default -> {
-                error(sender, "Use /beer [menu|list|stats|buy <style> [amount]].");
+                error(sender, "Use /beer [menu|list|stats|buy <beer> [amount]].");
             }
         }
     }
@@ -175,12 +177,12 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length < 2) {
-            error(sender, "Use /beer buy <style> [amount]. Try /beer list.");
+            error(sender, "Use /beer buy <beer> [amount]. Try /beer list.");
             return;
         }
-        BeerStyle style = plugin.beer().find(args[1]);
-        if (style == null) {
-            error(sender, "Unknown beer style: " + args[1] + ". Try /beer list.");
+        BeerBrand brand = plugin.beer().brandFor(args[1]);
+        if (brand == null) {
+            error(sender, "Unknown beer: " + args[1] + ". Try /beer list.");
             return;
         }
         int amount = 1;
@@ -192,7 +194,7 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
                 return;
             }
         }
-        plugin.beerService().purchase(player, style, amount, style.price(), true);
+        plugin.beerService().purchase(player, brand, amount, brand.style().price(), true);
     }
 
     private void quiz(CommandSender sender) {
@@ -244,6 +246,9 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
 
     private List<String> styleIds() {
         List<String> ids = new ArrayList<>();
+        for (BeerBrand brand : plugin.beer().allBrands()) {
+            ids.add(brand.id());
+        }
         for (BeerStyle style : plugin.beer().all()) {
             ids.add(style.id());
         }

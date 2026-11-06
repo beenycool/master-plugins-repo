@@ -24,6 +24,14 @@ public final class BeerService {
     }
 
     public boolean purchase(Player player, BeerStyle style, int amount, int unitPrice, boolean requirePub) {
+        return purchase(player, plugin.beer().randomBrand(style), amount, unitPrice, requirePub);
+    }
+
+    public boolean purchase(Player player, BeerBrand brand, int amount, int unitPrice, boolean requirePub) {
+        if (brand == null) {
+            error(player, "That beer is off the menu.");
+            return false;
+        }
         if (!player.hasPermission("guab.items.use")) {
             error(player, "You are not old enough to drink here.");
             return false;
@@ -56,24 +64,28 @@ public final class BeerService {
             }
         }
 
-        give(player, style, amount);
+        give(player, brand, amount);
         player.playSound(player.getLocation(), Sound.BLOCK_BARREL_OPEN,
                 SoundCategory.PLAYERS, 1.0f, 1.0f);
         String priceText = total > 0
                 ? " for " + total + (total == 1 ? " point." : " points.")
                 : " for free.";
         player.sendMessage(prefix().append(Component.text(
-                "Poured " + amount + "x " + style.displayName() + priceText,
+                "Poured " + amount + "x " + brand.displayName() + priceText,
                 NamedTextColor.GOLD)));
         return true;
     }
 
     public void give(Player player, BeerStyle style, int amount) {
+        give(player, plugin.beer().randomBrand(style), amount);
+    }
+
+    public void give(Player player, BeerBrand brand, int amount) {
         int remaining = Math.clamp(amount, 1, 64);
         int stackSize = Math.max(1, ItemType.BEER.material().getMaxStackSize());
         while (remaining > 0) {
             int batch = Math.min(remaining, stackSize);
-            ItemStack beer = plugin.items().createBeer(style, batch);
+            ItemStack beer = plugin.items().createBeer(brand, batch);
             player.getInventory().addItem(beer).values()
                     .forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
             remaining -= batch;

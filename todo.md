@@ -107,7 +107,7 @@ Status: live in production. Venue built, all six station types placed, event ope
 - [x] Fix fight holograms duplicating across chunk unloads
 - [x] Retune slots: 8 weighted reels (3 diamonds), 1.5x pair / 10x triple, ~92% RTP
 - [x] Retune chicken: 4.6x colour bonus, live multiplier and pickups, offline winners paid
-- [x] Blackjack table (`/blackjack`, `/bj`): hit, stand, double, 3:2 naturals
+- [x] Blackjack table (`/blackjack`, `/bj`): dealer NPC with bet dialog, hit, stand, double, 3:2 naturals
 - [ ] Rehearse with two accounts, including a disconnect mid-round refund
 - [ ] Teardown: remove stations, close the casino
 

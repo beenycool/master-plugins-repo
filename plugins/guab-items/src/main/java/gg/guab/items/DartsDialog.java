@@ -32,7 +32,8 @@ public final class DartsDialog {
 
         List<DialogBody> body = List.of(
                 DialogBody.plainMessage(Component.text(
-                        "The board is bolted to the wall. Take a breath, pick a leg and throw.",
+                        "We'll teleport you to the darts room with a bow. "
+                                + "Aim at the target and shoot; three arrows per visit, finish on a double.",
                         NamedTextColor.GRAY), 280),
                 DialogBody.plainMessage(Component.text(
                         "Balance " + balance + " points   ·   Legs won " + stats.legsWon()
@@ -43,7 +44,7 @@ public final class DartsDialog {
         List<ActionButton> actions = new ArrayList<>();
         for (int mode : new int[]{101, 301, 501}) {
             actions.add(ActionButton.builder(Component.text(mode + " · " + modeName(mode), modeColour(mode)))
-                    .tooltip(Component.text("Start a " + mode + " leg. Three darts per visit, double out."))
+                    .tooltip(Component.text("Start a " + mode + " leg. Three arrows per visit, double out."))
                     .width(110)
                     .action(DialogAction.customClick(
                             (DialogResponseView response, Audience audience) -> {
