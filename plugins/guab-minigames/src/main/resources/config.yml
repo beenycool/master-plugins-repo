@@ -25,3 +25,27 @@ battlepit:
     z: 0.5
     yaw: 0.0
     pitch: 0.0
+
+# Parkour start, used by /parkour.
+parkour:
+  world: world
+  x: -8.0
+  y: -59.0
+  z: 9.0
+  yaw: 90.0
+  pitch: 0.0
+
+# Big bell ring every time a player respawns.
+respawn-bell:
+  enabled: true
+  volume: 4.0
+  pitch: 0.5
+
+# Battle pit PvP kit, taken with /kit.
+kit:
+  enabled: true
+  # Only allow /kit while in the battle pit.
+  require-battlepit: true
+  # Clear the player's inventory before giving the kit.
+  clear-inventory: true
+  cooldown-seconds: 30

@@ -8,6 +8,7 @@ import org.bukkit.scheduler.BukkitTask;
 public final class GuabCorePlugin extends JavaPlugin {
 
     private PointsStore points;
+    private StatsStore stats;
     private HudManager hud;
     private BukkitTask saveTask;
 
@@ -19,11 +20,23 @@ public final class GuabCorePlugin extends JavaPlugin {
         this.points.load();
         getServer().getServicesManager().register(PointsService.class, points, this, ServicePriority.Normal);
 
+        this.stats = new StatsStore(getDataFolder().toPath().resolve("stats.yml"));
+        this.stats.load();
+        getServer().getServicesManager().register(StatsService.class, stats, this, ServicePriority.Normal);
+        getServer().getPluginManager().registerEvents(new StatsListener(stats), this);
+
         PluginCommand command = getCommand("points");
         if (command != null) {
             PointsCommand executor = new PointsCommand(this);
             command.setExecutor(executor);
             command.setTabCompleter(executor);
+        }
+
+        PluginCommand statsCommand = getCommand("stats");
+        if (statsCommand != null) {
+            StatsCommand executor = new StatsCommand(this);
+            statsCommand.setExecutor(executor);
+            statsCommand.setTabCompleter(executor);
         }
 
         int seconds = Math.max(30, getConfig().getInt("save-interval-seconds", 300));
@@ -64,6 +77,13 @@ public final class GuabCorePlugin extends JavaPlugin {
                 getLogger().severe("Could not save points.yml: " + exception.getMessage());
             }
         }
+        if (stats != null) {
+            try {
+                stats.save();
+            } catch (RuntimeException exception) {
+                getLogger().severe("Could not save stats.yml: " + exception.getMessage());
+            }
+        }
         getLogger().info("GuabCore disabled.");
     }
 
@@ -73,9 +93,18 @@ public final class GuabCorePlugin extends JavaPlugin {
         } catch (RuntimeException exception) {
             getLogger().severe("Could not save points.yml: " + exception.getMessage());
         }
+        try {
+            stats.save();
+        } catch (RuntimeException exception) {
+            getLogger().severe("Could not save stats.yml: " + exception.getMessage());
+        }
     }
 
     public PointsService points() {
         return points;
+    }
+
+    public StatsService stats() {
+        return stats;
     }
 }

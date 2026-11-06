@@ -1,5 +1,6 @@
 package gg.guab.rickroll;
 
+import gg.guab.core.StatsService;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -26,7 +27,15 @@ public final class ShowManager {
         }
         Show show = new Show(plugin, player);
         active.put(player.getUniqueId(), show);
+        countRickroll(player);
         show.begin();
+    }
+
+    private void countRickroll(Player player) {
+        var registration = plugin.getServer().getServicesManager().getRegistration(StatsService.class);
+        if (registration != null) {
+            registration.getProvider().increment(player, StatsService.RICKROLLS, 1);
+        }
     }
 
     public void stop(Player player) {

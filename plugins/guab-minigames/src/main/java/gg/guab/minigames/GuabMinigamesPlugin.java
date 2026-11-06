@@ -20,6 +20,17 @@ public final class GuabMinigamesPlugin extends JavaPlugin {
             command.setTabCompleter(executor);
         }
 
+        PluginCommand parkour = getCommand("parkour");
+        if (parkour != null) {
+            parkour.setExecutor(new ParkourCommand(this));
+        }
+        getServer().getPluginManager().registerEvents(new RespawnBellListener(this), this);
+
+        PluginCommand kit = getCommand("kit");
+        if (kit != null) {
+            kit.setExecutor(new KitCommand(this, pit));
+        }
+
         getLogger().info("GuabMinigames ready (battle pit spawn "
                 + pit.formatLocation(pit.spawn()) + ").");
     }

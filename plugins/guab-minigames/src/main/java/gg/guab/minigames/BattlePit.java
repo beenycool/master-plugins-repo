@@ -15,6 +15,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
@@ -37,6 +39,7 @@ public final class BattlePit implements Listener {
     private final GuabMinigamesPlugin plugin;
     private final Set<UUID> fighters = new LinkedHashSet<>();
     private final Map<UUID, Integer> streaks = new HashMap<>();
+    private final Map<UUID, SavedInventory> savedInventories = new HashMap<>();
     private BukkitTask task;
 
     public BattlePit(GuabMinigamesPlugin plugin) {
@@ -53,8 +56,15 @@ public final class BattlePit implements Listener {
             task.cancel();
             task = null;
         }
+        for (UUID id : new ArrayList<>(fighters)) {
+            Player player = Bukkit.getPlayer(id);
+            if (player != null && player.isOnline()) {
+                restore(player);
+            }
+        }
         fighters.clear();
         streaks.clear();
+        savedInventories.clear();
     }
 
     public boolean inPit(Player player) {
@@ -91,6 +101,11 @@ public final class BattlePit implements Listener {
             return false;
         }
         streaks.put(player.getUniqueId(), 0);
+        savedInventories.putIfAbsent(player.getUniqueId(), capture(player));
+        player.getInventory().clear();
+        player.getInventory().setArmorContents(new ItemStack[4]);
+        player.getInventory().setItemInOffHand(null);
+        BattleKit.give(player);
         player.teleport(spawn);
         player.setFallDistance(0);
         player.setFireTicks(0);
@@ -103,7 +118,8 @@ public final class BattlePit implements Listener {
                 + plugin.getConfig().getInt("battlepit.kill-reward", 50)
                 + " points&a, deaths cost &6"
                 + plugin.getConfig().getInt("battlepit.death-penalty", 25)
-                + "&a. Leave with &f/battlepit leave&a.", NamedTextColor.GRAY);
+                + "&a. Use &f/kit &ato refresh your gear, leave with &f/battlepit leave&a.",
+                NamedTextColor.GRAY);
         broadcast("&e" + player.getName() + " &7entered the pit.", NamedTextColor.GRAY);
         return true;
     }
@@ -114,6 +130,7 @@ public final class BattlePit implements Listener {
             return false;
         }
         streaks.remove(player.getUniqueId());
+        restore(player);
         Location exit = exit();
         if (exit != null) {
             player.teleport(exit);
@@ -182,6 +199,7 @@ public final class BattlePit implements Listener {
             if (player.isOnline() && fighters.contains(player.getUniqueId())) {
                 player.teleport(spawn);
                 player.setFallDistance(0);
+                BattleKit.give(player);
             }
         }, 1L);
     }
@@ -190,6 +208,7 @@ public final class BattlePit implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         UUID id = event.getPlayer().getUniqueId();
         if (fighters.remove(id)) {
+            restore(event.getPlayer());
             broadcast("&7" + event.getPlayer().getName() + " left the pit.", NamedTextColor.DARK_GRAY);
         }
         streaks.remove(id);
@@ -291,4 +310,40 @@ public final class BattlePit implements Listener {
         return location.getWorld().getName() + " " + String.format(Locale.ROOT, "%.1f, %.1f, %.1f",
                 location.getX(), location.getY(), location.getZ());
     }
+    private SavedInventory capture(Player player) {
+        PlayerInventory inventory = player.getInventory();
+        return new SavedInventory(
+                clone(inventory.getContents()),
+                clone(inventory.getArmorContents()),
+                inventory.getItemInOffHand() == null ? null : inventory.getItemInOffHand().clone(),
+                player.getLevel(),
+                player.getExp());
+    }
+
+    private void restore(Player player) {
+        SavedInventory saved = savedInventories.remove(player.getUniqueId());
+        if (saved == null) {
+            return;
+        }
+        PlayerInventory inventory = player.getInventory();
+        inventory.clear();
+        inventory.setContents(saved.contents());
+        inventory.setArmorContents(saved.armor());
+        inventory.setItemInOffHand(saved.offHand());
+        player.setLevel(saved.level());
+        player.setExp(saved.exp());
+    }
+
+    private static ItemStack[] clone(ItemStack[] items) {
+        ItemStack[] copy = new ItemStack[items.length];
+        for (int index = 0; index < items.length; index++) {
+            copy[index] = items[index] == null ? null : items[index].clone();
+        }
+        return copy;
+    }
+
+    private record SavedInventory(ItemStack[] contents, ItemStack[] armor, ItemStack offHand,
+                                  int level, float exp) {
+    }
+
 }

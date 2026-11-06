@@ -16,6 +16,10 @@ commands:
     description: Show or hide your Guab sidebar.
     usage: /hud
     aliases: [sidebar]
+  stats:
+    description: Show deaths, kills, rickrolls and parkour stats.
+    usage: /stats [player|top [metric] [count]]
+    aliases: [tracker, records]
 
 permissions:
   guab.points.others:
@@ -24,3 +28,9 @@ permissions:
   guab.points.admin:
     description: Set, add or take points.
     default: op
+  guab.stats.use:
+    description: View your own stats.
+    default: true
+  guab.stats.others:
+    description: View other players' stats and leaderboards.
+    default: true
