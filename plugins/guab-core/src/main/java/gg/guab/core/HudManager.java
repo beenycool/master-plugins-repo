@@ -12,6 +12,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Score;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
@@ -132,8 +133,10 @@ public final class HudManager implements Listener {
         private final Player player;
         private final Scoreboard board;
         private final Objective objective;
+        private final Objective belowName;
         private final List<String> entries = new ArrayList<>();
         private final List<String> lastLines = new ArrayList<>();
+        private final Map<String, Integer> lastScores = new HashMap<>();
         private Component lastHeader;
         private Component lastFooter;
 
@@ -143,7 +146,22 @@ public final class HudManager implements Listener {
             String title = plugin.getConfig().getString("hud.scoreboard.title", "&6&lGUAB");
             this.objective = board.registerNewObjective("guab", Criteria.DUMMY, parse(title));
             this.objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+            this.belowName = registerBelowName();
             player.setScoreboard(board);
+        }
+
+        /**
+         * The balance under the nametag uses the vanilla {@code below_name} slot, so every
+         * player's own scoreboard decides what they see above other players' heads.
+         */
+        private Objective registerBelowName() {
+            if (!plugin.getConfig().getBoolean("hud.below-name.enabled", true)) {
+                return null;
+            }
+            String title = plugin.getConfig().getString("hud.below-name.title", "&6Points");
+            Objective objective = board.registerNewObjective("guab_points", Criteria.DUMMY, parse(title));
+            objective.setDisplaySlot(DisplaySlot.BELOW_NAME);
+            return objective;
         }
 
         private void refresh() {
@@ -155,6 +173,33 @@ public final class HudManager implements Listener {
             }
             if (plugin.getConfig().getBoolean("hud.tab.enabled", true)) {
                 refreshTab();
+            }
+            refreshBelowName();
+        }
+
+        private void refreshBelowName() {
+            if (belowName == null) {
+                return;
+            }
+            // Drop entries for players who have left so the objective does not grow forever.
+            for (String entry : new ArrayList<>(board.getEntries())) {
+                if (!lastScores.containsKey(entry)) {
+                    continue;
+                }
+                Player online = Bukkit.getPlayerExact(entry);
+                if (online == null || !online.isOnline()) {
+                    board.resetScores(entry);
+                    lastScores.remove(entry);
+                }
+            }
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                int value = points.get(online.getUniqueId());
+                if (lastScores.getOrDefault(online.getName(), Integer.MIN_VALUE) == value) {
+                    continue;
+                }
+                Score score = belowName.getScore(online.getName());
+                score.setScore(Math.max(0, value));
+                lastScores.put(online.getName(), value);
             }
         }
 
