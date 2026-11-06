@@ -2,9 +2,7 @@
 
 Last updated: 2026-11-06
 
-Overall: `█████████░` **88%** (74/84 checklist items)
-
-Plugin checklist: 68/76 (89%). Server ops: 6/8 (75%).
+Overall: `█████████░` **89%** (68/76 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
@@ -14,7 +12,6 @@ Plugin checklist: 68/76 (89%). Server ops: 6/8 (75%).
 | guab-rickroll    | `█████████░` 85% (17/20)    |
 | guab-gambling    | `█████████░` 86% (12/14)    |
 | guab-minigames   | `█████████░` 92% (11/12)    |
-| Server ops        | `████████░░` 75% (6/8)       |
 
 Progress is per checklist line, updated by hand.
 
@@ -146,16 +143,3 @@ Decision (2026-11-05): stay on Paper. Pumpkin (Rust) was reviewed — it is pre-
 WASM, and rickroll's features map reasonably well, but the API is unstable and the world/render
 parity risk is not worth a cutover yet. Revisit when Pumpkin reaches 1.0, or run a parallel
 PatchBukkit spike on a spare port if curiosity wins.
-
-## Server ops (PebbleHost)
-
-Status: live at `mc.guabguild.com` on Paper 26.3, with RCON on `8025`. The casino, pub, darts room and battle pit were rebuilt on the new host.
-
-- [x] Upload Guab plugin jars and configs to PebbleHost
-- [x] Rebuild the casino, pub and darts room on the new host
-- [x] Enable RCON on port `8025`
-- [x] Install Axiom Paper 6.0.1 and GrimAC 2.3.75
-- [x] Remove the ChatRestrictionBypass plugin
-- [x] Set `immediate_respawn` on
-- [ ] Move `guab-items.zip` and `rickroll.zip` to a stable public host (currently the old server URL)
-- [ ] Restart once to activate the pending GuabCore/GuabMinigames jars, Axiom and GrimAC
