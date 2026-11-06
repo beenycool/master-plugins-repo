@@ -5,3 +5,17 @@ api-version: '26.3'
 description: Battle pit and other point-earning minigames.
 authors: [Guab]
 depend: [GuabCore]
+
+commands:
+  battlepit:
+    description: Join, leave or manage the battle pit.
+    usage: /battlepit join|leave|status
+    aliases: [pit, bp]
+
+permissions:
+  guab.battlepit.use:
+    description: Join and leave the battle pit.
+    default: true
+  guab.battlepit.admin:
+    description: Set the pit spawn and exit, and reload its config.
+    default: op

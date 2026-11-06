@@ -14,10 +14,14 @@ commands:
     description: Walk into the Guab casino, or build and inspect it.
     usage: /casino [enter|build|setspawn|status|snapshot|reload]
     aliases: [gcasino]
+  blackjack:
+    description: Play a hand of blackjack against the dealer.
+    usage: /blackjack <bet> | /blackjack hit|stand|double
+    aliases: [bj, 21]
 
 permissions:
   guab.casino.use:
-    description: Enter the casino.
+    description: Enter the casino and play blackjack.
     default: true
   guab.casino.admin:
     description: Build the casino, move its spawn and reload it.

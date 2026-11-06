@@ -7,6 +7,7 @@ public final class GuabGamblingPlugin extends JavaPlugin {
 
     private CasinoConfig config;
     private CasinoVenue venue;
+    private Blackjack blackjack;
 
     @Override
     public void onEnable() {
@@ -19,6 +20,15 @@ public final class GuabGamblingPlugin extends JavaPlugin {
             CasinoCommand executor = new CasinoCommand(this);
             command.setExecutor(executor);
             command.setTabCompleter(executor);
+        }
+
+        this.blackjack = new Blackjack(this);
+        this.blackjack.start();
+        PluginCommand blackjackCommand = getCommand("blackjack");
+        if (blackjackCommand != null) {
+            BlackjackCommand executor = new BlackjackCommand(this, blackjack);
+            blackjackCommand.setExecutor(executor);
+            blackjackCommand.setTabCompleter(executor);
         }
         getServer().getPluginManager().registerEvents(new CasinoGuard(venue), this);
 
@@ -45,5 +55,13 @@ public final class GuabGamblingPlugin extends JavaPlugin {
 
     public CasinoVenue venue() {
         return venue;
+    }
+
+    @Override
+    public void onDisable() {
+        if (blackjack != null) {
+            blackjack.stop();
+            blackjack = null;
+        }
     }
 }

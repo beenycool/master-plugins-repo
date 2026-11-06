@@ -1,0 +1,27 @@
+# Free-for-all pit outside the parkour. Kills pay points, deaths cost points.
+battlepit:
+  enabled: true
+  kill-reward: 50
+  death-penalty: 25
+  keep-inventory: true
+  action-bar: true
+  # Announce a kill streak every N kills.
+  streak-announce-every: 5
+
+  # Where /battlepit join drops you.
+  spawn:
+    world: world
+    x: 100.5
+    y: -61.0
+    z: 100.5
+    yaw: 0.0
+    pitch: 0.0
+
+  # Where /battlepit leave puts you.
+  exit:
+    world: world
+    x: 0.5
+    y: -60.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0

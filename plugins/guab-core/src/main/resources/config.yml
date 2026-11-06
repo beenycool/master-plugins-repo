@@ -21,6 +21,7 @@ hud:
       - "&7#3 &f%top3%"
       - ""
       - "&8/casino &7for the casino"
+      - "&8/blackjack &7for cards"
       - "&8/points &7for the leaderboard"
 
   tab:
