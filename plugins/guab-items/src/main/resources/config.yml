@@ -1,0 +1,28 @@
+# Wind Charge: launches the holder forward and shoves nearby players away.
+wind-charge:
+  # Forward push (blocks per tick). 1.8 is a strong launch.
+  power: 1.8
+  # Added to the upward velocity, even when looking down.
+  vertical-boost: 0.6
+  # Nearby players within this many blocks are knocked away. The user is never hit.
+  radius: 5.0
+  # Horizontal knockback applied to nearby players.
+  knockback: 1.2
+  # Upward knockback applied to nearby players.
+  knockback-vertical: 0.35
+  # Whether one wind charge is used up per activation.
+  consume: true
+  # Per-player cooldown between activations, in seconds.
+  cooldown-seconds: 8
+
+# Jump Boost Feather: permanent Jump Boost, always consumed on use.
+jump-boost:
+  # 0 = Jump Boost I, 1 = II, 2 = III, ...
+  # If the player already has a stronger level, that level is kept (never downgraded).
+  amplifier: 2
+  # Per-player cooldown between uses, in seconds.
+  cooldown-seconds: 30
+
+command:
+  # Upper bound accepted by /guabitems give.
+  max-give-amount: 64

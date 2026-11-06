@@ -1,0 +1,41 @@
+# Master switch for all prank blocks.
+enabled: true
+
+fake:
+  # Chance per step that the floor actually opens.
+  chance: 0.6
+  # How long the block stays as air before the original block comes back.
+  restore-delay-ticks: 60
+  # Sound played when the floor opens. Accepts a sound key ("block.glass.break")
+  # or the old enum-style name ("BLOCK_GLASS_BREAK").
+  break-sound: "block.glass.break"
+  # Restore any fake block that is still open when the plugin disables.
+  restore-on-disable: true
+
+potion:
+  # One entry is picked at random each time a potion block triggers.
+  # Per-block overrides can be set in blocks.yml with effect, duration-seconds
+  # and amplifier.
+  effects:
+    - type: "nausea"
+      duration-seconds: 8
+      amplifier: 1
+    - type: "blindness"
+      duration-seconds: 5
+      amplifier: 0
+    - type: "slowness"
+      duration-seconds: 6
+      amplifier: 1
+
+swap:
+  # Cooldown for one player being swapped, in seconds.
+  cooldown-seconds: 30
+  # Do not pick players within this many blocks of the victim.
+  exclude-radius: 16
+
+cooldowns:
+  # Cooldown between any prank trigger for the same player, in seconds.
+  per-player-seconds: 5
+  # Default cooldown for the same block, in seconds. Override per block with
+  # cooldown-seconds in blocks.yml.
+  per-block-seconds: 10
