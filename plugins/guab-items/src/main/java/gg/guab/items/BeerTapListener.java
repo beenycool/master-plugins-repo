@@ -1,11 +1,9 @@
 package gg.guab.items;
 
-import gg.guab.core.PointsService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -20,8 +18,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * The Wetherspoons beer tap. Right-click the configured barrel to buy one pint for
- * points. The bartender is on their break, so it serves itself.
+ * The Wetherspoons beer tap. Right-click the barrel for a cheap house pint;
+ * sneak-right-click opens the full 26.3 beer menu.
  */
 public final class BeerTapListener implements Listener {
 
@@ -49,31 +47,22 @@ public final class BeerTapListener implements Listener {
             return;
         }
         long now = System.currentTimeMillis();
-        long cooldown = Math.max(0, plugin.getConfig().getInt("beer.tap-cooldown-seconds", 2)) * 1000L;
+        long cooldown = plugin.config().beerTapCooldownSeconds() * 1000L;
         if (now - cooldowns.getOrDefault(player.getUniqueId(), 0L) < cooldown) {
             return;
         }
 
-        int cost = Math.max(0, plugin.getConfig().getInt("beer.cost", 25));
-        PointsService points = points();
-        if (cost > 0) {
-            if (points == null) {
-                msg(player, "The till is broken; the points ledger is unavailable.", NamedTextColor.RED);
-                return;
-            }
-            if (!points.take(player.getUniqueId(), cost)) {
-                msg(player, "A pint is " + cost + " points and you cannot cover it.", NamedTextColor.RED);
-                return;
-            }
+        if (player.isSneaking()) {
+            cooldowns.put(player.getUniqueId(), now);
+            plugin.beerMenu().open(player);
+            return;
         }
 
-        cooldowns.put(player.getUniqueId(), now);
-        var beer = plugin.items().create(ItemType.BEER, 1);
-        player.getInventory().addItem(beer).values()
-                .forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
-        player.playSound(player.getLocation(), Sound.BLOCK_BARREL_OPEN, 1.0f, 1.0f);
-        msg(player, "Pint of Wetherspoons poured"
-                + (cost > 0 ? " for " + cost + " points" : " for free") + ".", NamedTextColor.GOLD);
+        BeerStyle style = plugin.beer().randomHouse();
+        int cost = Math.max(0, plugin.getConfig().getInt("beer.cost", 1));
+        if (plugin.beerService().purchase(player, style, 1, cost, false)) {
+            cooldowns.put(player.getUniqueId(), now);
+        }
     }
 
     private boolean isTap(Block block) {
@@ -85,11 +74,6 @@ public final class BeerTapListener implements Listener {
                 && block.getX() == x
                 && block.getY() == y
                 && block.getZ() == z;
-    }
-
-    private PointsService points() {
-        var registration = Bukkit.getServicesManager().getRegistration(PointsService.class);
-        return registration == null ? null : registration.getProvider();
     }
 
     private void msg(Player player, String message, NamedTextColor color) {

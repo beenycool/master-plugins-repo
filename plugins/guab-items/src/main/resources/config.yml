@@ -25,19 +25,29 @@ jump-boost:
 
 # Beer from the Wetherspoons tap in the casino.
 beer:
-  # Points charged per pint. 1 keeps it cheap enough to be a Wetherspoons.
+  # Points charged for a house pint from the barrel. The menu can price styles
+  # separately with beer.styles.<id>.price.
   cost: 1
-  # Per-player cooldown between drinks, in seconds.
+  # Per-player cooldown between drinks, in seconds. Also written into the item's
+  # 26.3 USE_COOLDOWN component so the client shows the right cooldown.
   cooldown-seconds: 2
   # Per-player cooldown between pulls of the tap, in seconds.
   tap-cooldown-seconds: 1
-  # Light effects so a pint feels like a pint.
-  effects:
-    - type: nausea
-      duration-seconds: 6
-      amplifier: 0
-  # Real beers that can come out of the tap. One is named in the drinker's
-  # private chat line; the item stays a single stackable "Beer".
+  # How long the DRINK animation takes. Written into the CONSUMABLE component.
+  consume-seconds: 1.1
+  # If true, drinking leaves an empty glass bottle in the inventory.
+  return-empty-bottle: false
+  # The cheap tap pint picks from this weighted list.
+  house-style: lager
+  house-weights:
+    lager: 40
+    stout: 20
+    ale: 25
+    cider: 15
+    alcohol_free: 5
+  menu:
+    enabled: true
+  # Legacy house-pint pools. Style-specific pools below override these.
   names:
     - "Stella Artois"
     - "Guinness"
@@ -53,7 +63,6 @@ beer:
     - "Strongbow"
     - "Thatchers Gold"
     - "London Pride"
-  # One flavour line is picked at random and sent only to the drinker.
   messages:
     - "You feel mildly Wetherspoons."
     - "Cheap beer, expensive regrets."
@@ -61,16 +70,83 @@ beer:
     - "You order at the bar. Nobody comes."
     - "That is one pint closer to closing time."
     - "A true Spoons classic."
+  # House-pint effects. Every style can override these with its own list.
+  effects:
+    - type: nausea
+      duration-seconds: 6
+      amplifier: 0
   # The barrel that acts as the tap.
   tap:
     world: guab_casino
     x: -20
     y: 66
     z: -14
+  # The full menu. Unknown style IDs in this section are ignored. Set
+  # enabled: false on a style to take it off the bar.
+  styles:
+    lager:
+      display-name: Lager
+      abv: 4.2
+      volume-ml: 568
+      price: 1
+      model: "guab:beer"
+      effects:
+        - type: nausea
+          duration-seconds: 6
+          amplifier: 0
+    stout:
+      display-name: Stout
+      abv: 4.1
+      volume-ml: 568
+      price: 2
+      model: "guab:beer"
+      effects:
+        - type: nausea
+          duration-seconds: 8
+          amplifier: 0
+        - type: slowness
+          duration-seconds: 6
+          amplifier: 0
+    ale:
+      display-name: Ale
+      abv: 4.5
+      volume-ml: 568
+      price: 2
+      model: "guab:beer"
+      effects:
+        - type: nausea
+          duration-seconds: 5
+          amplifier: 0
+        - type: speed
+          duration-seconds: 20
+          amplifier: 0
+    cider:
+      display-name: Cider
+      abv: 4.5
+      volume-ml: 568
+      price: 2
+      model: "guab:beer"
+      effects:
+        - type: nausea
+          duration-seconds: 7
+          amplifier: 0
+        - type: speed
+          duration-seconds: 12
+          amplifier: 0
+    alcohol_free:
+      display-name: Alcohol-Free
+      abv: 0.0
+      volume-ml: 568
+      price: 1
+      model: "guab:beer"
+      effects:
+        - type: regeneration
+          duration-seconds: 4
+          amplifier: 0
 
 # The Wetherspoons pub side of the plugin.
 pub:
-  # Centre of the pub, used by /round and the drunk radius checks.
+  # Centre of the pub, used by /round and the pub radius checks.
   centre:
     world: guab_casino
     x: -20.5
@@ -84,19 +160,64 @@ pub:
       y: 67.3
       z: -12.5
   drunk:
-    # Pints older than this stop counting towards the drunk meter.
-    window-seconds: 600
+    # Drinks older than this stop counting towards the meter. Each pint decays
+    # linearly across this window, so the room gradually stops spinning.
+    window-seconds: 900
+  # Points awarded once per lifetime pint milestone.
+  milestones:
+    rewards:
+      "1": 5
+      "10": 25
+      "25": 100
+      "50": 250
+      "100": 1000
   round:
     radius: 14.0
     cost-per-pint: 1
     cooldown-seconds: 30
   darts:
+    enabled: true
     board:
       world: guab_casino
       x: -24
       y: 66
       z: -12
-    cooldown-seconds: 2
+      # The face the players throw at: NORTH, EAST, SOUTH or WEST.
+      face: EAST
+      # Board radius in blocks. 0.5 means the whole target block face.
+      radius: 0.5
+    # Minimum time between throws, in seconds.
+    cooldown-seconds: 0.35
+    # The player must be this close to the board.
+    max-distance: 8.0
+    default-mode: 501
+    legs-to-win: 1
+    hud-interval-ticks: 10
+    # Aim error in board radii: a sober player is nearly perfect, each pint in
+    # the last window adds a little wobble. The board opens its arms after a few.
+    wobble:
+      sober: 0.008
+      per-drunk-level: 0.012
+      max: 0.25
+    # Ring boundaries as a fraction of the board radius. The outer edge is 1.0.
+    rings:
+      bull: 0.055
+      outer-bull: 0.115
+      treble-inner: 0.56
+      treble-outer: 0.64
+      double-inner: 0.93
+      double-outer: 1.0
+    rewards:
+      enabled: true
+      base-101: 20
+      base-301: 60
+      base-501: 100
+      par-darts-101: 9
+      par-darts-301: 15
+      par-darts-501: 21
+      under-par-per-dart: 2
+      checkout-per-point: 0.1
+      max: 300
   quiz:
     enabled: true
     # Seconds between automatic questions.
@@ -118,7 +239,8 @@ pub:
       - "Which city is the home of the Cavern Club? | Liverpool"
       - "What is the main grain in beer? | barley"
   menu:
-    # Shelves whose contents are display-only and cannot be taken.
+    # Shelves whose contents are display-only and cannot be taken. Right-click
+    # one to open the full beer menu.
     shelves:
       - "guab_casino;-23;66;-15"
       - "guab_casino;-22;66;-15"

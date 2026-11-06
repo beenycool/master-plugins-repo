@@ -2,24 +2,34 @@ name: GuabItems
 version: '${version}'
 main: gg.guab.items.GuabItemsPlugin
 api-version: '26.3'
-description: Wind charges, jump boost feathers and other prank items.
+description: Wind charges, jump boost feathers, the Wetherspoons beer menu and darts.
 authors: [Guab]
 depend: [GuabCore]
 
 commands:
   guabitems:
     description: Give or reload the Guab prank items.
-    usage: /guabitems give <player> <wind_charge|jump_boost|beer> [amount] | /guabitems reload
+    usage: /guabitems give <player> <wind_charge|jump_boost|beer[:style]> [amount] | /guabitems reload
     permission: guab.items.admin
     aliases: [gi]
   round:
     description: Buy a round of beers for everyone in the pub.
-    usage: /round
+    usage: /round [style]
     permission: guab.pub.use
   pints:
     description: Show your pint count and the pub leaderboard.
-    usage: /pints [top]
+    usage: /pints [top|units]
     permission: guab.pub.use
+  beer:
+    description: Open the Wetherspoons beer menu or buy a pint.
+    usage: /beer [menu|list|stats|buy <style> [amount]]
+    permission: guab.pub.use
+    aliases: [pint, spoons]
+  darts:
+    description: Play the pub dartboard.
+    usage: /darts [menu|start [101|301|501] [legs]|quit|stats [player]|top [legs|180s|checkout|best]]
+    permission: guab.pub.darts.use
+    aliases: [dart]
   quiz:
     description: Start a pub quiz question.
     usage: /quiz
@@ -30,11 +40,20 @@ permissions:
     description: Give Guab items and reload their configuration.
     default: op
   guab.items.use:
-    description: Use tagged Guab prank items and the beer tap.
+    description: Use tagged Guab prank items, the beer tap and the beer menu.
     default: true
   guab.pub.use:
-    description: Buy rounds and check the pint leaderboard.
+    description: Buy rounds, open the beer menu and check the pint leaderboard.
     default: true
+  guab.pub.darts.use:
+    description: Play the pub dartboard.
+    default: true
+  guab.pub.darts.admin:
+    description: Move the dartboard and reload pub configuration.
+    default: op
+  guab.pub.menu.remote:
+    description: Buy from the beer menu outside the pub radius.
+    default: op
   guab.pub.quiz.start:
     description: Start a pub quiz question.
     default: op

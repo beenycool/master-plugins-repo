@@ -1,9 +1,9 @@
 package gg.guab.items;
 
+import io.papermc.paper.datacomponent.DataComponentTypes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.GameMode;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -21,9 +21,7 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
-import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Right-click behaviour and the guards that keep renamed/crafted lookalikes inert.
@@ -65,6 +63,25 @@ public final class ItemListener implements Listener {
             return;
         }
 
+        // Beer is a real 26.3 consumable: let vanilla run the drink animation and
+        // fire PlayerItemConsumeEvent. The old-tagged item is migrated to components
+        // in place so paints bought before this update keep working.
+        if (type == ItemType.BEER) {
+            if (player.getGameMode() == GameMode.SPECTATOR) {
+                event.setCancelled(true);
+                return;
+            }
+            if (!player.hasPermission("guab.items.use")) {
+                event.setCancelled(true);
+                actionBar(player, Component.text("You cannot use Guab items.", NamedTextColor.RED));
+                return;
+            }
+            if (!stack.hasData(DataComponentTypes.CONSUMABLE)) {
+                inventory.setItem(hand, plugin.items().canonicalize(stack));
+            }
+            return;
+        }
+
         // This is one of our items, so deny the vanilla use (including wind charge
         // explosions and block interaction) for both hands before doing anything else.
         event.setCancelled(true);
@@ -87,20 +104,14 @@ public final class ItemListener implements Listener {
         switch (type) {
             case WIND_CHARGE -> useWindCharge(player);
             case JUMP_BOOST -> useJumpBoost(player);
-            case BEER -> useBeer(player);
         }
 
-        long cooldown = switch (type) {
-            case WIND_CHARGE -> plugin.config().windChargeCooldownMillis();
-            case JUMP_BOOST -> plugin.config().jumpBoostCooldownMillis();
-            case BEER -> plugin.config().beerCooldownMillis();
-        };
+        long cooldown = type == ItemType.WIND_CHARGE
+                ? plugin.config().windChargeCooldownMillis()
+                : plugin.config().jumpBoostCooldownMillis();
         plugin.cooldowns().start(player.getUniqueId(), type, cooldown);
 
-        boolean consume = switch (type) {
-            case WIND_CHARGE -> plugin.config().windChargeConsume();
-            case JUMP_BOOST, BEER -> true;
-        };
+        boolean consume = type != ItemType.WIND_CHARGE || plugin.config().windChargeConsume();
         if (consume) {
             consumeOne(player, hand);
         }
@@ -155,28 +166,6 @@ public final class ItemListener implements Listener {
         actionBar(player, Component.text(
                 current == null ? "Permanent Jump Boost!" : "Jump Boost refreshed!",
                 NamedTextColor.GREEN));
-    }
-
-    private void useBeer(Player player) {
-        for (ItemsConfig.BeerEffect effect : plugin.config().beerEffects()) {
-            player.addPotionEffect(new PotionEffect(
-                    effect.type(), effect.durationTicks(), effect.amplifier(), false, true, true));
-        }
-        player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK, 1.0f, 0.9f);
-        plugin.pub().recordDrink(player);
-
-        List<String> names = plugin.getConfig().getStringList("beer.names");
-        String name = names.isEmpty()
-                ? "beer"
-                : names.get(ThreadLocalRandom.current().nextInt(names.size()));
-        player.sendMessage(Component.text("You crack open a cold " + name + ".", NamedTextColor.YELLOW));
-
-        List<String> lines = plugin.getConfig().getStringList("beer.messages");
-        if (!lines.isEmpty()) {
-            player.sendMessage(Component.text(
-                    lines.get(ThreadLocalRandom.current().nextInt(lines.size())),
-                    NamedTextColor.GRAY));
-        }
     }
 
     private void consumeOne(Player player, EquipmentSlot hand) {

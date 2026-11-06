@@ -10,7 +10,7 @@ Small Paper plugins for the Guab Christmas parkour. Built for Paper `26.3` on Ja
 | ------------------------ | ---------------------------------------- |
 | `plugins/guab-core`      | Shared points ledger and helpers         |
 | `plugins/guab-blocks`    | Fake blocks, potion blocks, swap blocks  |
-| `plugins/guab-items`     | Wind charges, jump boost feathers        |
+| `plugins/guab-items`     | Wind charges, jump boost, beer and darts |
 | `plugins/guab-rickroll`  | The rickroll block                       |
 | `plugins/guab-gambling`  | Casino and wagers                        |
 | `plugins/guab-minigames` | Battle pit and point minigames           |
@@ -22,7 +22,12 @@ Small Paper plugins for the Guab Christmas parkour. Built for Paper `26.3` on Ja
 ./gradlew build
 ```
 
-Jars are written to `plugins/<module>/build/libs/`.
+Jars are written to `plugins/<module>/build/libs/`. Darts scoring and checkout
+logic have unit tests:
+
+```bash
+./gradlew :plugins:guab-items:test
+```
 
 ## Deploy
 
@@ -136,27 +141,52 @@ All pads are in the `guab_casino` world at `y=65` (relative to `0, 64, 0`).
 
 ### Chicken
 
-Players bet on red, blue, gold or green, then either cash out at 1.00× for exactly their stake or ride the lightning for a chance at 4.6×. The 7×7 board has 10 black (dead) tiles, so the chance of landing on the chosen colour is **39/196 ≈ 19.9%**, giving a **~91.5% return** for players who never cash out. Cash-out is a break-even escape hatch, not a profit button. Winners are paid even if they disconnect before the round resolves.
+Players bet on red, blue, gold or green, then either cash out at the live multiplier or ride the lightning for the 4.6× colour bonus. The 7×7 board has 10 black (dead) tiles, so the chance of landing on the chosen colour is **39/196 ≈ 19.9%**. The chicken's multiplier climbs as it walks and golden pickups add to it, so cashing out early is a real choice rather than a flat refund. Winners are paid even if they disconnect before the round resolves.
+
+If the chicken sticks at `1.00×`, run `sudo docker/fix-minegames-chicken.sh` on the VM. It restores `multiplier-increase-per-second: 0.03` and `pickup-multiplier: 0.25`, then reloads MineGames.
 
 ### Wetherspoons
 
-A small Wetherspoons pub sits in the north-west corner of the casino hall (`x -24..-16`, `z -16..-10`). Right-click the barrel on the bar at `-20, 66, -14` to buy a pint for **1 point**.
+A small Wetherspoons pub sits in the north-west corner of the casino hall (`x -24..-16`, `z -16..-10`). Right-click the barrel on the bar at `-20, 66, -14` for a cheap **1-point house pint**. Sneak-right-click the barrel, right-click a menu shelf, or run `/beer` to open the full 26.3 dialog menu.
 
-Beer stacks to **64**, uses a custom mug texture from the resource pack, and on drinking picks a real beer name (Stella, Guinness, Carling, Peroni, …) plus a flavour line. Both lines go **only to the drinker**.
+The menu has five real styles: **Lager, Stout, Ale, Cider and Alcohol-Free**. Each one has its own ABV, price, real-brand name pool, flavour lines and potion effects. Beer stacks to **64 per style** and still uses the custom mug texture from the resource pack. Drinking is a real 26.3 `CONSUMABLE` component, so the client plays the drink animation, sound and cooldown. Old tagged pints are migrated to components the first time they are used.
 
-Staff can hand out stacks with `/guabitems give <player> beer 64`.
+Staff can hand out stacks with `/guabitems give <player> beer 64`, or a specific style with `/guabitems give <player> beer:stout 64`.
 
-The item texture lives in `guab-items.zip` on the pack host (`:39002`) and is applied as the server resource pack; the same asset is embedded in the rickroll pack so beer stays textured after a show.
+The item textures live in `guab-items.zip` on the pack host (`:39002`) and are applied as the server resource pack; the same assets are embedded in the rickroll pack so beer stays textured after a show. The pint and bottle textures are real product photos from Open Food Facts (CC BY-SA 3.0), and the dartboard face is Wikimedia Commons' unlabelled dartboard (CC BY-SA 3.0).
+
+Rebuild both packs with:
+
+```bash
+sudo tools/build-guab-items-pack.py
+```
+
+It writes `/tmp/guab-pack/guab-items.zip` and `/tmp/guab-pack/rickroll.zip` and prints their SHA-1 values. Copy them into `/opt/guab-server/resourcepack/`, update `resource-pack-sha1` in `data/server.properties` and `sha1` in `data/plugins/GuabRickroll/pack.properties`, then restart Paper.
 
 **Pub features**
 
-- **Drunk meter** — pints in the last 10 minutes stack nausea/slowness and show `Tipsy → Merry → Drunk → Absolutely Wetherspoons` on the action bar.
-- **Pints leaderboard** — lifetime pints are saved to `pints.yml`, `/pints [top]` lists them, and a hologram above the bar shows the top three.
-- **`/round`** — buys a pint for everyone within 14 blocks of the pub centre, 1 point each.
+- **Weighted drunk meter** — every pint contributes real alcohol units based on ABV and volume. They decay over the configured window (15 minutes by default); the action bar shows `Tipsy → Merry → Drunk → Wrecked → Absolutely Wetherspoons`, with escalating nausea, slowness, blindness and the occasional hangover.
+- **Pints leaderboard** — lifetime pints and units are saved to `pints.yml`, `/pints [top|units]` lists them, and a hologram above the bar shows the top three plus total pints served.
+- **Milestones** — the 1st, 10th, 25th, 50th and 100th lifetime pint each pay a one-off points reward.
+- **`/round [style]`** — buys that style for everyone within 14 blocks of the pub centre; the default house round stays 1 point each.
+- **`/beer`** — opens the dialog menu; `/beer list`, `/beer buy <style> [amount]` and `/beer stats` also work.
 - **Pub quiz** — every 10 minutes (or `/quiz`) a question goes out in chat; the first correct answer wins 100 points.
-- **Darts** — right-click the target block on the west wall. Bullseye is 50, outer bull 25, otherwise 1–20.
-- **Beer menu** — five `pale_oak_shelf` blocks behind the bar display 15 bottle models (14 real beers). Shelf interactions are locked so the menu cannot be emptied.
+- **Beer menu shelves** — right-click a shelf to open the dialog menu; left-click still refuses to let anyone take the display bottles.
 - **Carpet** — the pack overrides `red_carpet` with the Wetherspoons-style pattern, so the pub rug and the casino aisles share it.
+
+### Darts
+
+The target block on the west wall is now a full dartboard, not a random-number button.
+
+- **Aim is real.** Your eye ray decides where the dart lands. The board uses the twenty standard sectors, plus singles, doubles, trebles, outer bull (25) and bullseye (50).
+- **Proper legs.** `/darts` opens a dialog for **101, 301 or 501**. Each visit is three darts, the score counts down, and the last dart must be a double (bullseye 50 counts). Bust overshoots, leaves 1, or finishes on a non-double.
+- **Checkout hints.** The action bar and the board hologram show the shortest finish, e.g. `T20 T20 BULL` for 170.
+- **Drunk wobble.** Every pint in the last window adds Gaussian aim error, so the board genuinely gets harder as the night goes on.
+- **Career records.** `darts.yml` stores legs played/won, darts thrown, best leg, 180s, checkouts, highest checkout and best visit. `/darts stats [player]` and `/darts top [legs|180s|checkout|best]` read it.
+- **Match night.** `/darts start [101|301|501] [legs]` starts directly. Checkouts pay points based on the mode, darts used and checkout value, capped by config. 180s get fireworks and a title; checkouts get a celebration and a pub-wide announcement.
+- **Admin.** `/darts board` sets the board from the block you are looking at; `/darts reload` reloads the rules.
+
+The board location, face, radius, ring sizes, wobble, rewards and cooldowns are all in `pub.darts` in `GuabItems/config.yml`.
 
 ### Snapshots
 

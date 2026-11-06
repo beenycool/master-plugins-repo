@@ -2,29 +2,26 @@ package gg.guab.items;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Sound;
+import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
+import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.Vector;
 
 /**
- * A dartboard block in the pub. Right-click to throw; the score is pure luck.
+ * The physical dartboard. Right-clicking it opens the mode dialog while idle and
+ * throws a dart while a leg is live. The actual scoring is in {@link DartsGeometry}.
  */
 public final class DartsBoard implements Listener {
 
     private final GuabItemsPlugin plugin;
-    private final Map<UUID, Long> cooldowns = new HashMap<>();
-    private final Map<UUID, Integer> best = new HashMap<>();
 
     public DartsBoard(GuabItemsPlugin plugin) {
         this.plugin = plugin;
@@ -32,66 +29,71 @@ public final class DartsBoard implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getHand() != EquipmentSlot.HAND) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK
+                || event.useInteractedBlock() == Event.Result.DENY) {
             return;
         }
         Block block = event.getClickedBlock();
-        if (block == null || !isBoard(block)) {
+        if (block == null || event.getBlockFace() != plugin.darts().config().face()) {
+            return;
+        }
+        Location point = interactionPoint(event);
+        if (!plugin.darts().isBoard(block, point)) {
             return;
         }
         event.setCancelled(true);
 
-        Player player = event.getPlayer();
-        long now = System.currentTimeMillis();
-        long cooldown = Math.max(0, plugin.getConfig().getInt("pub.darts.cooldown-seconds", 2)) * 1000L;
-        if (now - cooldowns.getOrDefault(player.getUniqueId(), 0L) < cooldown) {
+        if (event.getHand() != EquipmentSlot.HAND) {
             return;
         }
-        cooldowns.put(player.getUniqueId(), now);
-
-        int score = roll();
-        int previousBest = best.getOrDefault(player.getUniqueId(), 0);
-        if (score > previousBest) {
-            best.put(player.getUniqueId(), score);
-            previousBest = score;
+        Player player = event.getPlayer();
+        if (!player.hasPermission("guab.pub.darts.use")) {
+            player.sendMessage(Component.text("[Darts] ", NamedTextColor.GOLD)
+                    .append(Component.text("You are not allowed to play darts.", NamedTextColor.RED)));
+            return;
         }
-        player.playSound(player.getLocation(), Sound.ENTITY_ARROW_HIT, 1.0f, 1.2f);
-        player.sendMessage(Component.text("[Darts] ", NamedTextColor.GOLD)
-                .append(Component.text(describe(score), NamedTextColor.WHITE))
-                .append(Component.text("  (best " + previousBest + ")", NamedTextColor.GRAY)));
+        Location centre = plugin.darts().boardCentre();
+        if (centre == null) {
+            player.sendMessage(Component.text("[Darts] ", NamedTextColor.GOLD)
+                    .append(Component.text("The dartboard is not configured.", NamedTextColor.RED)));
+            return;
+        }
+        if (!player.getWorld().equals(centre.getWorld())
+                || player.getLocation().distanceSquared(centre)
+                > plugin.darts().config().maxDistance() * plugin.darts().config().maxDistance()) {
+            player.sendMessage(Component.text("[Darts] ", NamedTextColor.GOLD)
+                    .append(Component.text("Stand closer to the oche.", NamedTextColor.RED)));
+            return;
+        }
+
+        if (!plugin.darts().isPlaying(player.getUniqueId())) {
+            if (player.isSneaking()) {
+                plugin.darts().startDefault(player);
+            } else {
+                plugin.darts().openMenu(player);
+            }
+            return;
+        }
+
+        Location throwPoint = point != null ? point : rayPoint(player, centre);
+        plugin.darts().throwDart(player, throwPoint);
     }
 
-    private int roll() {
-        int chance = ThreadLocalRandom.current().nextInt(100);
-        if (chance < 5) {
-            return 0;
-        }
-        if (chance < 10) {
-            return 50;
-        }
-        if (chance < 20) {
-            return 25;
-        }
-        return 1 + ThreadLocalRandom.current().nextInt(20);
+    private Location interactionPoint(PlayerInteractEvent event) {
+        return event.getInteractionPoint();
     }
 
-    private String describe(int score) {
-        return switch (score) {
-            case 0 -> "Missed the board.";
-            case 50 -> "Bullseye! 50.";
-            case 25 -> "Outer bull, 25.";
-            default -> "Scored " + score + ".";
-        };
-    }
-
-    private boolean isBoard(Block block) {
-        String world = plugin.getConfig().getString("pub.darts.board.world", "guab_casino");
-        int x = plugin.getConfig().getInt("pub.darts.board.x", -24);
-        int y = plugin.getConfig().getInt("pub.darts.board.y", 66);
-        int z = plugin.getConfig().getInt("pub.darts.board.z", -12);
-        return block.getWorld().getName().equals(world)
-                && block.getX() == x
-                && block.getY() == y
-                && block.getZ() == z;
+    /**
+     * Fallback for servers where the interaction point is unavailable: trace the
+     * player's eye ray into the board plane so aim is still respected.
+     */
+    private Location rayPoint(Player player, Location centre) {
+        Vector direction = player.getEyeLocation().getDirection();
+        RayTraceResult result = player.getWorld().rayTraceBlocks(
+                player.getEyeLocation(), direction, 16.0, org.bukkit.FluidCollisionMode.NEVER, true);
+        if (result != null && result.getHitPosition() != null) {
+            return result.getHitPosition().toLocation(player.getWorld());
+        }
+        return centre.clone();
     }
 }

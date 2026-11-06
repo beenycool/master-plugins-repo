@@ -25,6 +25,9 @@ public record ItemsConfig(
         int jumpBoostAmplifier,
         int jumpBoostCooldownSeconds,
         int beerCooldownSeconds,
+        int beerTapCooldownSeconds,
+        double beerConsumeSeconds,
+        boolean beerReturnEmptyBottle,
         List<BeerEffect> beerEffects,
         int maxGiveAmount) {
 
@@ -44,31 +47,39 @@ public record ItemsConfig(
                 Math.clamp(cfg.getInt("jump-boost.amplifier", 2), 0, 255),
                 Math.max(0, cfg.getInt("jump-boost.cooldown-seconds", 30)),
                 Math.max(0, cfg.getInt("beer.cooldown-seconds", 3)),
+                Math.max(0, cfg.getInt("beer.tap-cooldown-seconds", 1)),
+                Math.clamp(cfg.getDouble("beer.consume-seconds", 1.1), 0.2, 5.0),
+                cfg.getBoolean("beer.return-empty-bottle", false),
                 loadBeerEffects(cfg),
                 Math.clamp(cfg.getInt("command.max-give-amount", 64), 1, 2304));
     }
 
     private static List<BeerEffect> loadBeerEffects(FileConfiguration cfg) {
-        List<BeerEffect> effects = new ArrayList<>();
-        List<?> raw = cfg.getList("beer.effects");
-        if (raw != null) {
-            for (Object entry : raw) {
-                if (entry instanceof ConfigurationSection section) {
-                    effect(section.getString("type"),
-                            section.getInt("duration-seconds", 8),
-                            section.getInt("amplifier", 0)).ifPresent(effects::add);
-                } else if (entry instanceof java.util.Map<?, ?> map) {
-                    effect(string(map.get("type")),
-                            number(map.get("duration-seconds"), 8),
-                            number(map.get("amplifier"), 0)).ifPresent(effects::add);
-                }
-            }
-        }
+        List<BeerEffect> effects = parseEffects(cfg.getList("beer.effects"));
         if (effects.isEmpty()) {
             effects.add(new BeerEffect(PotionEffectType.NAUSEA, 8 * 20, 1));
             effects.add(new BeerEffect(PotionEffectType.SLOWNESS, 6 * 20, 0));
         }
         return List.copyOf(effects);
+    }
+
+    public static List<BeerEffect> parseEffects(List<?> raw) {
+        List<BeerEffect> effects = new ArrayList<>();
+        if (raw == null) {
+            return effects;
+        }
+        for (Object entry : raw) {
+            if (entry instanceof ConfigurationSection section) {
+                effect(section.getString("type"),
+                        section.getInt("duration-seconds", 8),
+                        section.getInt("amplifier", 0)).ifPresent(effects::add);
+            } else if (entry instanceof java.util.Map<?, ?> map) {
+                effect(string(map.get("type")),
+                        number(map.get("duration-seconds"), 8),
+                        number(map.get("amplifier"), 0)).ifPresent(effects::add);
+            }
+        }
+        return effects;
     }
 
     private static java.util.Optional<BeerEffect> effect(String name, int durationSeconds, int amplifier) {
@@ -99,7 +110,7 @@ public record ItemsConfig(
             id = "minecraft:" + id;
         }
         try {
-            return Registry.EFFECT.get(NamespacedKey.fromString(id));
+            return Registry.MOB_EFFECT.get(NamespacedKey.fromString(id));
         } catch (IllegalArgumentException exception) {
             return null;
         }

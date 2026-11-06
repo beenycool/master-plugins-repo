@@ -13,7 +13,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Keeps the beer menu shelves stocked by cancelling any attempt to take a bottle.
+ * Keeps the beer menu shelves stocked. Right-click opens the 26.3 beer menu;
+ * left-click still refuses to let anyone take the display bottles.
  */
 public final class MenuShelves implements Listener {
 
@@ -46,7 +47,12 @@ public final class MenuShelves implements Listener {
             return;
         }
         event.setCancelled(true);
+        if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getHand() == org.bukkit.inventory.EquipmentSlot.HAND) {
+            plugin.beerMenu().open(event.getPlayer());
+            return;
+        }
         event.getPlayer().sendMessage(Component.text("[Spoons] ", NamedTextColor.GOLD)
-                .append(Component.text("The menu is for looking at. Order at the bar.", NamedTextColor.GRAY)));
+                .append(Component.text("The menu is for looking at. Right-click for the full list.",
+                        NamedTextColor.GRAY)));
     }
 }

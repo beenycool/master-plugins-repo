@@ -54,6 +54,11 @@ public final class PubQuiz implements Listener {
         return active != null;
     }
 
+    /** Re-reads the question list without interrupting a question already asked. */
+    public void reloadQuestions() {
+        loadQuestions();
+    }
+
     public void begin(CommandSender sender) {
         if (!plugin.getConfig().getBoolean("pub.quiz.enabled", true)) {
             sender.sendMessage(prefix().append(Component.text("The pub quiz is closed.", NamedTextColor.RED)));

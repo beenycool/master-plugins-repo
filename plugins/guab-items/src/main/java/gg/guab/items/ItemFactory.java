@@ -1,43 +1,121 @@
 package gg.guab.items;
 
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.Consumable;
+import io.papermc.paper.datacomponent.item.UseCooldown;
+import io.papermc.paper.datacomponent.item.consumable.ConsumeEffect;
+import io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 /**
  * Creates tagged items and answers the only question that matters for security:
  * does this stack carry our persistent data tag?
+ *
+ * <p>Beer is also built with 26.3 item components: the drink animation, style
+ * effects and cooldown are real data components, not a right-click workaround.</p>
  */
 public final class ItemFactory {
 
     public static final String TYPE_KEY = "item_type";
+    public static final String STYLE_KEY = "beer_style";
 
+    private final GuabItemsPlugin plugin;
     private final NamespacedKey typeKey;
+    private final NamespacedKey styleKey;
 
     public ItemFactory(GuabItemsPlugin plugin) {
+        this.plugin = plugin;
         this.typeKey = new NamespacedKey(plugin, TYPE_KEY);
+        this.styleKey = new NamespacedKey(plugin, STYLE_KEY);
     }
 
     public ItemStack create(ItemType type, int amount) {
+        if (type == ItemType.BEER) {
+            return createBeer(plugin.beer().house(), amount);
+        }
         int max = Math.max(1, type.material().getMaxStackSize());
         ItemStack stack = new ItemStack(type.material(), Math.clamp(amount, 1, max));
         ItemMeta meta = stack.getItemMeta();
         meta.displayName(type.displayName());
         meta.lore(type.lore());
-        applyModel(meta, type);
+        applyModel(meta, type.itemModel());
         meta.getPersistentDataContainer().set(typeKey, PersistentDataType.STRING, type.id());
         stack.setItemMeta(meta);
         return stack;
     }
 
-    private void applyModel(ItemMeta meta, ItemType type) {
-        if (type.itemModel() == null) {
+    public ItemStack createBeer(BeerStyle style, int amount) {
+        int max = Math.max(1, ItemType.BEER.material().getMaxStackSize());
+        ItemStack stack = new ItemStack(ItemType.BEER.material(), Math.clamp(amount, 1, max));
+        ItemMeta meta = stack.getItemMeta();
+        meta.displayName(Component.text("Beer", NamedTextColor.YELLOW)
+                .decoration(TextDecoration.ITALIC, false));
+        meta.lore(beerLore(style));
+        applyModel(meta, style.itemModel());
+        if (plugin.config().beerReturnEmptyBottle()) {
+            meta.setUseRemainder(new ItemStack(Material.GLASS_BOTTLE));
+        }
+        meta.getPersistentDataContainer().set(typeKey, PersistentDataType.STRING, ItemType.BEER.id());
+        meta.getPersistentDataContainer().set(styleKey, PersistentDataType.STRING, style.id());
+        stack.setItemMeta(meta);
+        applyBeerComponents(stack, style);
+        return stack;
+    }
+
+    private List<Component> beerLore(BeerStyle style) {
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text(style.displayName() + "  ·  "
+                        + String.format(Locale.ROOT, "%.1f", style.abv()) + "% ABV",
+                style.colour()).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text(style.unitsLabel() + " units per pint", NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("Right-click to drink.", NamedTextColor.DARK_GRAY)
+                .decoration(TextDecoration.ITALIC, false));
+        return lore;
+    }
+
+    private void applyBeerComponents(ItemStack stack, BeerStyle style) {
+        Consumable.Builder consumable = Consumable.consumable()
+                .consumeSeconds((float) plugin.config().beerConsumeSeconds())
+                .animation(ItemUseAnimation.DRINK)
+                .sound(Key.key("minecraft:entity.generic.drink"))
+                .hasConsumeParticles(false);
+
+        if (!style.effects().isEmpty()) {
+            List<PotionEffect> effects = style.effects().stream()
+                    .map(effect -> new PotionEffect(effect.type(), effect.durationTicks(),
+                            effect.amplifier(), false, true, true))
+                    .toList();
+            consumable.addEffect(ConsumeEffect.applyStatusEffects(effects, 1.0f));
+        }
+        consumable.addEffect(ConsumeEffect.playSoundConsumeEffect(
+                Key.key("minecraft:entity.player.burp")));
+        stack.setData(DataComponentTypes.CONSUMABLE, consumable.build());
+        stack.setData(DataComponentTypes.USE_COOLDOWN, UseCooldown
+                .useCooldown((float) Math.max(0.05, plugin.config().beerCooldownSeconds()))
+                .cooldownGroup(Key.key("guab", "beer"))
+                .build());
+    }
+
+    private void applyModel(ItemMeta meta, String itemModel) {
+        if (itemModel == null) {
             return;
         }
-        NamespacedKey model = NamespacedKey.fromString(type.itemModel());
+        NamespacedKey model = NamespacedKey.fromString(itemModel);
         if (model != null) {
             meta.setItemModel(model);
         }
@@ -54,6 +132,16 @@ public final class ItemFactory {
         ItemMeta meta = stack.getItemMeta();
         String id = meta.getPersistentDataContainer().get(typeKey, PersistentDataType.STRING);
         return ItemType.byId(id);
+    }
+
+    /** The specific beer style, falling back to the house pint for legacy items. */
+    public BeerStyle beerStyleOf(ItemStack stack) {
+        if (typeOf(stack) != ItemType.BEER) {
+            return null;
+        }
+        ItemMeta meta = stack.getItemMeta();
+        String id = meta.getPersistentDataContainer().get(styleKey, PersistentDataType.STRING);
+        return plugin.beer().byId(id);
     }
 
     public boolean isTagged(ItemStack stack) {
@@ -78,6 +166,11 @@ public final class ItemFactory {
                 return true;
             }
         }
+        for (BeerStyle style : plugin.beer().all()) {
+            if (plain.equalsIgnoreCase(style.displayName())) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -91,6 +184,7 @@ public final class ItemFactory {
     public void stripTag(ItemStack stack) {
         ItemMeta meta = stack.getItemMeta();
         meta.getPersistentDataContainer().remove(typeKey);
+        meta.getPersistentDataContainer().remove(styleKey);
         stack.setItemMeta(meta);
     }
 
@@ -103,11 +197,15 @@ public final class ItemFactory {
         if (type == null) {
             return stack;
         }
+        if (type == ItemType.BEER) {
+            BeerStyle style = beerStyleOf(stack);
+            return createBeer(style == null ? plugin.beer().house() : style, stack.getAmount());
+        }
         ItemStack copy = stack.clone();
         ItemMeta meta = copy.getItemMeta();
         meta.displayName(type.displayName());
         meta.lore(type.lore());
-        applyModel(meta, type);
+        applyModel(meta, type.itemModel());
         meta.getPersistentDataContainer().set(typeKey, PersistentDataType.STRING, type.id());
         copy.setItemMeta(meta);
         return copy;

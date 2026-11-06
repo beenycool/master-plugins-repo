@@ -6,6 +6,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -31,9 +32,10 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         switch (command.getName().toLowerCase(Locale.ROOT)) {
-            case "round" -> round(sender);
+            case "round" -> round(sender, args);
             case "pints" -> pints(sender, args);
             case "quiz" -> quiz(sender);
+            case "beer" -> beer(sender, args);
             default -> {
                 return false;
             }
@@ -41,7 +43,7 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private void round(CommandSender sender) {
+    private void round(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
             error(sender, "Only players can buy a round.");
             return;
@@ -65,6 +67,11 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        BeerStyle style = args.length > 0 ? plugin.beer().find(args[0]) : plugin.beer().house();
+        if (style == null) {
+            error(sender, "Unknown beer style: " + args[0] + ". Try /beer list.");
+            return;
+        }
         List<Player> drinkers = new ArrayList<>();
         for (Player nearby : centre.getWorld().getPlayers()) {
             if (nearby.getGameMode() == org.bukkit.GameMode.SPECTATOR) {
@@ -79,11 +86,14 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        int costEach = Math.max(0, plugin.getConfig().getInt("pub.round.cost-per-pint", 1));
-        int total = costEach * drinkers.size();
+        int costEach = args.length > 0
+                ? Math.max(0, style.price())
+                : Math.max(0, plugin.getConfig().getInt("pub.round.cost-per-pint", 1));
+        long total = (long) costEach * drinkers.size();
         PointsService points = points();
         if (total > 0) {
-            if (points == null || !points.take(player.getUniqueId(), total)) {
+            if (points == null || total > Integer.MAX_VALUE
+                    || !points.take(player.getUniqueId(), (int) total)) {
                 error(sender, "A round costs " + total + " points and you cannot cover it.");
                 return;
             }
@@ -91,12 +101,12 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
         roundCooldowns.put(player.getUniqueId(), now);
 
         for (Player drinker : drinkers) {
-            var beer = plugin.items().create(ItemType.BEER, 1);
-            drinker.getInventory().addItem(beer).values()
-                    .forEach(leftover -> drinker.getWorld().dropItemNaturally(drinker.getLocation(), leftover));
-            drinker.playSound(drinker.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.1f);
+            plugin.beerService().give(drinker, style, 1);
+            drinker.playSound(drinker.getLocation(), Sound.ENTITY_PLAYER_LEVELUP,
+                    SoundCategory.PLAYERS, 0.8f, 1.1f);
             drinker.sendMessage(Component.text("[Spoons] ", NamedTextColor.GOLD)
-                    .append(Component.text(player.getName() + " bought the round — get it down you.",
+                    .append(Component.text(player.getName() + " bought the round — "
+                            + style.displayName() + " for everyone. Get it down you.",
                             NamedTextColor.YELLOW)));
         }
     }
@@ -104,21 +114,85 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
     private void pints(CommandSender sender, String[] args) {
         PubManager pub = plugin.pub();
         if (sender instanceof Player player) {
-            info(sender, "You have drunk " + pub.pints(player.getUniqueId()) + " pints.");
+            double units = pub.drunkUnits(player.getUniqueId());
+            info(sender, "You have drunk " + pub.pints(player.getUniqueId()) + " pints ("
+                    + String.format(Locale.ROOT, "%.1f", units) + " units right now, "
+                    + pub.tierLabel(units) + ").");
         }
-        int limit = args.length > 0 && args[0].equalsIgnoreCase("top") ? 10 : 3;
-        List<Map.Entry<String, Integer>> top = pub.top(limit);
+        String metric = args.length > 0 ? args[0].toLowerCase(Locale.ROOT) : "top";
+        List<Map.Entry<String, Integer>> top = metric.equals("units")
+                ? pub.topUnits(10) : pub.top(10);
         if (top.isEmpty()) {
             info(sender, "Nobody has drunk a pint yet. The bar is right there.");
             return;
         }
-        info(sender, "Pints drunk:");
+        info(sender, metric.equals("units") ? "Units drunk:" : "Pints drunk:");
         for (int i = 0; i < top.size(); i++) {
             sender.sendMessage(Component.text("  " + (i + 1) + ". ", NamedTextColor.DARK_GRAY)
                     .append(Component.text(top.get(i).getKey(), NamedTextColor.WHITE))
                     .append(Component.text(" — ", NamedTextColor.DARK_GRAY))
                     .append(Component.text(top.get(i).getValue(), NamedTextColor.GOLD)));
         }
+    }
+
+    private void beer(CommandSender sender, String[] args) {
+        if (args.length == 0 || args[0].equalsIgnoreCase("menu")) {
+            if (!(sender instanceof Player player)) {
+                error(sender, "Only players can open the beer menu.");
+                return;
+            }
+            plugin.beerMenu().open(player);
+            return;
+        }
+        switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "list" -> {
+                info(sender, "The Wetherspoons menu:");
+                for (BeerStyle style : plugin.beer().all()) {
+                    sender.sendMessage(Component.text("  " + style.displayName(), style.colour())
+                            .append(Component.text("  ·  "
+                                            + String.format(Locale.ROOT, "%.1f", style.abv()) + "%  ·  "
+                                            + style.unitsLabel() + " units  ·  " + style.price() + " pt",
+                                    NamedTextColor.GRAY)));
+                }
+            }
+            case "stats", "record" -> {
+                if (!(sender instanceof Player player)) {
+                    error(sender, "Only players have a drinking record.");
+                    return;
+                }
+                plugin.beerMenu().openStats(player);
+            }
+            case "buy", "pour" -> buy(sender, args);
+            default -> {
+                error(sender, "Use /beer [menu|list|stats|buy <style> [amount]].");
+            }
+        }
+    }
+
+    private void buy(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            error(sender, "Only players can buy a pint.");
+            return;
+        }
+        if (args.length < 2) {
+            error(sender, "Use /beer buy <style> [amount]. Try /beer list.");
+            return;
+        }
+        BeerStyle style = plugin.beer().find(args[1]);
+        if (style == null) {
+            error(sender, "Unknown beer style: " + args[1] + ". Try /beer list.");
+            return;
+        }
+        int amount = 1;
+        if (args.length >= 3) {
+            try {
+                amount = Math.clamp(Integer.parseInt(args[2]), 1, 64);
+            } catch (NumberFormatException exception) {
+                error(sender, "Amount must be a number from 1 to 64.");
+                return;
+            }
+        }
+        plugin.beerService().purchase(player, style, amount, style.price(), true);
     }
 
     private void quiz(CommandSender sender) {
@@ -146,9 +220,40 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (command.getName().equalsIgnoreCase("pints") && args.length == 1) {
-            return List.of("top");
+        String name = command.getName().toLowerCase(Locale.ROOT);
+        if (name.equals("pints") && args.length == 1) {
+            return matching(List.of("top", "units"), args[0]);
+        }
+        if (name.equals("round") && args.length == 1) {
+            return matching(styleIds(), args[0]);
+        }
+        if (!name.equals("beer")) {
+            return List.of();
+        }
+        if (args.length == 1) {
+            return matching(List.of("menu", "list", "stats", "buy"), args[0]);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("buy")) {
+            return matching(styleIds(), args[1]);
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("buy")) {
+            return matching(List.of("1", "2", "4", "8", "16"), args[2]);
         }
         return List.of();
+    }
+
+    private List<String> styleIds() {
+        List<String> ids = new ArrayList<>();
+        for (BeerStyle style : plugin.beer().all()) {
+            ids.add(style.id());
+        }
+        return ids;
+    }
+
+    private List<String> matching(List<String> options, String prefix) {
+        String lower = prefix.toLowerCase(Locale.ROOT);
+        return options.stream()
+                .filter(option -> option.toLowerCase(Locale.ROOT).startsWith(lower))
+                .toList();
     }
 }
