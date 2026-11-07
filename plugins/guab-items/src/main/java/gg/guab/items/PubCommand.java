@@ -152,8 +152,8 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
                     BeerStyle style = brand.style();
                     sender.sendMessage(Component.text("  " + brand.displayName(), style.colour())
                             .append(Component.text("  ·  " + style.displayName() + "  ·  "
-                                            + String.format(Locale.ROOT, "%.1f", style.abv()) + "%  ·  "
-                                            + style.unitsLabel() + " units  ·  " + style.price() + " pt",
+                                            + String.format(Locale.ROOT, "%.1f", brand.abv()) + "%  ·  "
+                                            + brand.unitsLabel() + " units  ·  " + style.price() + " pt",
                                     NamedTextColor.GRAY))
                             .append(style.lethal()
                                     ? Component.text("  ☠", NamedTextColor.RED) : Component.empty()));

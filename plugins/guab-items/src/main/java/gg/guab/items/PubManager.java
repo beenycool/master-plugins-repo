@@ -166,13 +166,21 @@ public final class PubManager {
         return points == null ? 0 : points.get(player);
     }
 
+    public void recordDrink(Player player, BeerBrand brand) {
+        recordDrink(player, brand.style(), brand.unitsMilli(), brand.displayName());
+    }
+
     public void recordDrink(Player player, BeerStyle style) {
+        recordDrink(player, style, style.unitsMilli(), style.displayName());
+    }
+
+    private void recordDrink(Player player, BeerStyle style, int unitsMilli, String drinkName) {
         PlayerPints entry = players.computeIfAbsent(player.getUniqueId(),
                 id -> new PlayerPints(player.getName()));
         entry.name = player.getName();
         entry.total++;
-        entry.unitsMilli += style.unitsMilli();
-        entry.recent.addLast(new Drink(System.currentTimeMillis(), style.unitsMilli(), style.id()));
+        entry.unitsMilli += unitsMilli;
+        entry.recent.addLast(new Drink(System.currentTimeMillis(), unitsMilli, drinkName));
         prune(entry);
         dirty = true;
         hologramDirty = true;
@@ -217,7 +225,7 @@ public final class PubManager {
     }
 
     public void recordDrink(Player player) {
-        recordDrink(player, plugin.beer().house());
+        recordDrink(player, plugin.beer().houseBrand());
     }
 
     private void prune(PlayerPints entry) {

@@ -115,9 +115,9 @@ public final class ItemFactory {
         BeerStyle style = brand.style();
         List<Component> lore = new ArrayList<>();
         lore.add(Component.text(style.displayName() + "  ·  "
-                        + String.format(Locale.ROOT, "%.1f", style.abv()) + "% ABV",
+                        + String.format(Locale.ROOT, "%.1f", brand.abv()) + "% ABV",
                 style.colour()).decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text(style.unitsLabel() + " units per pint", NamedTextColor.GRAY)
+        lore.add(Component.text(brand.unitsLabel() + " units per pint", NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         if (style.lethal()) {
             lore.add(Component.text("☠ Fatal. Do not drink this.", NamedTextColor.RED)

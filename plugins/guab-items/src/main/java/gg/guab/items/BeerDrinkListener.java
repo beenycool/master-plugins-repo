@@ -86,7 +86,7 @@ public final class BeerDrinkListener implements Listener {
             return;
         }
 
-        plugin.pub().recordDrink(player, brand.style());
+        plugin.pub().recordDrink(player, brand);
 
         player.sendMessage(Component.text("You crack open a cold " + brand.displayName() + ".",
                 NamedTextColor.YELLOW));

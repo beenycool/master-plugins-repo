@@ -144,7 +144,7 @@ public final class ItemListener implements Listener {
                 SoundCategory.PLAYERS, 1.0f, 0.9f);
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_BURP,
                 SoundCategory.PLAYERS, 0.6f, 1.1f);
-        plugin.pub().recordDrink(player, style);
+        plugin.pub().recordDrink(player, brand);
         player.sendMessage(Component.text("You crack open a cold " + brand.displayName() + ".",
                 NamedTextColor.YELLOW));
         player.sendMessage(Component.text(style.randomMessage(), NamedTextColor.GRAY));

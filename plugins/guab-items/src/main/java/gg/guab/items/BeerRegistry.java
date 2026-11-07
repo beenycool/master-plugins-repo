@@ -45,28 +45,30 @@ public final class BeerRegistry {
         }
 
         brands.clear();
-        addBrand("stella", "Stella Artois", "lager", "guab:beer_stella");
-        addBrand("carling", "Carling", "lager", "guab:beer_carling");
-        addBrand("fosters", "Foster's", "lager", "guab:beer_fosters");
-        addBrand("sanmiguel", "San Miguel", "lager", "guab:beer_sanmiguel");
-        addBrand("peroni", "Peroni", "lager", "guab:beer_peroni");
-        addBrand("moretti", "Birra Moretti", "lager", "guab:beer_moretti");
-        addBrand("heineken", "Heineken", "lager", "guab:beer_heineken");
-        addBrand("corona", "Corona", "lager", "guab:beer_corona");
-        addBrand("budweiser", "Budweiser", "lager", "guab:beer_budweiser");
-        addBrand("guinness", "Guinness", "stout", "guab:beer_guinness");
-        addBrand("johnsmiths", "John Smith's", "ale", "guab:beer_johnsmiths");
-        addBrand("londonpride", "London Pride", "ale", "guab:beer_londonpride");
-        addBrand("strongbow", "Strongbow", "cider", "guab:beer_strongbow");
-        addBrand("thatchers", "Thatchers Gold", "cider", "guab:beer_thatchers");
-        addBrand("alcohol_free", "Alcohol-Free", "alcohol_free", "guab:beer");
-        addBrand("baileys_lime", "Baileys and Lime", "baileys_lime", "guab:beer_baileys_lime");
+        addBrand("stella", "Stella Artois", "lager", "guab:beer_stella", 4.6, 568);
+        addBrand("carling", "Carling", "lager", "guab:beer_carling", 4.0, 568);
+        addBrand("fosters", "Foster's", "lager", "guab:beer_fosters", 3.7, 568);
+        addBrand("sanmiguel", "San Miguel", "lager", "guab:beer_sanmiguel", 5.0, 568);
+        addBrand("peroni", "Peroni", "lager", "guab:beer_peroni", 5.1, 568);
+        addBrand("moretti", "Birra Moretti", "lager", "guab:beer_moretti", 4.6, 568);
+        addBrand("heineken", "Heineken", "lager", "guab:beer_heineken", 5.0, 568);
+        addBrand("corona", "Corona", "lager", "guab:beer_corona", 4.5, 568);
+        addBrand("budweiser", "Budweiser", "lager", "guab:beer_budweiser", 4.5, 568);
+        addBrand("guinness", "Guinness", "stout", "guab:beer_guinness", 4.2, 568);
+        addBrand("johnsmiths", "John Smith's", "ale", "guab:beer_johnsmiths", 3.6, 568);
+        addBrand("londonpride", "London Pride", "ale", "guab:beer_londonpride", 4.7, 568);
+        addBrand("strongbow", "Strongbow", "cider", "guab:beer_strongbow", 4.5, 568);
+        addBrand("thatchers", "Thatchers Gold", "cider", "guab:beer_thatchers", 4.5, 568);
+        addBrand("alcohol_free", "Alcohol-Free", "alcohol_free", "guab:beer", 0.0, 568);
+        addBrand("baileys_lime", "Baileys and Lime", "baileys_lime",
+                "guab:beer_baileys_lime", 17.0, 284);
     }
 
-    private void addBrand(String id, String displayName, String styleId, String itemModel) {
+    private void addBrand(String id, String displayName, String styleId, String itemModel,
+                          double abv, int volumeMl) {
         BeerStyle style = styles.get(styleId);
         if (style != null) {
-            brands.put(id, new BeerBrand(id, displayName, style, itemModel));
+            brands.put(id, new BeerBrand(id, displayName, style, itemModel, abv, volumeMl));
         }
     }
 
