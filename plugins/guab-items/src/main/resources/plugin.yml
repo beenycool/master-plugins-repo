@@ -31,7 +31,7 @@ commands:
     permission: guab.pub.darts.use
     aliases: [dart]
   guab:
-    description: Open the Guab hub: pub, casino, darts, quests and stats.
+    description: "Open the Guab hub: pub, casino, darts, quests and stats."
     usage: /guab [pub|casino|darts|quests|stats]
     permission: guab.menu.use
     aliases: [menu]
