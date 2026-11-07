@@ -49,6 +49,8 @@ public final class DartsManager implements Listener {
     private final DartsStatsStore store;
     private final DartsRoom room;
     private final Map<UUID, DartsGame> games = new HashMap<>();
+    private final Map<UUID, DartsMatch> matches = new HashMap<>();
+    private final Map<UUID, Invite> invites = new HashMap<>();
     private final Map<UUID, Long> cooldowns = new HashMap<>();
     private final NamespacedKey displayKey;
     private final NamespacedKey dartKey;
@@ -115,6 +117,120 @@ public final class DartsManager implements Listener {
 
     public boolean isPlaying(UUID player) {
         return games.containsKey(player);
+    }
+
+    public boolean challenge(Player from, Player target) {
+        if (!config.enabled()) {
+            actionBar(from, Component.text("The dartboard is closed.", NamedTextColor.RED));
+            return false;
+        }
+        if (from.getUniqueId().equals(target.getUniqueId())) {
+            actionBar(from, Component.text("You cannot challenge yourself.", NamedTextColor.RED));
+            return false;
+        }
+        if (games.containsKey(from.getUniqueId()) || games.containsKey(target.getUniqueId())) {
+            actionBar(from, Component.text("One of you is already on the board.", NamedTextColor.YELLOW));
+            return false;
+        }
+        invites.put(from.getUniqueId(),
+                new Invite(target.getUniqueId(), System.currentTimeMillis() + 60_000L));
+        send(from, "Challenged " + target.getName() + " to a 1v1. Waiting for them to accept.", NamedTextColor.GOLD);
+        target.sendMessage(Component.text("[Darts] ", NamedTextColor.GOLD)
+                .append(Component.text(from.getName() + " challenges you to a 1v1. ", NamedTextColor.WHITE))
+                .append(Component.text("[Accept]", NamedTextColor.GREEN)
+                        .clickEvent(net.kyori.adventure.text.event.ClickEvent.runCommand(
+                                "/darts accept " + from.getName()))));
+        return true;
+    }
+
+    public boolean accept(Player target, Player challenger) {
+        Invite invite = invites.get(challenger.getUniqueId());
+        if (invite == null || !invite.target().equals(target.getUniqueId())
+                || invite.expiresAt() < System.currentTimeMillis()) {
+            invites.remove(challenger.getUniqueId());
+            actionBar(target, Component.text("That challenge has expired.", NamedTextColor.RED));
+            return false;
+        }
+        invites.remove(challenger.getUniqueId());
+        if (games.containsKey(challenger.getUniqueId()) || games.containsKey(target.getUniqueId())) {
+            actionBar(target, Component.text("One of you is already on the board.", NamedTextColor.YELLOW));
+            return false;
+        }
+        return startMatch(challenger, target);
+    }
+
+    private boolean startMatch(Player first, Player second) {
+        int mode = config.defaultMode();
+        int legs = Math.max(1, config.legsToWin());
+        DartsGame firstGame = new DartsGame(first.getUniqueId(), first.getName(), mode, legs);
+        DartsGame secondGame = new DartsGame(second.getUniqueId(), second.getName(), mode, legs);
+        games.put(first.getUniqueId(), firstGame);
+        games.put(second.getUniqueId(), secondGame);
+        DartsMatch match = new DartsMatch(first.getUniqueId(), second.getUniqueId(), mode, legs);
+        matches.put(first.getUniqueId(), match);
+        matches.put(second.getUniqueId(), match);
+        store.recordLegStart(first.getUniqueId(), first.getName());
+        store.recordLegStart(second.getUniqueId(), second.getName());
+        updateDisplay();
+
+        first.showTitle(Title.title(
+                Component.text("1V1", NamedTextColor.GOLD),
+                Component.text(mode + " · first to " + legs, NamedTextColor.GRAY),
+                Title.Times.times(Duration.ofMillis(180), Duration.ofMillis(950), Duration.ofMillis(350))));
+        second.showTitle(Title.title(
+                Component.text("1V1", NamedTextColor.GOLD),
+                Component.text("vs " + first.getName(), NamedTextColor.GRAY),
+                Title.Times.times(Duration.ofMillis(180), Duration.ofMillis(950), Duration.ofMillis(350))));
+        send(first, "1v1 vs " + second.getName() + ". You throw first.", NamedTextColor.GOLD);
+        send(second, "1v1 vs " + first.getName() + ". " + first.getName() + " throws first.", NamedTextColor.GOLD);
+        room.enter(first);
+        room.enter(second);
+        showHud(first, firstGame);
+        showHud(second, secondGame);
+        return true;
+    }
+
+    private void endMatch(DartsMatch match, Player winner, String reason) {
+        UUID firstId = match.first();
+        UUID secondId = match.second();
+        Player first = Bukkit.getPlayer(firstId);
+        Player second = Bukkit.getPlayer(secondId);
+        games.remove(firstId);
+        games.remove(secondId);
+        matches.remove(firstId);
+        matches.remove(secondId);
+        if (first != null && room.isInRoom(first)) {
+            room.exit(first);
+        }
+        if (second != null && room.isInRoom(second)) {
+            room.exit(second);
+        }
+        if (winner != null) {
+            String loser = winner.getUniqueId().equals(firstId)
+                    ? nameOf(secondId) : nameOf(firstId);
+            send(winner, "You won the 1v1 against " + loser + ".", NamedTextColor.GOLD);
+            Player other = Bukkit.getPlayer(match.other(winner.getUniqueId()));
+            if (other != null) {
+                send(other, winner.getName() + " won the 1v1.", NamedTextColor.RED);
+            }
+        } else if (reason != null) {
+            if (first != null) {
+                send(first, reason, NamedTextColor.GRAY);
+            }
+            if (second != null) {
+                send(second, reason, NamedTextColor.GRAY);
+            }
+        }
+        updateDisplay();
+    }
+
+    private String nameOf(UUID id) {
+        Player player = Bukkit.getPlayer(id);
+        if (player != null) {
+            return player.getName();
+        }
+        DartsGame game = games.get(id);
+        return game == null ? "them" : game.playerName();
     }
 
     public void openMenu(Player player) {
@@ -211,6 +327,12 @@ public final class DartsManager implements Listener {
             actionBar(player, Component.text("Steady... " + remaining + "ms", NamedTextColor.GRAY));
             return;
         }
+        DartsMatch match = matches.get(player.getUniqueId());
+        if (match != null && !match.active().equals(player.getUniqueId())) {
+            actionBar(player, Component.text("Wait for " + nameOf(match.active()) + "'s visit.",
+                    NamedTextColor.GRAY));
+            return;
+        }
         cooldowns.put(player.getUniqueId(), now + config.cooldownMillis());
 
         double drunk = plugin.pub() == null ? 0 : plugin.pub().impairment(player.getUniqueId()) * 10.0;
@@ -243,7 +365,31 @@ public final class DartsManager implements Listener {
             String payout = reward > 0 ? "  (+" + reward + " points)" : "";
             announce(player, player.getName() + " checked out " + result.checkout()
                     + " in " + result.legDarts() + " darts" + payout);
-            if (result.matchWon()) {
+            if (match != null) {
+                if (result.matchWon()) {
+                    endMatch(match, player, null);
+                    player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE,
+                            SoundCategory.PLAYERS, 1.0f, 1.0f);
+                } else {
+                    UUID opponentId = match.other(player.getUniqueId());
+                    DartsGame opponent = games.get(opponentId);
+                    if (opponent != null) {
+                        opponent.resetLeg();
+                        store.recordLegStart(opponentId, opponent.playerName());
+                    }
+                    store.recordLegStart(player.getUniqueId(), player.getName());
+                    match.setActive(opponentId);
+                    send(player, "Leg won. " + nameOf(opponentId) + " throws first next leg.",
+                            NamedTextColor.GREEN);
+                    Player other = Bukkit.getPlayer(opponentId);
+                    if (other != null) {
+                        send(other, player.getName() + " won the leg. Your throw.", NamedTextColor.GOLD);
+                        if (opponent != null) {
+                            showHud(other, opponent);
+                        }
+                    }
+                }
+            } else if (result.matchWon()) {
                 games.remove(player.getUniqueId());
                 updateDisplay();
                 send(player, "Match won " + result.legsWon() + "–0. The bar is impressed.", NamedTextColor.GOLD);
@@ -262,10 +408,26 @@ public final class DartsManager implements Listener {
             announce(player, player.getName() + " hit ONE HUNDRED AND EIGHTY!");
         }
 
+        if (match != null && (result.kind() == DartsGame.Kind.TURN_END
+                || result.kind() == DartsGame.Kind.BUST)) {
+            UUID opponentId = match.other(player.getUniqueId());
+            match.setActive(opponentId);
+            send(player, "Visit over. " + nameOf(opponentId) + "'s throw.", NamedTextColor.GRAY);
+            Player other = Bukkit.getPlayer(opponentId);
+            if (other != null) {
+                send(other, "Your turn.", NamedTextColor.GREEN);
+            }
+        }
+
         updateDisplay();
     }
 
     public void endGame(Player player, String reason) {
+        DartsMatch match = matches.get(player.getUniqueId());
+        if (match != null) {
+            endMatch(match, null, reason);
+            return;
+        }
         if (games.remove(player.getUniqueId()) != null) {
             send(player, reason, NamedTextColor.GRAY);
             if (room.isInRoom(player)) {
@@ -289,6 +451,8 @@ public final class DartsManager implements Listener {
             }
         }
         games.clear();
+        matches.clear();
+        invites.clear();
         updateDisplay();
     }
 
@@ -351,6 +515,11 @@ public final class DartsManager implements Listener {
     }
 
     private void showHud(Player player, DartsGame game) {
+        DartsMatch match = matches.get(player.getUniqueId());
+        if (match != null) {
+            showMatchHud(player, match, game);
+            return;
+        }
         String hint = game.checkoutHint();
         Component line = Component.text("DARTS ", NamedTextColor.GOLD)
                 .append(Component.text(String.valueOf(game.mode()), NamedTextColor.YELLOW))
@@ -363,6 +532,24 @@ public final class DartsManager implements Listener {
         if (hint != null) {
             line = line.append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
                     .append(Component.text(hint, NamedTextColor.GREEN));
+        }
+        player.sendActionBar(line);
+    }
+
+    private void showMatchHud(Player player, DartsMatch match, DartsGame game) {
+        UUID otherId = match.other(player.getUniqueId());
+        DartsGame other = games.get(otherId);
+        boolean turn = match.active().equals(player.getUniqueId());
+        Component line = Component.text("DARTS 1V1 ", NamedTextColor.GOLD)
+                .append(Component.text(match.mode + " ", NamedTextColor.YELLOW))
+                .append(Component.text("· You " + game.score(), NamedTextColor.WHITE))
+                .append(Component.text(" · " + nameOf(otherId) + " "
+                        + (other == null ? "?" : other.score()), NamedTextColor.GRAY))
+                .append(Component.text(" · ", NamedTextColor.DARK_GRAY))
+                .append(Component.text(turn ? "YOUR TURN" : "waiting",
+                        turn ? NamedTextColor.GREEN : NamedTextColor.RED));
+        if (turn) {
+            line = line.append(Component.text(" · " + game.dartsLeft() + " darts", NamedTextColor.AQUA));
         }
         player.sendActionBar(line);
     }
@@ -609,9 +796,62 @@ public final class DartsManager implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         UUID id = event.getPlayer().getUniqueId();
         cooldowns.remove(id);
+        DartsMatch match = matches.get(id);
+        if (match != null) {
+            UUID otherId = match.other(id);
+            Player other = Bukkit.getPlayer(otherId);
+            if (other != null) {
+                send(other, event.getPlayer().getName() + " left the 1v1.", NamedTextColor.GRAY);
+                if (room.isInRoom(other)) {
+                    room.exit(other);
+                }
+            }
+            games.remove(otherId);
+            matches.remove(otherId);
+            matches.remove(id);
+        }
         if (games.remove(id) != null) {
             room.handleQuit(event.getPlayer());
             updateDisplay();
         }
+    }
+
+    private static final class DartsMatch {
+        private final UUID first;
+        private final UUID second;
+        private final int mode;
+        private final int legsToWin;
+        private UUID active;
+
+        private DartsMatch(UUID first, UUID second, int mode, int legsToWin) {
+            this.first = first;
+            this.second = second;
+            this.mode = mode;
+            this.legsToWin = legsToWin;
+            this.active = first;
+        }
+
+        private UUID first() {
+            return first;
+        }
+
+        private UUID second() {
+            return second;
+        }
+
+        private UUID active() {
+            return active;
+        }
+
+        private void setActive(UUID active) {
+            this.active = active;
+        }
+
+        private UUID other(UUID id) {
+            return id.equals(first) ? second : first;
+        }
+    }
+
+    private record Invite(UUID target, long expiresAt) {
     }
 }

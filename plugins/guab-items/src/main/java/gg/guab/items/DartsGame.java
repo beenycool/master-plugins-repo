@@ -96,6 +96,16 @@ public final class DartsGame {
         turnStartScore = mode;
     }
 
+    /** Resets this player for the next leg of a shared match. */
+    public void resetLeg() {
+        legNumber++;
+        score = mode;
+        dartsThisLeg = 0;
+        dartsLeft = 3;
+        turnTotal = 0;
+        turnStartScore = mode;
+    }
+
     public UUID playerId() {
         return playerId;
     }

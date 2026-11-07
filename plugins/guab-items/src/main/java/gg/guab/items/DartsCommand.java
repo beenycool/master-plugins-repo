@@ -38,6 +38,8 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "start" -> start(sender, args);
+            case "challenge", "1v1" -> challenge(sender, args);
+            case "accept" -> accept(sender, args);
             case "quit", "stop", "leave" -> quit(sender);
             case "stats", "record" -> stats(sender, args);
             case "top", "leaderboard" -> top(sender, args);
@@ -73,6 +75,40 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
             }
         }
         plugin.darts().startGame(player, mode, legs);
+    }
+
+    private void challenge(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            error(sender, "Only players can challenge someone.");
+            return;
+        }
+        if (args.length < 2) {
+            error(sender, "Usage: /darts challenge <player>");
+            return;
+        }
+        Player target = Bukkit.getPlayerExact(args[1]);
+        if (target == null) {
+            error(sender, "Player not online: " + args[1]);
+            return;
+        }
+        plugin.darts().challenge(player, target);
+    }
+
+    private void accept(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            error(sender, "Only players can accept a challenge.");
+            return;
+        }
+        if (args.length < 2) {
+            error(sender, "Usage: /darts accept <player>");
+            return;
+        }
+        Player challenger = Bukkit.getPlayerExact(args[1]);
+        if (challenger == null) {
+            error(sender, "Player not online: " + args[1]);
+            return;
+        }
+        plugin.darts().accept(player, challenger);
     }
 
     private void quit(CommandSender sender) {
@@ -139,6 +175,8 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
                 NamedTextColor.GRAY));
         sender.sendMessage(Component.text("  4. Three arrows per visit. Reach exactly 0; the last arrow must be a double "
                 + "(bullseye 50 counts).", NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("  5. Challenge someone with /darts challenge <player>; they accept with "
+                + "/darts accept <you>.", NamedTextColor.GRAY));
         sender.sendMessage(Component.text("  Checkout hints show on the action bar. Use /darts stats, /darts top or /darts quit.",
                 NamedTextColor.DARK_GRAY));
     }
@@ -180,6 +218,7 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
 
     private void usage(CommandSender sender, String label) {
         sender.sendMessage(Component.text("/" + label + " start [101|301|501] [legs]", NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("/" + label + " challenge <player> | accept <player>", NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/" + label + " quit | stats [player] | top [legs|180s|checkout|best] | help",
                 NamedTextColor.GRAY));
         if (sender.hasPermission(ADMIN)) {
@@ -210,7 +249,7 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
         if (args.length == 1) {
-            List<String> options = new ArrayList<>(List.of("start", "quit", "stats", "top", "menu", "help"));
+            List<String> options = new ArrayList<>(List.of("start", "challenge", "accept", "quit", "stats", "top", "menu", "help"));
             if (sender.hasPermission(ADMIN)) {
                 options.add("board");
                 options.add("reload");
@@ -224,7 +263,10 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
             if (args[0].equalsIgnoreCase("top")) {
                 return matching(List.of("legs", "180s", "checkout", "best", "darts"), args[1]);
             }
-            if (args[0].equalsIgnoreCase("stats") && sender.hasPermission(ADMIN)) {
+            if ((args[0].equalsIgnoreCase("stats") && sender.hasPermission(ADMIN))
+                    || args[0].equalsIgnoreCase("challenge")
+                    || args[0].equalsIgnoreCase("1v1")
+                    || args[0].equalsIgnoreCase("accept")) {
                 return matching(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
             }
         }

@@ -49,7 +49,7 @@ public final class DartsRoom implements Listener {
 
     private static final String WORLD_NAME = "guab_darts";
     private static final int TARGET_X = 0;
-    private static final int TARGET_Y = 66;
+    private static final int TARGET_Y = 67;
     private static final int TARGET_Z = -6;
     public static final double BOARD_RADIUS = 1.5;
     private static final int[] GLASS_LIGHTS = {-3, 0, 3};
@@ -296,7 +296,7 @@ public final class DartsRoom implements Listener {
                         .append(Component.text("3 darts · double out", NamedTextColor.GRAY))
                         .append(Component.newline())
                         .append(Component.text("/darts quit to leave", NamedTextColor.DARK_GRAY)));
-        sign(roomWorld, new Location(roomWorld, 0.5, 68.4, -5.4),
+        sign(roomWorld, new Location(roomWorld, 0.5, TARGET_Y + 2.4, -5.4),
                 Component.text("WETHERSPOONS DARTS", NamedTextColor.GOLD));
         roomWorld.getChunkAt(0, 0).load();
         roomWorld.getChunkAt(TARGET_X >> 4, TARGET_Z >> 4).load();
@@ -333,7 +333,7 @@ public final class DartsRoom implements Listener {
     }
 
     private void spawnBoardDisplay(World roomWorld) {
-        Location location = new Location(roomWorld, 0.5, 66.5, -4.97);
+        Location location = new Location(roomWorld, 0.5, TARGET_Y + 0.5, -4.97);
         boardDisplay = roomWorld.spawn(location, ItemDisplay.class, display -> {
             ItemStack item = new ItemStack(Material.PAPER);
             ItemMeta meta = item.getItemMeta();
