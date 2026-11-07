@@ -144,9 +144,9 @@ pub:
   bartender:
     enabled: true
     world: guab_casino
-    x: -17.5
+    x: -16.5
     y: 65.0
-    z: -15.5
+    z: -14.5
     yaw: 0.0
     pitch: 0.0
     name: "&6Wetherspoons Bartender"
@@ -207,8 +207,11 @@ pub:
     cooldown-seconds: 0.35
     # The player must be this close to the board.
     max-distance: 8.0
-    default-mode: 501
+    default-mode: 101
     legs-to-win: 1
+    # Beginner assist: an impossible finish is ignored instead of busting the
+    # whole visit, and any dart can check out. Great for first-time players.
+    beginner-assist: true
     hud-interval-ticks: 10
     # Aim error in board radii: a sober player is nearly perfect, each pint in
     # the last window adds a little wobble. The board opens its arms after a few.
@@ -218,11 +221,11 @@ pub:
       max: 0.25
     # Ring boundaries as a fraction of the board radius. The outer edge is 1.0.
     rings:
-      bull: 0.055
-      outer-bull: 0.115
-      treble-inner: 0.56
-      treble-outer: 0.64
-      double-inner: 0.93
+      bull: 0.07
+      outer-bull: 0.15
+      treble-inner: 0.52
+      treble-outer: 0.68
+      double-inner: 0.90
       double-outer: 1.0
     rewards:
       enabled: true

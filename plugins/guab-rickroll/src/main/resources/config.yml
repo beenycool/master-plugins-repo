@@ -23,8 +23,9 @@ cinema:
   # Client-side cinematic effects. Unsupported keys are logged and skipped.
   post-effects:
     enabled: true
-    # Soft cinema blur for the duration of the show.
-    blur-key: "minecraft:blur"
+    # Blur is off by default because it softens the whole screen and makes
+    # the film look out of focus. Set minecraft:blur to turn it back on.
+    blur-key: ""
     # Brief tracking/VHS flash when the projector starts. Set flash-ticks to 0 to keep only the blur.
     flash-key: "minecraft:invert"
     flash-ticks: 8
@@ -38,4 +39,4 @@ cinema:
 lyrics-offset-seconds: 18.92
 
 # Used only when pack.properties has no duration.
-show-seconds: 60
+show-seconds: 25

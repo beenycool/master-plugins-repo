@@ -20,6 +20,7 @@ public record DartsConfig(
         double maxDistance,
         int defaultMode,
         int legsToWin,
+        boolean beginnerAssist,
         int hudIntervalTicks,
         double wobbleSober,
         double wobblePerDrunk,
@@ -44,13 +45,13 @@ public record DartsConfig(
     public static DartsConfig load(GuabItemsPlugin plugin) {
         var cfg = plugin.getConfig();
 
-        double bull = clamp(cfg.getDouble("pub.darts.rings.bull", 0.055), 0.01, 0.40);
-        double outerBull = clamp(cfg.getDouble("pub.darts.rings.outer-bull", 0.115), bull + 0.01, 0.80);
-        double trebleInner = clamp(cfg.getDouble("pub.darts.rings.treble-inner", 0.56), outerBull + 0.01, 0.95);
-        double trebleOuter = clamp(cfg.getDouble("pub.darts.rings.treble-outer", 0.64), trebleInner + 0.01, 0.98);
-        double doubleInner = clamp(cfg.getDouble("pub.darts.rings.double-inner", 0.93), trebleOuter + 0.01, 1.0);
+        double bull = clamp(cfg.getDouble("pub.darts.rings.bull", 0.07), 0.01, 0.40);
+        double outerBull = clamp(cfg.getDouble("pub.darts.rings.outer-bull", 0.15), bull + 0.01, 0.80);
+        double trebleInner = clamp(cfg.getDouble("pub.darts.rings.treble-inner", 0.52), outerBull + 0.01, 0.95);
+        double trebleOuter = clamp(cfg.getDouble("pub.darts.rings.treble-outer", 0.68), trebleInner + 0.01, 0.98);
+        double doubleInner = clamp(cfg.getDouble("pub.darts.rings.double-inner", 0.90), trebleOuter + 0.01, 1.0);
 
-        int mode = cfg.getInt("pub.darts.default-mode", 501);
+        int mode = cfg.getInt("pub.darts.default-mode", 101);
         if (mode != 101 && mode != 301 && mode != 501) {
             mode = 501;
         }
@@ -67,6 +68,7 @@ public record DartsConfig(
                 clamp(cfg.getDouble("pub.darts.max-distance", 8.0), 1.0, 32.0),
                 mode,
                 clamp(cfg.getInt("pub.darts.legs-to-win", 1), 1, 9),
+                cfg.getBoolean("pub.darts.beginner-assist", true),
                 clamp(cfg.getInt("pub.darts.hud-interval-ticks", 10), 4, 100),
                 clamp(cfg.getDouble("pub.darts.wobble.sober", 0.008), 0.0, 0.5),
                 clamp(cfg.getDouble("pub.darts.wobble.per-drunk-level", 0.012), 0.0, 0.5),

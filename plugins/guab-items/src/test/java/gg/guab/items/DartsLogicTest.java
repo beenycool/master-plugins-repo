@@ -14,7 +14,7 @@ class DartsLogicTest {
 
     @Test
     void legCountsDownAndBustsRestoreTheTurnStart() {
-        DartsGame game = new DartsGame(UUID.randomUUID(), "Tester", 101, 1);
+        DartsGame game = new DartsGame(UUID.randomUUID(), "Tester", 101, 1, false);
 
         assertEquals(DartsGame.Kind.THROW, game.throwDart(hit(60, 3, "T20", false)).kind());
         assertEquals(41, game.score());
@@ -28,7 +28,7 @@ class DartsLogicTest {
 
     @Test
     void onlyADoubleCanFinish() {
-        DartsGame game = new DartsGame(UUID.randomUUID(), "Tester", 101, 1);
+        DartsGame game = new DartsGame(UUID.randomUUID(), "Tester", 101, 1, false);
         game.throwDart(hit(60, 3, "T20", false));
         game.throwDart(hit(1, 1, "S1", false));
 
@@ -36,7 +36,7 @@ class DartsLogicTest {
         assertEquals(DartsGame.Kind.BUST, singleFinish.kind());
         assertEquals(101, game.score());
 
-        DartsGame checkout = new DartsGame(UUID.randomUUID(), "Tester", 101, 1);
+        DartsGame checkout = new DartsGame(UUID.randomUUID(), "Tester", 101, 1, false);
         checkout.throwDart(hit(60, 3, "T20", false));
         checkout.throwDart(hit(1, 1, "S1", false));
         DartsGame.Result doubleFinish = checkout.throwDart(hit(40, 2, "D20", true));
@@ -47,8 +47,26 @@ class DartsLogicTest {
     }
 
     @Test
+    void beginnerAssistIgnoresBustsAndAllowsAnyFinish() {
+        DartsGame game = new DartsGame(UUID.randomUUID(), "Tester", 101, 1, true);
+        game.throwDart(hit(60, 3, "T20", false));
+
+        DartsGame.Result blocked = game.throwDart(hit(42, 3, "T14", false));
+        assertEquals(DartsGame.Kind.THROW, blocked.kind());
+        assertEquals(41, game.score());
+        assertEquals(1, game.dartsLeft());
+
+        DartsGame quick = new DartsGame(UUID.randomUUID(), "Tester", 101, 1, true);
+        quick.throwDart(hit(60, 3, "T20", false));
+        quick.throwDart(hit(20, 1, "S20", false));
+        DartsGame.Result singleFinish = quick.throwDart(hit(21, 1, "S21", false));
+        assertEquals(DartsGame.Kind.CHECKOUT, singleFinish.kind());
+        assertTrue(singleFinish.matchWon());
+    }
+
+    @Test
     void threeTrebleTwentiesAreOneHundredAndEighty() {
-        DartsGame game = new DartsGame(UUID.randomUUID(), "Tester", 501, 1);
+        DartsGame game = new DartsGame(UUID.randomUUID(), "Tester", 501, 1, false);
         game.throwDart(hit(60, 3, "T20", false));
         game.throwDart(hit(60, 3, "T20", false));
         DartsGame.Result result = game.throwDart(hit(60, 3, "T20", false));
@@ -91,7 +109,7 @@ class DartsLogicTest {
     }
 
     private static DartsConfig config() {
-        return new DartsConfig(true, "world", 0, 0, 0, BlockFace.EAST, 0.5, 350, 8, 501, 1, 10,
+        return new DartsConfig(true, "world", 0, 0, 0, BlockFace.EAST, 0.5, 350, 8, 501, 1, false, 10,
                 0.008, 0.012, 0.25, 0.055, 0.115, 0.56, 0.64, 0.93, 1.0,
                 true, 20, 60, 100, 9, 15, 21, 2, 0.1, 300);
     }

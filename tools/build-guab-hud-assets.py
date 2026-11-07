@@ -183,19 +183,6 @@ def envelope(length: int, attack: float = 0.004, release: float = 0.08) -> np.nd
     return shape
 
 
-def square(frequency: float, seconds: float, volume: float, duty: float = 0.5) -> np.ndarray:
-    length = int(seconds * SAMPLE_RATE)
-    phase = (np.arange(length) * frequency / SAMPLE_RATE) % 1.0
-    wave_shape = np.where(phase < duty, 1.0, -1.0)
-    return wave_shape * envelope(length) * volume
-
-
-def triangle(frequency: float, seconds: float, volume: float) -> np.ndarray:
-    length = int(seconds * SAMPLE_RATE)
-    phase = (np.arange(length) * frequency / SAMPLE_RATE) % 1.0
-    return (4.0 * np.abs(phase - 0.5) - 1.0) * envelope(length) * volume
-
-
 def silence(seconds: float) -> np.ndarray:
     return np.zeros(max(1, int(seconds * SAMPLE_RATE)), dtype=np.float64)
 
@@ -204,63 +191,76 @@ def sequence(*parts: np.ndarray) -> np.ndarray:
     return np.concatenate(parts) if parts else silence(0.01)
 
 
-def buzz(frequency: float, seconds: float, volume: float) -> np.ndarray:
-    """A slightly detuned square pair for the 8-bit pub sound."""
-    return square(frequency, seconds, volume, 0.45) + square(frequency * 1.005, seconds, volume * 0.35, 0.5)
+def tone(frequency: float, seconds: float, volume: float, decay: float = 6.0,
+         harmonics: tuple[tuple[float, float], ...] = ((1.0, 1.0), (2.0, 0.22), (3.0, 0.08))) -> np.ndarray:
+    """A soft bell tone made from sine partials, not a harsh square wave."""
+    length = int(seconds * SAMPLE_RATE)
+    time = np.arange(length) / SAMPLE_RATE
+    wave_shape = np.zeros(length, dtype=np.float64)
+    for multiple, amplitude in harmonics:
+        wave_shape += amplitude * np.sin(2.0 * math.pi * frequency * multiple * time)
+    wave_shape /= max(1e-9, sum(amplitude for _, amplitude in harmonics))
+    shape = np.exp(-decay * time) * envelope(length, attack=0.006, release=0.06)
+    return wave_shape * shape * volume
+
+
+def chime(notes: tuple[float, ...], gap: float, volume: float, decay: float) -> np.ndarray:
+    parts = []
+    for index, frequency in enumerate(notes):
+        if index:
+            parts.append(silence(gap))
+        duration = 0.34 if index == len(notes) - 1 else 0.16
+        parts.append(tone(frequency, duration, volume, decay=decay))
+    return sequence(*parts)
 
 
 def quiz_correct() -> np.ndarray:
-    return sequence(
-        silence(0.01),
-        buzz(1318.51, 0.10, 0.34),   # E6
-        silence(0.012),
-        buzz(1567.98, 0.24, 0.38),   # G6
-        triangle(3135.96, 0.24, 0.08),
-    )
+    return chime((1318.51, 1567.98), 0.015, 0.20, 7.0)
 
 
 def one_eighty() -> np.ndarray:
     return sequence(
         silence(0.01),
-        buzz(783.99, 0.10, 0.30),    # G5
-        buzz(987.77, 0.10, 0.32),    # B5
-        buzz(1174.66, 0.12, 0.34),   # D6
-        buzz(1567.98, 0.34, 0.38),   # G6
-        triangle(3135.96, 0.34, 0.06),
+        tone(783.99, 0.11, 0.18, 8.0),
+        tone(987.77, 0.11, 0.18, 8.0),
+        tone(1174.66, 0.13, 0.19, 8.0),
+        tone(1567.98, 0.40, 0.22, 4.0,
+             harmonics=((1.0, 1.0), (2.0, 0.30), (3.0, 0.12), (4.0, 0.05))),
+        tone(1975.53, 0.40, 0.08, 4.0),
     )
 
 
 def beer_pour() -> np.ndarray:
     rng = np.random.default_rng(180)
-    length = int(0.92 * SAMPLE_RATE)
+    length = int(0.85 * SAMPLE_RATE)
     noise = rng.uniform(-1.0, 1.0, length)
-    # One-pole low-pass: keeps the pour fizzy instead of hissy.
+    # One-pole low-pass keeps the pour soft and fizzy instead of hissy.
     filtered = np.empty_like(noise)
     state = 0.0
     for index, sample in enumerate(noise):
-        state += 0.18 * (sample - state)
+        state += 0.12 * (sample - state)
         filtered[index] = state
-    filtered *= np.linspace(1.0, 0.15, length)
-    filtered *= envelope(length, attack=0.02, release=0.30)
-    filtered *= 0.45
+    filtered *= np.linspace(0.9, 0.2, length)
+    filtered *= envelope(length, attack=0.03, release=0.32)
+    filtered *= 0.30
 
     time = np.arange(length) / SAMPLE_RATE
-    pitch = np.linspace(310.0, 88.0, length)
+    pitch = np.linspace(240.0, 70.0, length)
     phase = np.cumsum(2.0 * math.pi * pitch / SAMPLE_RATE)
-    glug = np.sin(phase) * np.linspace(0.35, 0.05, length)
-    glug *= np.sin(np.minimum(1.0, time * 9.0) * math.pi)
-    burp = square(92.0, 0.92, 0.10, 0.35)
-    return sequence(silence(0.01), filtered + glug * 0.55 + burp)
+    glug = np.sin(phase) * np.linspace(0.16, 0.02, length)
+    glug *= np.sin(np.minimum(1.0, time * 7.0) * math.pi)
+    clink = tone(2093.0, 0.10, 0.10, decay=18.0)
+    return sequence(silence(0.01), filtered + glug, silence(0.02), clink)
 
 
 def milestone() -> np.ndarray:
     return sequence(
+        tone(1046.50, 0.12, 0.18, 9.0),
         silence(0.01),
-        buzz(1975.53, 0.07, 0.30),   # B6
-        buzz(2637.02, 0.10, 0.32),   # E7
-        silence(0.02),
-        buzz(2637.02, 0.26, 0.34),   # E7
-        triangle(5274.04, 0.26, 0.05),
+        tone(1318.51, 0.12, 0.18, 9.0),
+        silence(0.01),
+        tone(1567.98, 0.38, 0.20, 4.5),
+        tone(2093.00, 0.38, 0.06, 4.5),
     )
 
 
@@ -275,7 +275,7 @@ SOUNDS = {
 def write_wav(path: Path, samples: np.ndarray) -> None:
     peak = float(np.max(np.abs(samples))) if samples.size else 0.0
     if peak > 0:
-        samples = samples * (0.82 / peak)
+        samples = samples * (0.65 / peak)
     # A short final fade avoids a click at the end of the OGG.
     fade = min(len(samples), int(0.01 * SAMPLE_RATE))
     if fade:

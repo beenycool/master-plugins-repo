@@ -93,9 +93,11 @@ public final class DartsRoom implements Listener {
         player.teleport(oche(roomWorld, slot));
         player.setGameMode(GameMode.ADVENTURE);
         giveKit(player);
+        boolean beginner = plugin.darts().config().beginnerAssist();
         player.showTitle(net.kyori.adventure.title.Title.title(
                 Component.text("DARTS", NamedTextColor.GOLD),
-                Component.text("Aim at the target · 3 darts · double out", NamedTextColor.GRAY),
+                Component.text("Aim at the target · 3 darts · "
+                        + (beginner ? "beginner assist" : "double out"), NamedTextColor.GRAY),
                 net.kyori.adventure.title.Title.Times.times(
                         java.time.Duration.ofMillis(150),
                         java.time.Duration.ofMillis(1100),

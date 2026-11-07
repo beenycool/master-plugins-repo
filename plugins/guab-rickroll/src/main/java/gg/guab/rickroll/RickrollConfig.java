@@ -45,7 +45,7 @@ public record RickrollConfig(
 
         int fps = Math.clamp(parseInt(props.getProperty("fps"), cfg.getInt("pack.fps", 10)), 1, 20);
         int frames = Math.max(1, parseInt(props.getProperty("frames"), 1));
-        int duration = Math.max(1, parseInt(props.getProperty("duration"), cfg.getInt("show-seconds", 60)));
+        int duration = Math.max(1, parseInt(props.getProperty("duration"), cfg.getInt("show-seconds", 25)));
 
         return new RickrollConfig(
                 Math.clamp(cfg.getDouble("chance", 0.05), 0.0, 1.0),
@@ -65,7 +65,7 @@ public record RickrollConfig(
                 frames,
                 props.getProperty("sha1", ""),
                 cfg.getBoolean("cinema.post-effects.enabled", true),
-                cfg.getString("cinema.post-effects.blur-key", "minecraft:blur"),
+                cfg.getString("cinema.post-effects.blur-key", ""),
                 cfg.getString("cinema.post-effects.flash-key", "minecraft:invert"),
                 Math.clamp(cfg.getInt("cinema.post-effects.flash-ticks", 8), 0, 40),
                 cfg.getBoolean("cinema.camera-intro.enabled", true),

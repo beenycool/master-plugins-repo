@@ -18,7 +18,7 @@ public final class GuabMenuCommand implements CommandExecutor, TabCompleter {
 
     private static final String PERMISSION = "guab.menu.use";
     private static final List<String> PAGES =
-            List.of("pub", "casino", "darts", "quests", "stats");
+            List.of("pub", "casino", "darts", "parkour", "stats");
 
     private final GuabItemsPlugin plugin;
 
@@ -48,12 +48,12 @@ public final class GuabMenuCommand implements CommandExecutor, TabCompleter {
             case "pub", "beer" -> plugin.menu().openPub(player);
             case "casino" -> plugin.menu().openCasino(player);
             case "darts", "dart" -> plugin.menu().openDarts(player);
-            case "quests", "quest" -> plugin.menu().openQuests(player);
+            case "parkour", "jump" -> player.performCommand("parkour");
             case "stats", "stat" -> plugin.menu().openStats(player);
             default -> {
                 player.sendMessage(Component.text("[Guab] ", NamedTextColor.GOLD)
                         .append(Component.text("Usage: /" + label
-                                + " [pub|casino|darts|quests|stats]", NamedTextColor.GRAY)));
+                                + " [pub|casino|darts|parkour|stats]", NamedTextColor.GRAY)));
                 return true;
             }
         }

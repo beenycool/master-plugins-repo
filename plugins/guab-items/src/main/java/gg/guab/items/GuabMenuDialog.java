@@ -20,8 +20,7 @@ import java.util.function.Consumer;
 
 /**
  * The native 26.3 "Dialog OS" hub. Everything is read live from the existing
- * pub, darts, points and stats services; the only new state is the one-time
- * quest claims in {@link QuestsStore}.
+ * pub, darts, points and stats services.
  */
 public final class GuabMenuDialog {
 
@@ -42,7 +41,7 @@ public final class GuabMenuDialog {
                         NamedTextColor.GRAY),
                 plain("Balance: " + balance + " points", NamedTextColor.GOLD),
                 plain(pubLine, NamedTextColor.WHITE),
-                plain("Pub · Casino · Darts · Quests · Stats", NamedTextColor.AQUA));
+                plain("Pub · Casino · Darts · Parkour · Stats", NamedTextColor.AQUA));
 
         List<ActionButton> actions = List.of(
                 page("Pub", NamedTextColor.GOLD, "Beer, milk and the drunk meter.", 160,
@@ -50,9 +49,10 @@ public final class GuabMenuDialog {
                 page("Casino", NamedTextColor.LIGHT_PURPLE,
                         "Enter the casino or read the blackjack rules.", 160, this::openCasino),
                 page("Darts", NamedTextColor.YELLOW,
-                        "101, 301, 501 and 1v1 challenges.", 160, this::openDarts),
-                page("Quests", NamedTextColor.GREEN,
-                        "Three one-time jobs with point rewards.", 160, this::openQuests),
+                        "Beginner-friendly 101 and 1v1 challenges.", 160, this::openDarts),
+                page("Parkour", NamedTextColor.GREEN,
+                        "Teleport to the parkour start.", 160,
+                        clicker -> clicker.performCommand("parkour")),
                 page("Stats", NamedTextColor.AQUA,
                         "Points, kills, deaths, rickrolls, parkour and darts.", 160, this::openStats));
 
@@ -154,20 +154,26 @@ public final class GuabMenuDialog {
 
     public void openDarts(Player player) {
         DartsStatsStore.Stats stats = plugin.darts().stats(player.getUniqueId());
+        boolean beginner = plugin.darts().config().beginnerAssist();
         List<DialogBody> body = List.of(
-                plain("Three arrows per visit, double out. Pick a leg below; "
-                        + "the board teleports you to the darts room.", NamedTextColor.GRAY),
+                plain("Three arrows per visit. "
+                        + (beginner ? "Beginner assist is on: no busts and any dart can finish."
+                                    : "Finish on a double.")
+                        + " Pick a leg below; the board teleports you to the darts room.",
+                        NamedTextColor.GRAY),
                 plain("Record: legs " + stats.legsWon() + "/" + stats.legsPlayed()
                         + "   ·   180s " + stats.oneEighties()
                         + "   ·   checkouts " + stats.checkouts(), NamedTextColor.GOLD),
-                plain("1v1 challenges use the online player list below. "
-                        + "The other player accepts in chat.", NamedTextColor.WHITE));
+                plain("101 is the quickest game for new players. "
+                        + "1v1 challenges use the online player list below.", NamedTextColor.WHITE));
 
         List<ActionButton> actions = new ArrayList<>();
         for (int mode : new int[]{101, 301, 501}) {
             actions.add(GuabDialogFactory.button(plugin,
                     Component.text(mode + " · " + modeName(mode), modeColour(mode)),
-                    Component.text("Start a " + mode + " leg. Three arrows per visit, double out."),
+                    Component.text("Start a " + mode + " leg. "
+                            + (beginner ? "No busts; any dart can finish."
+                                        : "Three arrows per visit, double out.")),
                     160,
                     clicker -> plugin.darts().startGame(clicker, mode,
                             plugin.darts().config().legsToWin())));
@@ -200,43 +206,6 @@ public final class GuabMenuDialog {
         player.showDialog(GuabDialogFactory.build(
                 Component.text("The Wetherspoons Dartboard", NamedTextColor.GOLD),
                 body, inputs, actions, Component.text("Close", NamedTextColor.GRAY), 2));
-    }
-
-    public void openQuests(Player player) {
-        UUID id = player.getUniqueId();
-        List<DialogBody> body = new ArrayList<>();
-        body.add(plain("Three one-time jobs. Progress is read live from the pub, "
-                + "darts and shared stats.", NamedTextColor.GRAY));
-        body.add(plain("Balance: " + balance(player) + " points", NamedTextColor.GOLD));
-        for (Quest quest : Quest.values()) {
-            int progress = Math.min(quest.progress(plugin, id), quest.target());
-            boolean claimed = plugin.quests().claimed(id, quest.id());
-            body.add(plain(quest.title() + " — " + progress + "/" + quest.target()
-                    + " — " + quest.description() + " — reward " + quest.reward() + " pt"
-                    + (claimed ? " · CLAIMED" : ""),
-                    claimed ? NamedTextColor.DARK_GRAY : NamedTextColor.WHITE));
-        }
-
-        List<ActionButton> actions = new ArrayList<>();
-        for (Quest quest : Quest.values()) {
-            boolean claimed = plugin.quests().claimed(id, quest.id());
-            int progress = Math.min(quest.progress(plugin, id), quest.target());
-            actions.add(GuabDialogFactory.button(plugin,
-                    Component.text((claimed ? "Claimed · " : "Claim ") + quest.title()
-                            + " · " + quest.reward() + " pt",
-                            claimed ? NamedTextColor.DARK_GRAY : NamedTextColor.GOLD),
-                    Component.text(quest.description() + " Progress " + progress + "/"
-                            + quest.target() + "."),
-                    240, clicker -> claimQuest(clicker, quest)));
-        }
-        actions.add(page("Refresh progress", NamedTextColor.AQUA,
-                "Read the quest progress again.", 200, this::openQuests));
-        actions.add(page("Back to the hub", NamedTextColor.YELLOW,
-                "Return to the main menu.", 200, this::openHome));
-
-        player.showDialog(GuabDialogFactory.build(
-                Component.text("Quests", NamedTextColor.GREEN),
-                body, actions, Component.text("Close", NamedTextColor.GRAY), 2));
     }
 
     public void openStats(Player player) {
@@ -287,39 +256,6 @@ public final class GuabMenuDialog {
             return;
         }
         plugin.darts().challenge(player, target);
-    }
-
-    private void claimQuest(Player player, Quest quest) {
-        UUID id = player.getUniqueId();
-        if (plugin.quests().claimed(id, quest.id())) {
-            message(player, "You already claimed " + quest.title() + ".", NamedTextColor.YELLOW);
-            openQuests(player);
-            return;
-        }
-        int progress = quest.progress(plugin, id);
-        if (progress < quest.target()) {
-            message(player, quest.title() + " is not finished yet ("
-                    + Math.min(progress, quest.target()) + "/" + quest.target() + ").",
-                    NamedTextColor.RED);
-            openQuests(player);
-            return;
-        }
-        PointsService points = pointsService();
-        if (points == null) {
-            message(player, "The points ledger is unavailable; nothing was claimed.",
-                    NamedTextColor.RED);
-            openQuests(player);
-            return;
-        }
-        if (!plugin.quests().claim(id, quest.id())) {
-            message(player, "You already claimed " + quest.title() + ".", NamedTextColor.YELLOW);
-            openQuests(player);
-            return;
-        }
-        points.add(id, quest.reward());
-        message(player, "Claimed " + quest.title() + " (+" + quest.reward() + " points).",
-                NamedTextColor.GREEN);
-        openQuests(player);
     }
 
     private ActionButton page(String label, NamedTextColor colour, String tooltip, int width,
@@ -377,55 +313,4 @@ public final class GuabMenuDialog {
         };
     }
 
-    private enum Quest {
-        PUB_CRAWL("pub_crawl", "Pub Crawl", "drink 5 pints total", 5, 100),
-        ONE_EIGHTY("one_eighty", "180", "hit one 180", 1, 150),
-        PIT_FIGHTER("pit_fighter", "Pit Fighter", "record 10 kills", 10, 200);
-
-        private final String id;
-        private final String title;
-        private final String description;
-        private final int target;
-        private final int reward;
-
-        Quest(String id, String title, String description, int target, int reward) {
-            this.id = id;
-            this.title = title;
-            this.description = description;
-            this.target = target;
-            this.reward = reward;
-        }
-
-        private String id() {
-            return id;
-        }
-
-        private String title() {
-            return title;
-        }
-
-        private String description() {
-            return description;
-        }
-
-        private int target() {
-            return target;
-        }
-
-        private int reward() {
-            return reward;
-        }
-
-        private int progress(GuabItemsPlugin plugin, UUID player) {
-            return switch (this) {
-                case PUB_CRAWL -> plugin.pub() == null ? 0 : plugin.pub().pints(player);
-                case ONE_EIGHTY -> plugin.darts() == null ? 0
-                        : plugin.darts().stats(player).oneEighties();
-                case PIT_FIGHTER -> {
-                    StatsService stats = statsService();
-                    yield stats == null ? 0 : stats.get(player, StatsService.KILLS);
-                }
-            };
-        }
-    }
 }

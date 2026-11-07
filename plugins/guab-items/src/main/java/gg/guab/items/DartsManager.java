@@ -164,8 +164,8 @@ public final class DartsManager implements Listener {
     private boolean startMatch(Player first, Player second) {
         int mode = config.defaultMode();
         int legs = Math.max(1, config.legsToWin());
-        DartsGame firstGame = new DartsGame(first.getUniqueId(), first.getName(), mode, legs);
-        DartsGame secondGame = new DartsGame(second.getUniqueId(), second.getName(), mode, legs);
+        DartsGame firstGame = new DartsGame(first.getUniqueId(), first.getName(), mode, legs, config.beginnerAssist());
+        DartsGame secondGame = new DartsGame(second.getUniqueId(), second.getName(), mode, legs, config.beginnerAssist());
         games.put(first.getUniqueId(), firstGame);
         games.put(second.getUniqueId(), secondGame);
         DartsMatch match = new DartsMatch(first.getUniqueId(), second.getUniqueId(), mode, legs);
@@ -266,18 +266,21 @@ public final class DartsManager implements Listener {
         }
         int normalisedMode = mode == 101 || mode == 301 || mode == 501 ? mode : config.defaultMode();
         int normalisedLegs = Math.clamp(legsToWin, 1, 9);
-        DartsGame game = new DartsGame(player.getUniqueId(), player.getName(), normalisedMode, normalisedLegs);
+        DartsGame game = new DartsGame(player.getUniqueId(), player.getName(), normalisedMode, normalisedLegs, config.beginnerAssist());
         games.put(player.getUniqueId(), game);
         store.recordLegStart(player.getUniqueId(), player.getName());
         updateDisplay();
 
+        boolean beginner = config.beginnerAssist();
         player.showTitle(Title.title(
                 Component.text("GAME ON", NamedTextColor.GOLD),
-                Component.text(normalisedMode + " · double out", NamedTextColor.GRAY),
+                Component.text(normalisedMode + (beginner ? " · beginner" : " · double out"),
+                        NamedTextColor.GRAY),
                 Title.Times.times(Duration.ofMillis(200), Duration.ofMillis(900), Duration.ofMillis(400))));
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.PLAYERS, 0.8f, 1.4f);
         send(player, "Leg on: " + normalisedMode + ". Take the bow, aim at the target. "
-                + "Three darts, double out. Good luck.", NamedTextColor.GOLD);
+                + (beginner ? "Three darts, no busts, any dart can finish. Good luck."
+                            : "Three darts, double out. Good luck."), NamedTextColor.GOLD);
         showHud(player, game);
         if (!room.enter(player)) {
             games.remove(player.getUniqueId());
@@ -356,10 +359,15 @@ public final class DartsManager implements Listener {
         showHud(player, game);
         present(player, game, result, point);
         if (result.kind() != DartsGame.Kind.BUST) {
-            String hitText = result.hit().score() == 0
-                    ? "Missed"
-                    : "Hit " + result.hit().label() + " for " + result.hit().score();
-            send(player, hitText + " · " + result.scoreAfter() + " left", NamedTextColor.WHITE);
+            if (result.hit().score() > 0 && result.scoreAfter() == result.scoreBefore()) {
+                send(player, "No score — that would have bust. "
+                        + result.scoreAfter() + " left", NamedTextColor.GRAY);
+            } else {
+                String hitText = result.hit().score() == 0
+                        ? "Missed"
+                        : "Hit " + result.hit().label() + " for " + result.hit().score();
+                send(player, hitText + " · " + result.scoreAfter() + " left", NamedTextColor.WHITE);
+            }
         }
 
         if (result.kind() == DartsGame.Kind.CHECKOUT) {

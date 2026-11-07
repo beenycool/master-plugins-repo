@@ -12,6 +12,7 @@ public final class DartsGame {
     private final String playerName;
     private final int mode;
     private final int legsToWin;
+    private final boolean beginner;
 
     private int score;
     private int turnStartScore;
@@ -23,11 +24,12 @@ public final class DartsGame {
     private boolean matchOver;
     private DartsGeometry.Hit lastHit;
 
-    public DartsGame(UUID playerId, String playerName, int mode, int legsToWin) {
+    public DartsGame(UUID playerId, String playerName, int mode, int legsToWin, boolean beginner) {
         this.playerId = playerId;
         this.playerName = playerName;
         this.mode = mode;
         this.legsToWin = legsToWin;
+        this.beginner = beginner;
         this.score = mode;
         this.turnStartScore = mode;
         this.dartsLeft = 3;
@@ -47,7 +49,7 @@ public final class DartsGame {
         int before = score;
         int after = before - hit.score();
 
-        if (after == 0 && hit.doubleOut()) {
+        if (after == 0 && (beginner || hit.doubleOut())) {
             int checkout = before;
             int legDarts = dartsThisLeg;
             legsWon++;
@@ -62,6 +64,18 @@ public final class DartsGame {
         }
 
         if (after < 0 || after == 1 || after == 0) {
+            if (beginner) {
+                // Beginner assist: an impossible finish is simply ignored instead of
+                // wiping the whole visit. The score stays where it was.
+                turnTotal -= hit.score();
+                if (dartsLeft == 0) {
+                    startNextTurn();
+                    return new Result(Kind.TURN_END, hit, before, before, 0, dartsThisLeg,
+                            legsWon, false, turnTotal, false, false);
+                }
+                return new Result(Kind.THROW, hit, before, before, 0, dartsThisLeg,
+                        legsWon, false, turnTotal, false, false);
+            }
             int restored = turnStartScore;
             score = restored;
             startNextTurn();

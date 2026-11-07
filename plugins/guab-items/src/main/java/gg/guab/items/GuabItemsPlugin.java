@@ -12,7 +12,6 @@ public final class GuabItemsPlugin extends JavaPlugin {
     private BeerService beerService;
     private BeerMenuDialog beerMenu;
     private GuabMenuDialog menu;
-    private QuestsStore quests;
     private PubManager pub;
     private PubQuiz quiz;
     private DartsManager darts;
@@ -29,8 +28,6 @@ public final class GuabItemsPlugin extends JavaPlugin {
         this.beerService = new BeerService(this);
         this.beerMenu = new BeerMenuDialog(this);
         this.menu = new GuabMenuDialog(this);
-        this.quests = new QuestsStore(this);
-        this.quests.start();
 
         this.pub = new PubManager(this);
         this.pub.start();
@@ -112,10 +109,6 @@ public final class GuabItemsPlugin extends JavaPlugin {
         return menu;
     }
 
-    public QuestsStore quests() {
-        return quests;
-    }
-
     public void reload() {
         reloadConfig();
         this.config = ItemsConfig.load(this);
@@ -141,10 +134,6 @@ public final class GuabItemsPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (quests != null) {
-            quests.stop();
-            quests = null;
-        }
         if (bartender != null) {
             bartender.stop();
             bartender = null;
