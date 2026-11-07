@@ -19,6 +19,9 @@ battlepit:
     enabled: true
     seconds: 5
 
+  # Show the victim's remaining HP to the shooter after an arrow hit.
+  arrow-hp: true
+
   # Cobblestone placed by fighters inside the arena crumbles after this many seconds.
   cobblestone-decay:
     enabled: true

@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-06
 
-Overall: `█████████░` **90%** (71/79 checklist items)
+Overall: `█████████░` **90%** (72/80 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
@@ -11,7 +11,7 @@ Overall: `█████████░` **90%** (71/79 checklist items)
 | guab-items       | `██████████` 100% (10/10)   |
 | guab-rickroll    | `█████████░` 85% (17/20)    |
 | guab-gambling    | `█████████░` 86% (12/14)    |
-| guab-minigames   | `█████████░` 93% (14/15)    |
+| guab-minigames   | `█████████░` 94% (15/16)    |
 
 Progress is per checklist line, updated by hand.
 
@@ -118,7 +118,7 @@ Status: live in production. Venue built, all six station types placed, event ope
 
 Event-night ops: freeze the auto-deploy timer, snapshot `points.yml`, and close with `event.enabled: false` + `/casino reload`.
 
-## guab-minigames — `█████████░` 93% (14/15)
+## guab-minigames — `█████████░` 94% (15/16)
 
 **What it does:** the point faucet. Battle pit and other small games outside the main parkour award points for kills and wins, which then feed gambling and item rewards.
 
@@ -138,6 +138,7 @@ Status: live. Battle pit built in the overworld at `100, -61, 100` with join/lea
 - [x] Kill plane below the play area (`/killplane`, default Y -66)
 - [x] Cobblestone placed in the arena decays after 15 seconds
 - [x] Spawn protection after joining or respawning in the pit
+- [x] Arrow hits show the victim's remaining HP
 - [ ] Additional point-earning minigames outside the main parkour
 
 ## Platform

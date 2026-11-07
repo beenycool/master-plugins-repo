@@ -8,6 +8,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
+import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -259,6 +260,35 @@ public final class BattlePit implements Listener {
             protectedUntil.remove(attacker.getUniqueId());
             msg(attacker, "&7Your spawn protection ended because you attacked.", NamedTextColor.GRAY);
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onArrowHit(EntityDamageByEntityEvent event) {
+        if (!plugin.getConfig().getBoolean("battlepit.arrow-hp", true)) {
+            return;
+        }
+        if (!(event.getEntity() instanceof Player victim) || !(event.getDamager() instanceof Arrow arrow)) {
+            return;
+        }
+        if (!(arrow.getShooter() instanceof Player shooter)
+                || shooter.getUniqueId().equals(victim.getUniqueId())) {
+            return;
+        }
+        if (!fighters.contains(shooter.getUniqueId()) || !fighters.contains(victim.getUniqueId())) {
+            return;
+        }
+        double max = 20.0;
+        var maxHealth = victim.getAttribute(Attribute.MAX_HEALTH);
+        if (maxHealth != null) {
+            max = maxHealth.getValue();
+        }
+        double health = Math.max(0.0, victim.getHealth() - event.getFinalDamage());
+        NamedTextColor colour = health <= max * 0.25
+                ? NamedTextColor.RED
+                : health <= max * 0.5 ? NamedTextColor.YELLOW : NamedTextColor.GREEN;
+        shooter.sendActionBar(Component.text(
+                String.format(Locale.ROOT, "Hit %s — %.1f/%.0f HP", victim.getName(), health, max),
+                colour));
     }
 
     private Player attacker(Entity damager) {
