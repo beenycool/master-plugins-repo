@@ -42,6 +42,9 @@ permissions:
   guab.items.use:
     description: Use tagged Guab prank items, the beer tap and the beer menu.
     default: true
+  guab.pub.protection.bypass:
+    description: Break the pub's protected tap, shelves and dartboard.
+    default: op
   guab.pub.use:
     description: Buy rounds, open the beer menu and check the pint leaderboard.
     default: true

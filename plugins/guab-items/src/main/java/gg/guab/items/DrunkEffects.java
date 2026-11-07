@@ -5,8 +5,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Central table for the pub's drunk tiers, the universal drunk effects and the
@@ -90,12 +94,13 @@ final class DrunkEffects {
             "ale", new EffectSpec(PotionEffectType.STRENGTH, 10, 0),
             "cider", new EffectSpec(PotionEffectType.JUMP_BOOST, 10, 0));
 
-    private static final List<EffectSpec> SIGNATURE_EFFECTS = List.copyOf(SIGNATURES.values());
-
     private static final List<EffectSpec> HANGOVER = List.of(
             new EffectSpec(PotionEffectType.NAUSEA, 20, 0),
             new EffectSpec(PotionEffectType.SLOWNESS, 15, 0),
             new EffectSpec(PotionEffectType.WEAKNESS, 15, 0));
+
+    /** Only the effects this plugin actually applied, per player. */
+    private static final Map<UUID, Set<PotionEffectType>> APPLIED = new HashMap<>();
 
     static Tier forUnits(double units) {
         Tier result = Tier.SOBER;
@@ -120,34 +125,43 @@ final class DrunkEffects {
             clear(player);
         }
         for (EffectSpec effect : tier.effects()) {
-            effect.apply(player);
+            applyEffect(player, effect);
         }
         if (tier.level() >= Tier.TIPSY.level() && styleId != null) {
             EffectSpec signature = SIGNATURES.get(styleId);
             if (signature != null) {
-                signature.apply(player);
+                applyEffect(player, signature);
             }
         }
     }
 
     static void applyHangover(Player player) {
         for (EffectSpec effect : HANGOVER) {
-            effect.apply(player);
+            applyEffect(player, effect);
         }
     }
 
-    /** Removes every effect this class can apply, including hangover effects. */
+    private static void applyEffect(Player player, EffectSpec effect) {
+        effect.apply(player);
+        APPLIED.computeIfAbsent(player.getUniqueId(),
+                id -> new HashSet<>()).add(effect.type());
+    }
+
+    /**
+     * Removes only the effects this plugin applied. A Speed potion from another
+     * source is left alone unless the pub itself handed out Speed.
+     */
     static void clear(Player player) {
-        for (Tier tier : Tier.values()) {
-            for (EffectSpec effect : tier.effects()) {
-                player.removePotionEffect(effect.type());
-            }
+        Set<PotionEffectType> applied = APPLIED.remove(player.getUniqueId());
+        if (applied == null) {
+            return;
         }
-        for (EffectSpec effect : SIGNATURE_EFFECTS) {
-            player.removePotionEffect(effect.type());
+        for (PotionEffectType type : applied) {
+            player.removePotionEffect(type);
         }
-        for (EffectSpec effect : HANGOVER) {
-            player.removePotionEffect(effect.type());
-        }
+    }
+
+    static void forget(UUID player) {
+        APPLIED.remove(player);
     }
 }

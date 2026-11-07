@@ -41,6 +41,7 @@ public final class GuabItemsPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(darts, this);
         getServer().getPluginManager().registerEvents(darts.room(), this);
         getServer().getPluginManager().registerEvents(menuShelves, this);
+        getServer().getPluginManager().registerEvents(new PubProtection(this), this);
 
         PluginCommand command = getCommand("guabitems");
         if (command != null) {

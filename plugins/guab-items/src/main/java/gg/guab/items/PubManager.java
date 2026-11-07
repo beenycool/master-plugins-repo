@@ -228,6 +228,12 @@ public final class PubManager {
         recordDrink(player, plugin.beer().houseBrand());
     }
 
+    /** Drops per-player effect bookkeeping when they disconnect. */
+    public void forget(UUID player) {
+        lastTier.remove(player);
+        DrunkEffects.forget(player);
+    }
+
     private String latestStyle(PlayerPints entry) {
         if (entry == null) {
             return null;

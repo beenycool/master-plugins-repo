@@ -140,6 +140,11 @@ beer:
 
 # The Wetherspoons pub side of the plugin.
 pub:
+  # Protect the bar tap, shelves and dartboard from being broken.
+  protection:
+    enabled: true
+    message: "&cThat's part of the pub. Ask an admin."
+
   # Centre of the pub, used by /round and the pub radius checks.
   centre:
     world: guab_casino
