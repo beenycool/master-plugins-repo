@@ -221,8 +221,7 @@ public final class BeerRegistry {
                 sharedMessages("The black stuff. Smooth as a receipt.",
                         "You feel a sudden urge to talk about rugby.",
                         "There is a shamrock in the foam, allegedly."),
-                List.of(fx(PotionEffectType.NAUSEA, 8, 0),
-                        fx(PotionEffectType.SLOWNESS, 6, 0)), false));
+                houseEffects, false));
 
         map.put("ale", new BeerStyle(
                 "ale", "Ale", 4.5, 568, 2, "guab:beer", NamedTextColor.GREEN,
@@ -230,8 +229,7 @@ public final class BeerRegistry {
                 sharedMessages("Warm, flat and proud of it.",
                         "You develop strong opinions about hops.",
                         "A proper pint for a proper pub."),
-                List.of(fx(PotionEffectType.NAUSEA, 5, 0),
-                        fx(PotionEffectType.SPEED, 20, 0)), false));
+                houseEffects, false));
 
         map.put("cider", new BeerStyle(
                 "cider", "Cider", 4.5, 568, 2, "guab:beer", NamedTextColor.YELLOW,
@@ -239,8 +237,7 @@ public final class BeerRegistry {
                 sharedMessages("Dangerously easy to drink.",
                         "You can hear the orchard from here.",
                         "That is not a fruit portion."),
-                List.of(fx(PotionEffectType.NAUSEA, 7, 0),
-                        fx(PotionEffectType.SPEED, 12, 0)), false));
+                houseEffects, false));
 
         map.put("alcohol_free", new BeerStyle(
                 "alcohol_free", "Alcohol-Free", 0.0, 568, 1, "guab:beer", NamedTextColor.AQUA,

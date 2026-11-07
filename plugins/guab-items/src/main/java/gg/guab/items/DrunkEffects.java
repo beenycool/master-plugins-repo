@@ -28,19 +28,19 @@ final class DrunkEffects {
     /** The drunk ladder, ordered from sober to absolutely Wetherspoons. */
     enum Tier {
         SOBER(0, 0.0, "Sober", NamedTextColor.GRAY, List.of()),
-        TIPSY(1, 1.0, "Tipsy", NamedTextColor.YELLOW, List.of(
+        TIPSY(1, 3.0, "Tipsy", NamedTextColor.YELLOW, List.of(
                 new EffectSpec(PotionEffectType.NAUSEA, 30, 0))),
-        MERRY(2, 2.5, "Merry", NamedTextColor.GOLD, List.of(
+        MERRY(2, 5.0, "Merry", NamedTextColor.GOLD, List.of(
                 new EffectSpec(PotionEffectType.NAUSEA, 30, 0),
                 new EffectSpec(PotionEffectType.SLOWNESS, 30, 0))),
-        DRUNK(3, 4.5, "Drunk", NamedTextColor.RED, List.of(
+        DRUNK(3, 7.0, "Drunk", NamedTextColor.RED, List.of(
                 new EffectSpec(PotionEffectType.NAUSEA, 30, 0),
                 new EffectSpec(PotionEffectType.SLOWNESS, 30, 0))),
-        WRECKED(4, 7.0, "Wrecked", NamedTextColor.DARK_RED, List.of(
+        WRECKED(4, 9.5, "Wrecked", NamedTextColor.DARK_RED, List.of(
                 new EffectSpec(PotionEffectType.NAUSEA, 30, 1),
                 new EffectSpec(PotionEffectType.SLOWNESS, 30, 0),
                 new EffectSpec(PotionEffectType.BLINDNESS, 30, 0))),
-        ABSOLUTELY_WETHERSPOONS(5, 10.0, "Absolutely Wetherspoons", NamedTextColor.DARK_PURPLE, List.of(
+        ABSOLUTELY_WETHERSPOONS(5, 13.0, "Absolutely Wetherspoons", NamedTextColor.DARK_PURPLE, List.of(
                 new EffectSpec(PotionEffectType.NAUSEA, 30, 1),
                 new EffectSpec(PotionEffectType.SLOWNESS, 30, 1),
                 new EffectSpec(PotionEffectType.BLINDNESS, 30, 0),

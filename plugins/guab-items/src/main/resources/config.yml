@@ -76,11 +76,9 @@ beer:
     - "You order at the bar. Nobody comes."
     - "That is one pint closer to closing time."
     - "A true Spoons classic."
-  # House-pint effects. Every style can override these with its own list.
-  effects:
-    - type: nausea
-      duration-seconds: 6
-      amplifier: 0
+  # Instant effects are deliberately empty. The shared drunk meter applies
+  # nausea/slowness only once the units stack up, so one pint is sober.
+  effects: []
   # The barrel that acts as the tap.
   tap:
     world: guab_casino
@@ -98,49 +96,28 @@ beer:
       volume-ml: 568
       price: 1
       model: "guab:beer"
-      effects:
-        - type: nausea
-          duration-seconds: 6
-          amplifier: 0
+      effects: []
     stout:
       display-name: Stout
       abv: 4.1
       volume-ml: 568
       price: 2
       model: "guab:beer"
-      effects:
-        - type: nausea
-          duration-seconds: 8
-          amplifier: 0
-        - type: slowness
-          duration-seconds: 6
-          amplifier: 0
+      effects: []
     ale:
       display-name: Ale
       abv: 4.5
       volume-ml: 568
       price: 2
       model: "guab:beer"
-      effects:
-        - type: nausea
-          duration-seconds: 5
-          amplifier: 0
-        - type: speed
-          duration-seconds: 20
-          amplifier: 0
+      effects: []
     cider:
       display-name: Cider
       abv: 4.5
       volume-ml: 568
       price: 2
       model: "guab:beer"
-      effects:
-        - type: nausea
-          duration-seconds: 7
-          amplifier: 0
-        - type: speed
-          duration-seconds: 12
-          amplifier: 0
+      effects: []
     alcohol_free:
       display-name: Alcohol-Free
       abv: 0.0

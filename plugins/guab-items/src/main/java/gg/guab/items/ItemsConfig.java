@@ -55,12 +55,8 @@ public record ItemsConfig(
     }
 
     private static List<BeerEffect> loadBeerEffects(FileConfiguration cfg) {
-        List<BeerEffect> effects = parseEffects(cfg.getList("beer.effects"));
-        if (effects.isEmpty()) {
-            effects.add(new BeerEffect(PotionEffectType.NAUSEA, 8 * 20, 1));
-            effects.add(new BeerEffect(PotionEffectType.SLOWNESS, 6 * 20, 0));
-        }
-        return List.copyOf(effects);
+        // Empty means no instant effects: the drunk meter applies the tiers.
+        return List.copyOf(parseEffects(cfg.getList("beer.effects")));
     }
 
     public static List<BeerEffect> parseEffects(List<?> raw) {
