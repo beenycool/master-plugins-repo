@@ -30,12 +30,20 @@ commands:
     usage: /darts [menu|start [101|301|501] [legs]|quit|stats [player]|top [legs|180s|checkout|best]]
     permission: guab.pub.darts.use
     aliases: [dart]
+  guab:
+    description: Open the Guab hub: pub, casino, darts, quests and stats.
+    usage: /guab [pub|casino|darts|quests|stats]
+    permission: guab.menu.use
+    aliases: [menu]
   quiz:
     description: Start a pub quiz question.
     usage: /quiz
     permission: guab.pub.quiz.start
 
 permissions:
+  guab.menu.use:
+    description: Open the Guab hub and its pub, casino, darts, quests and stats pages.
+    default: true
   guab.items.admin:
     description: Give Guab items and reload their configuration.
     default: op

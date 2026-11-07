@@ -11,6 +11,8 @@ public final class GuabItemsPlugin extends JavaPlugin {
     private Cooldowns cooldowns;
     private BeerService beerService;
     private BeerMenuDialog beerMenu;
+    private GuabMenuDialog menu;
+    private QuestsStore quests;
     private PubManager pub;
     private PubQuiz quiz;
     private DartsManager darts;
@@ -26,6 +28,9 @@ public final class GuabItemsPlugin extends JavaPlugin {
         this.cooldowns = new Cooldowns();
         this.beerService = new BeerService(this);
         this.beerMenu = new BeerMenuDialog(this);
+        this.menu = new GuabMenuDialog(this);
+        this.quests = new QuestsStore(this);
+        this.quests.start();
 
         this.pub = new PubManager(this);
         this.pub.start();
@@ -66,6 +71,12 @@ public final class GuabItemsPlugin extends JavaPlugin {
             dartsExecutor.setExecutor(dartsCommand);
             dartsExecutor.setTabCompleter(dartsCommand);
         }
+        GuabMenuCommand menuCommand = new GuabMenuCommand(this);
+        PluginCommand menuExecutor = getCommand("guab");
+        if (menuExecutor != null) {
+            menuExecutor.setExecutor(menuCommand);
+            menuExecutor.setTabCompleter(menuCommand);
+        }
 
         getLogger().info("GuabItems ready (wind charge power=" + config.windChargePower()
                 + ", jump boost amplifier=" + config.jumpBoostAmplifier()
@@ -97,6 +108,14 @@ public final class GuabItemsPlugin extends JavaPlugin {
         return darts;
     }
 
+    public GuabMenuDialog menu() {
+        return menu;
+    }
+
+    public QuestsStore quests() {
+        return quests;
+    }
+
     public void reload() {
         reloadConfig();
         this.config = ItemsConfig.load(this);
@@ -122,6 +141,10 @@ public final class GuabItemsPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (quests != null) {
+            quests.stop();
+            quests = null;
+        }
         if (bartender != null) {
             bartender.stop();
             bartender = null;
