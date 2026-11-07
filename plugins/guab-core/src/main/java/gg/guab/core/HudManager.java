@@ -42,13 +42,15 @@ public final class HudManager implements Listener, CommandExecutor {
 
     private final GuabCorePlugin plugin;
     private final PointsService points;
+    private final StatsService stats;
     private final Map<UUID, Panel> panels = new HashMap<>();
     private final Set<UUID> sidebarHidden = new HashSet<>();
     private BukkitTask task;
 
-    public HudManager(GuabCorePlugin plugin, PointsService points) {
+    public HudManager(GuabCorePlugin plugin, PointsService points, StatsService stats) {
         this.plugin = plugin;
         this.points = points;
+        this.stats = stats;
     }
 
     public void start() {
@@ -188,6 +190,8 @@ public final class HudManager implements Listener, CommandExecutor {
         String out = raw
                 .replace("%player%", player.getName())
                 .replace("%points%", String.format(Locale.ROOT, "%,d", points.get(player.getUniqueId())))
+                .replace("%deaths%", String.valueOf(stats.get(player.getUniqueId(), StatsService.DEATHS)))
+                .replace("%voiddeaths%", String.valueOf(stats.get(player.getUniqueId(), StatsService.VOID_DEATHS)))
                 .replace("%online%", String.valueOf(Bukkit.getOnlinePlayers().size()));
         if (out.contains("%top")) {
             List<Map.Entry<UUID, Integer>> ranking = points.top(3);

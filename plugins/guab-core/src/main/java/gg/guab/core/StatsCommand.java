@@ -65,6 +65,7 @@ public final class StatsCommand implements CommandExecutor, TabCompleter {
         }
         sender.sendMessage(Component.text("[" + name + "'s stats]", NamedTextColor.GOLD));
         sender.sendMessage(line("Deaths", plugin.stats().get(id, StatsService.DEATHS), NamedTextColor.RED));
+        sender.sendMessage(line("Void deaths", plugin.stats().get(id, StatsService.VOID_DEATHS), NamedTextColor.DARK_RED));
         sender.sendMessage(line("Kills", plugin.stats().get(id, StatsService.KILLS), NamedTextColor.GREEN));
         sender.sendMessage(line("Rickrolls", plugin.stats().get(id, StatsService.RICKROLLS), NamedTextColor.LIGHT_PURPLE));
         sender.sendMessage(line("Parkour", plugin.stats().get(id, StatsService.PARKOUR), NamedTextColor.AQUA));

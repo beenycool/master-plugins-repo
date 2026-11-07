@@ -48,7 +48,7 @@ public final class GuabCorePlugin extends JavaPlugin {
                 && VaultHook.install(this, points);
 
         if (getConfig().getBoolean("hud.enabled", true)) {
-            this.hud = new HudManager(this, points);
+            this.hud = new HudManager(this, points, stats);
             PluginCommand hudCommand = getCommand("hud");
             if (hudCommand != null) {
                 hudCommand.setExecutor(this.hud);

@@ -1,5 +1,6 @@
 package gg.guab.minigames;
 
+import gg.guab.core.StatsService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -85,6 +86,10 @@ public final class KillPlane implements Listener {
         if (!killedByPlane.remove(event.getEntity().getUniqueId())) {
             return;
         }
+        StatsService stats = stats();
+        if (stats != null) {
+            stats.increment(event.getEntity(), StatsService.VOID_DEATHS, 1);
+        }
         event.deathMessage(Component.text(event.getEntity().getName() + " fell out of the world",
                 NamedTextColor.RED));
     }
@@ -124,6 +129,11 @@ public final class KillPlane implements Listener {
             }
         }
         return false;
+    }
+
+    private StatsService stats() {
+        var registration = Bukkit.getServicesManager().getRegistration(StatsService.class);
+        return registration == null ? null : registration.getProvider();
     }
 
     private Component prefix() {

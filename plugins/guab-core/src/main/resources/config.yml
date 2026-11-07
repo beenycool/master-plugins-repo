@@ -12,6 +12,7 @@ hud:
     title: "&6&lGUAB"
     lines:
       - "&7Points &8» &6%points%"
+      - "&7Deaths &8» &f%deaths%"
       - ""
       - "&7Online &8» &f%online%"
       - ""

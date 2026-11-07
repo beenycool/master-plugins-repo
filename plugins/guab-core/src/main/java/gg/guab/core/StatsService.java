@@ -12,8 +12,9 @@ public interface StatsService {
     String KILLS = "kills";
     String RICKROLLS = "rickrolls";
     String PARKOUR = "parkour";
+    String VOID_DEATHS = "void_deaths";
 
-    List<String> METRICS = List.of(DEATHS, KILLS, RICKROLLS, PARKOUR);
+    List<String> METRICS = List.of(DEATHS, KILLS, RICKROLLS, PARKOUR, VOID_DEATHS);
 
     void increment(Player player, String metric, int amount);
 
