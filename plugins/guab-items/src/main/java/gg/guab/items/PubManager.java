@@ -358,6 +358,7 @@ public final class PubManager {
                 Bukkit.broadcast(prefix().append(Component.text(
                         player.getName() + " has drunk their " + ordinal(threshold) + " pint!  (+"
                                 + reward + " points)", NamedTextColor.GOLD)));
+                GuabSounds.play(player, GuabSounds.MILESTONE, 1.0f, 1.0f);
                 dirty = true;
                 hologramDirty = true;
             }

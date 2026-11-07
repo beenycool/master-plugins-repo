@@ -6,6 +6,11 @@ save-interval-seconds: 60
 hud:
   enabled: true
   update-ticks: 20
+  # Prefix points lines with bitmap icons from the Guab resource pack
+  # (guab:hud). The glyphs are private-use codepoints, so clients without
+  # guab-items.zip (or the rickroll pack, which embeds the same assets) show
+  # missing-character boxes. Set false for a plain-text HUD.
+  font-icons: true
 
   scoreboard:
     enabled: true

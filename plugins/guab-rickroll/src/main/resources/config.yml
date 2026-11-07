@@ -13,11 +13,26 @@ pack:
 
 cinema:
   world: "guab_cinema"
+  # Pre-roll before the song starts. When the camera intro is enabled, its duration-ticks sets the pre-roll.
   intro-ticks: 40
   fallback-seconds: 15
   # Item models render at half scale, so 20.0 = 10 blocks wide.
   width: 20.0
   height: 11.25
+
+  # Client-side cinematic effects. Unsupported keys are logged and skipped.
+  post-effects:
+    enabled: true
+    # Soft cinema blur for the duration of the show.
+    blur-key: "minecraft:blur"
+    # Brief tracking/VHS flash when the projector starts. Set flash-ticks to 0 to keep only the blur.
+    flash-key: "minecraft:invert"
+    flash-ticks: 8
+
+  # Short dolly along the aisle before the film. Falls back to the seat if the path is unsafe.
+  camera-intro:
+    enabled: true
+    duration-ticks: 40
 
 # Song time at the start of the clip (the one-minute cut starts at 0:19).
 lyrics-offset-seconds: 18.92

@@ -77,6 +77,12 @@ public final class TriggerListener implements Listener {
             return;
         }
         try {
+            PostEffects.clear(plugin, player);
+        } catch (Throwable throwable) {
+            plugin.getLogger().warning("Could not clear stale cinematic post effects for " + player.getName()
+                    + " (" + throwable.getClass().getSimpleName() + ").");
+        }
+        try {
             player.setGameMode(GameMode.valueOf(mode));
         } catch (IllegalArgumentException exception) {
             player.setGameMode(GameMode.SURVIVAL);

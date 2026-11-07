@@ -1,0 +1,30 @@
+{
+  "quiz_correct": {
+    "sounds": [
+      {
+        "name": "guab:quiz_correct"
+      }
+    ]
+  },
+  "one_eighty": {
+    "sounds": [
+      {
+        "name": "guab:one_eighty"
+      }
+    ]
+  },
+  "beer_pour": {
+    "sounds": [
+      {
+        "name": "guab:beer_pour"
+      }
+    ]
+  },
+  "milestone": {
+    "sounds": [
+      {
+        "name": "guab:milestone"
+      }
+    ]
+  }
+}

@@ -16,6 +16,11 @@ Run it from the repo root with Pillow installed:
 It rebuilds both the standalone guab-items pack and the copy embedded in the
 rickroll pack, then prints the SHA-1 values that must go into server.properties
 and GuabRickroll/pack.properties.
+
+The HUD font and custom sounds live in pack/hud. Regenerate those source
+assets with tools/build-guab-hud-assets.py (Pillow + numpy + ffmpeg), then run
+this script to copy them into both zips. Run this script after
+build-rickroll-pack.sh, otherwise a fresh rickroll pack will not embed them.
 """
 
 from __future__ import annotations
@@ -23,6 +28,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import io
+import json
 import os
 import shutil
 import tempfile
@@ -34,6 +40,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 USER_AGENT = "GuabMinecraft/1.0 (private Paper server; pack build tool)"
+HUD_SOURCE = Path(__file__).resolve().parent.parent / "pack" / "hud"
 
 BRAND_IMAGES = {
     "stella": "https://images.openfoodfacts.org/images/products/501/437/901/2873/front_en.19.400.jpg",
@@ -190,12 +197,68 @@ def sha1(path: Path) -> str:
     return hashlib.sha1(path.read_bytes()).hexdigest()
 
 
+def merge_sounds_json(pack_root: Path, fragment: Path) -> None:
+    """Merge the HUD sound events into a pack's sounds.json, keeping existing entries."""
+    target = pack_root / "assets" / "guab" / "sounds.json"
+    data = {}
+    if target.is_file():
+        data = json.loads(target.read_text(encoding="utf-8"))
+    data.update(json.loads(fragment.read_text(encoding="utf-8")))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def install_hud_assets(pack_root: Path, hud_source: Path) -> None:
+    """Copy the HUD font and custom sounds into an extracted pack root."""
+    if not hud_source.is_dir():
+        raise FileNotFoundError(f"HUD source directory not found: {hud_source}")
+    for relative in ("assets/guab/font/hud.json", "assets/guab/textures/font/hud.png"):
+        source = hud_source / relative
+        if not source.is_file():
+            raise FileNotFoundError(f"missing HUD asset: {source}")
+        destination = pack_root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+
+    sound_root = pack_root / "assets" / "guab" / "sounds"
+    sound_root.mkdir(parents=True, exist_ok=True)
+    sounds = sorted((hud_source / "sounds" / "guab").glob("*.ogg"))
+    if not sounds:
+        raise FileNotFoundError(f"no HUD sounds in {hud_source / 'sounds' / 'guab'}")
+    for sound in sounds:
+        shutil.copy2(sound, sound_root / sound.name)
+
+    merge_sounds_json(pack_root, hud_source / "sounds.json")
+    validate_guab_sounds(pack_root)
+
+
+def validate_guab_sounds(pack_root: Path) -> None:
+    """Fail loudly when a guab sound event points at a file that is not in the pack."""
+    target = pack_root / "assets" / "guab" / "sounds.json"
+    data = json.loads(target.read_text(encoding="utf-8"))
+    for event, definition in data.items():
+        for sound in definition.get("sounds", []):
+            name = sound["name"]
+            namespace, _, path = name.partition(":")
+            if not path:
+                namespace, path = "guab", namespace
+            if namespace != "guab":
+                continue
+            ogg = pack_root / "assets" / "guab" / "sounds" / f"{path}.ogg"
+            if not ogg.is_file():
+                raise FileNotFoundError(
+                    f"sound event guab:{event} references missing file {ogg}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--items-base", default="/opt/guab-server/resourcepack/guab-items.zip")
     parser.add_argument("--rickroll-base", default="/opt/guab-server/resourcepack/rickroll.zip")
+    parser.add_argument("--hud-source", default=str(HUD_SOURCE))
     parser.add_argument("--out", default="/tmp/guab-pack")
     args = parser.parse_args()
+
+    hud_source = Path(args.hud_source)
 
     out = Path(args.out)
     shutil.rmtree(out, ignore_errors=True)
@@ -272,6 +335,10 @@ def main() -> None:
         shutil.copy2(items / "assets/guab/items/dartboard.json",
                      rickroll / "assets/guab/items/dartboard.json")
         shutil.copy2(items / "pack.png", rickroll / "pack.png")
+
+        # Font HUD and custom audio: the same source assets go into both packs.
+        install_hud_assets(items, hud_source)
+        install_hud_assets(rickroll, hud_source)
 
         items_zip = out / "guab-items.zip"
         rickroll_zip = out / "rickroll.zip"

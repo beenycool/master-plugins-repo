@@ -41,6 +41,9 @@ public final class GuabRickrollPlugin extends JavaPlugin {
         if (this.cinema != null) {
             this.cinema.reload();
         }
+        if (this.shows != null) {
+            this.shows.reload();
+        }
     }
 
     @Override

@@ -8,6 +8,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
@@ -33,11 +34,13 @@ final class Show {
     private final boolean allowFlight;
     private final float flySpeed;
     private final float walkSpeed;
+    private final PostEffects effects;
 
     private ItemDisplay display;
     private BossBar bossBar;
     private BukkitTask task;
     private BukkitTask timeout;
+    private CameraIntro cameraIntro;
     private String lastLyric;
     private int lastTimerSecond = -1;
     private int tick;
@@ -53,6 +56,15 @@ final class Show {
         this.allowFlight = player.getAllowFlight();
         this.flySpeed = player.getFlySpeed();
         this.walkSpeed = player.getWalkSpeed();
+        PostEffects cinematicEffects;
+        try {
+            cinematicEffects = new PostEffects(plugin, player);
+        } catch (Throwable throwable) {
+            plugin.getLogger().warning("Cinematic post effects are unavailable for " + player.getName()
+                    + " (" + throwable.getClass().getSimpleName() + "); continuing without them.");
+            cinematicEffects = null;
+        }
+        this.effects = cinematicEffects;
     }
 
     void begin() {
@@ -102,7 +114,25 @@ final class Show {
         display = plugin.cinema().spawnScreen();
         List<ItemStack> frames = plugin.cinema().frames();
         int intro = plugin.config().introTicks();
+        if (plugin.config().cameraIntroEnabled()) {
+            cameraIntro = new CameraIntro(
+                    plugin, player, plugin.cinema().seat(), plugin.config().cameraIntroDurationTicks());
+            if (cameraIntro.start()) {
+                // The film starts as soon as the camera settles; the intro duration therefore becomes the pre-roll.
+                intro = plugin.config().cameraIntroDurationTicks();
+            } else {
+                cameraIntro = null;
+                player.teleport(plugin.cinema().seat());
+            }
+        } else {
+            player.teleport(plugin.cinema().seat());
+        }
         int total = intro + plugin.config().showSeconds() * 20;
+        final int preRoll = intro;
+
+        if (effects != null) {
+            effects.apply();
+        }
 
         player.showTitle(Title.title(
                 Component.text("TRACKING", NamedTextColor.GRAY),
@@ -115,13 +145,14 @@ final class Show {
                 BossBar.Color.PINK,
                 BossBar.Overlay.NOTCHED_20);
         player.showBossBar(bossBar);
-        player.playSound(player, Sound.BLOCK_LEVER_CLICK, SoundCategory.MASTER, 0.5f, 0.7f);
-        player.sendActionBar(Component.text("Now playing: Never Gonna Give You Up", NamedTextColor.GOLD));
+        playProjectorStart();
+        player.sendActionBar(Component.text("▌▌ VHS TRACKING ▌▌", NamedTextColor.DARK_GRAY));
 
         task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            int elapsed = tick - intro;
-            if (tick == intro) {
+            int elapsed = tick - preRoll;
+            if (tick == preRoll) {
                 player.playSound(player, "guab:rickroll", SoundCategory.MASTER, 1.0f, 1.0f);
+                player.sendActionBar(Component.text("Now playing: Never Gonna Give You Up", NamedTextColor.GOLD));
             }
             if (elapsed >= 0) {
                 int frame = (int) ((elapsed * (long) plugin.config().fps()) / 20);
@@ -154,8 +185,30 @@ final class Show {
         }, 1L, 1L);
     }
 
+    private void playProjectorStart() {
+        player.playSound(player, Sound.BLOCK_PISTON_EXTEND, SoundCategory.MASTER, 0.4f, 0.7f);
+        player.playSound(player, Sound.BLOCK_BEACON_ACTIVATE, SoundCategory.MASTER, 0.35f, 0.6f);
+        player.playSound(player, Sound.BLOCK_LEVER_CLICK, SoundCategory.MASTER, 0.5f, 0.7f);
+        spawnStaticBurst();
+    }
+
+    private void spawnStaticBurst() {
+        if (display == null) {
+            return;
+        }
+        World world = display.getWorld();
+        Location screen = display.getLocation();
+        world.spawnParticle(Particle.ELECTRIC_SPARK, screen, 60, 6.0, 3.0, 0.15, 0.03);
+        world.spawnParticle(Particle.WHITE_ASH, screen, 40, 6.0, 3.0, 0.15, 0.01);
+        world.spawnParticle(Particle.CLOUD, screen, 12, 5.0, 2.5, 0.15, 0.01);
+    }
+
     private void startFallback() {
         started = true;
+        stopIntro();
+        if (effects != null) {
+            effects.stop();
+        }
         int seconds = plugin.config().fallbackSeconds();
         player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 20 * seconds, 0, false, false));
         player.showTitle(Title.title(
@@ -171,6 +224,10 @@ final class Show {
             return;
         }
         finished = true;
+        stopIntro();
+        if (effects != null) {
+            effects.stop();
+        }
         if (task != null) {
             task.cancel();
             task = null;
@@ -197,6 +254,10 @@ final class Show {
             return;
         }
         finished = true;
+        stopIntro();
+        if (effects != null) {
+            effects.stop();
+        }
         if (task != null) {
             task.cancel();
         }
@@ -230,6 +291,19 @@ final class Show {
 
     private String formatTime(int seconds) {
         return String.format("%d:%02d", seconds / 60, seconds % 60);
+    }
+
+    void onReload() {
+        if (display != null && effects != null) {
+            effects.reload();
+        }
+    }
+
+    private void stopIntro() {
+        if (cameraIntro != null) {
+            cameraIntro.stop();
+            cameraIntro = null;
+        }
     }
 
     private void cancelTimeout() {

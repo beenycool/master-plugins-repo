@@ -146,6 +146,9 @@ public final class PubQuiz implements Listener {
             if (points != null) {
                 points.add(winner.getUniqueId(), reward);
             }
+            if (winner.isOnline()) {
+                GuabSounds.play(winner, GuabSounds.QUIZ_CORRECT, 1.0f, 1.0f);
+            }
             Bukkit.broadcast(prefix()
                     .append(Component.text(winner.getName(), NamedTextColor.WHITE))
                     .append(Component.text(" got it — ", NamedTextColor.GRAY))

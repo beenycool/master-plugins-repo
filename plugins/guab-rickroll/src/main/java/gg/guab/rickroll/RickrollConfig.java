@@ -22,7 +22,13 @@ public record RickrollConfig(
         double lyricsOffsetSeconds,
         int fps,
         int frameCount,
-        String sha1) {
+        String sha1,
+        boolean postEffectsEnabled,
+        String blurKey,
+        String flashKey,
+        int flashTicks,
+        boolean cameraIntroEnabled,
+        int cameraIntroDurationTicks) {
 
     public static RickrollConfig load(GuabRickrollPlugin plugin) {
         var cfg = plugin.getConfig();
@@ -57,7 +63,13 @@ public record RickrollConfig(
                 cfg.getDouble("lyrics-offset-seconds", 0.0),
                 fps,
                 frames,
-                props.getProperty("sha1", ""));
+                props.getProperty("sha1", ""),
+                cfg.getBoolean("cinema.post-effects.enabled", true),
+                cfg.getString("cinema.post-effects.blur-key", "minecraft:blur"),
+                cfg.getString("cinema.post-effects.flash-key", "minecraft:invert"),
+                Math.clamp(cfg.getInt("cinema.post-effects.flash-ticks", 8), 0, 40),
+                cfg.getBoolean("cinema.camera-intro.enabled", true),
+                Math.clamp(cfg.getInt("cinema.camera-intro.duration-ticks", 40), 1, 120));
     }
 
     private static int parseInt(String value, int fallback) {

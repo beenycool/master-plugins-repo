@@ -87,6 +87,7 @@ public final class BeerDrinkListener implements Listener {
         }
 
         plugin.pub().recordDrink(player, brand);
+        GuabSounds.play(player, GuabSounds.BEER_POUR, 1.0f, 1.0f);
 
         player.sendMessage(Component.text("You crack open a cold " + brand.displayName() + ".",
                 NamedTextColor.YELLOW));

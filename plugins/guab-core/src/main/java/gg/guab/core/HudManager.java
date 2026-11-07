@@ -1,5 +1,6 @@
 package gg.guab.core;
 
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -39,6 +40,8 @@ import java.util.UUID;
 public final class HudManager implements Listener, CommandExecutor {
 
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
+    private static final Key HUD_FONT = Key.key("guab", "hud");
+    private static final String GLYPH_COIN = "\uE000";
 
     private final GuabCorePlugin plugin;
     private final PointsService points;
@@ -149,7 +152,11 @@ public final class HudManager implements Listener, CommandExecutor {
         }
         player.sendMessage(Component.empty());
         for (String line : template) {
-            player.sendMessage(parse(replace(line, player)));
+            Component message = parse(replace(line, player));
+            if (line.contains("%points%")) {
+                message = withIcon(GLYPH_COIN, NamedTextColor.GOLD, message);
+            }
+            player.sendMessage(message);
         }
         if (firstJoin) {
             player.sendMessage(Component.empty()
@@ -187,6 +194,30 @@ public final class HudManager implements Listener, CommandExecutor {
 
     private Component parse(String raw) {
         return LEGACY.deserialize(raw == null ? "" : raw);
+    }
+
+    /**
+     * Whether private-use glyphs from the Guab resource pack should be drawn.
+     * Admins can turn this off when the pack is not installed, because clients
+     * without the font render the codepoints as missing-character boxes.
+     */
+    private boolean fontIcons() {
+        return plugin.getConfig().getBoolean("hud.font-icons", true);
+    }
+
+    /**
+     * Prefixes a component with a bitmap glyph. The glyph carries the custom
+     * font; the wrapper deliberately does not, so the rest of the line keeps
+     * the default font instead of inheriting a font with no ASCII glyphs.
+     */
+    private Component withIcon(String glyph, NamedTextColor colour, Component body) {
+        if (!fontIcons()) {
+            return body;
+        }
+        return Component.empty()
+                .append(Component.text(glyph, colour).font(HUD_FONT))
+                .append(Component.text(" "))
+                .append(body);
     }
 
     private String replace(String raw, Player player) {
@@ -229,6 +260,7 @@ public final class HudManager implements Listener, CommandExecutor {
         private final List<String> entries = new ArrayList<>();
         private final List<String> lastLines = new ArrayList<>();
         private final Map<String, Integer> lastScores = new HashMap<>();
+        private boolean lastFontIcons;
         private Component lastHeader;
         private Component lastFooter;
 
@@ -251,7 +283,8 @@ public final class HudManager implements Listener, CommandExecutor {
                 return null;
             }
             String title = plugin.getConfig().getString("hud.below-name.title", "&6Points");
-            Objective objective = board.registerNewObjective("guab_points", Criteria.DUMMY, parse(title));
+            Objective objective = board.registerNewObjective("guab_points", Criteria.DUMMY,
+                    withIcon(GLYPH_COIN, NamedTextColor.GOLD, parse(title)));
             objective.setDisplaySlot(DisplaySlot.BELOW_NAME);
             return objective;
         }
@@ -309,12 +342,19 @@ public final class HudManager implements Listener, CommandExecutor {
                 raw = List.of("&7Points &8» &6%points%", "", "&7Online &8» &f%online%");
             }
             List<String> lines = new ArrayList<>(raw.size());
-            for (String template : raw) {
+            int pointsLine = -1;
+            for (int i = 0; i < raw.size(); i++) {
+                String template = raw.get(i);
+                if (pointsLine < 0 && template.contains("%points%")) {
+                    pointsLine = i;
+                }
                 lines.add(replace(template, player));
             }
-            if (lines.equals(lastLines)) {
+            boolean icons = fontIcons();
+            if (lines.equals(lastLines) && icons == lastFontIcons) {
                 return;
             }
+            lastFontIcons = icons;
             while (entries.size() < lines.size()) {
                 int index = entries.size();
                 String entry = "§" + Integer.toHexString(index % 16) + "§r";
@@ -326,7 +366,11 @@ public final class HudManager implements Listener, CommandExecutor {
             for (int i = 0; i < lines.size(); i++) {
                 Team team = board.getTeam("guab_line_" + i);
                 if (team != null) {
-                    team.prefix(parse(lines.get(i)));
+                    Component line = parse(lines.get(i));
+                    if (i == pointsLine) {
+                        line = withIcon(GLYPH_COIN, NamedTextColor.GOLD, line);
+                    }
+                    team.prefix(line);
                 }
                 objective.getScore(entries.get(i)).setScore(lines.size() - i);
             }
@@ -336,7 +380,11 @@ public final class HudManager implements Listener, CommandExecutor {
 
         private void refreshTab() {
             Component header = parse(replace(plugin.getConfig().getString("hud.tab.header", "&6&lGUAB PARKOUR"), player));
-            Component footer = parse(replace(plugin.getConfig().getString("hud.tab.footer", "&7Points &8» &6%points%"), player));
+            String footerRaw = plugin.getConfig().getString("hud.tab.footer", "&7Points &8» &6%points%");
+            Component footer = parse(replace(footerRaw, player));
+            if (footerRaw != null && footerRaw.contains("%points%")) {
+                footer = withIcon(GLYPH_COIN, NamedTextColor.GOLD, footer);
+            }
             if (header.equals(lastHeader) && footer.equals(lastFooter)) {
                 return;
             }

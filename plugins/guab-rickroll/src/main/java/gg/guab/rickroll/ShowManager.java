@@ -59,6 +59,12 @@ public final class ShowManager {
         active.clear();
     }
 
+    public void reload() {
+        for (Show show : List.copyOf(active.values())) {
+            show.onReload();
+        }
+    }
+
     public void onPackReady(Player player) {
         Show show = active.get(player.getUniqueId());
         if (show != null) {

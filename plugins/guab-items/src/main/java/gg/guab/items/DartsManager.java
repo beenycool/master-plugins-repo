@@ -582,6 +582,7 @@ public final class DartsManager implements Listener {
                     Title.Times.times(Duration.ofMillis(150), Duration.ofMillis(1200), Duration.ofMillis(350))));
             player.playSound(player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_BLAST,
                     SoundCategory.PLAYERS, 1.0f, 0.8f);
+            GuabSounds.play(player, GuabSounds.ONE_EIGHTY, 1.0f, 1.0f);
             celebration(centre, 2);
         } else if (result.hit().number() == 20 && result.hit().multiplier() == 3) {
             player.showTitle(Title.title(

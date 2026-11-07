@@ -91,6 +91,7 @@ Tune the output with `COLORS` and `DITHER`. `DITHER=none` gives a smaller, sharp
 `GuabCore` owns the shared wallet.
 
 - Your balance appears in the sidebar, the tab-list header and under your nametag, refreshed every second.
+- Points lines carry a small coin icon from the Guab bitmap font (`guab:hud`). Set `hud.font-icons: false` in `GuabCore/config.yml` to fall back to plain text if the resource pack is not installed.
 - `/points` (or `/bal`, `/balance`) shows your balance in chat, and `/points top` shows the leaderboard.
 - `/hud` hides or shows your sidebar; the nametag balance stays.
 - Joining prints your balance and a clickable `[Enter casino]` button.
@@ -158,13 +159,19 @@ Staff can hand out stacks with `/guabitems give <player> beer 64`, a specific br
 
 The item textures live in `guab-items.zip` on the pack host (`:39002`) and are applied as the server resource pack; the same assets are embedded in the rickroll pack so beer stays textured after a show. The pint and bottle textures are real product photos from Open Food Facts (CC BY-SA 3.0), the Baileys bottle is a public-domain Wikimedia Commons photo, and the dartboard face is Wikimedia Commons' unlabelled dartboard (CC BY-SA 3.0).
 
-Rebuild both packs with:
+The same packs also carry the HUD bitmap font (`assets/guab/font/hud.json` plus `assets/guab/textures/font/hud.png`) and four custom sound events. Regenerate those source assets deterministically with:
+
+```bash
+python3 tools/build-guab-hud-assets.py
+```
+
+That writes the font PNG and the four OGG files under `pack/hud/`. It needs Pillow, numpy and ffmpeg. Then rebuild both packs with:
 
 ```bash
 sudo tools/build-guab-items-pack.py
 ```
 
-It writes `/tmp/guab-pack/guab-items.zip` and `/tmp/guab-pack/rickroll.zip` and prints their SHA-1 values. Copy them into `/opt/guab-server/resourcepack/`, update `resource-pack-sha1` in `data/server.properties` and `sha1` in `data/plugins/GuabRickroll/pack.properties`, then restart Paper.
+It copies the HUD assets into both zips, merges the custom sound events into `assets/guab/sounds.json` without removing the `guab:rickroll` entry, and validates that every referenced OGG exists. It writes `/tmp/guab-pack/guab-items.zip` and `/tmp/guab-pack/rickroll.zip` and prints their SHA-1 values. Copy them into `/opt/guab-server/resourcepack/`, update `resource-pack-sha1` in `data/server.properties` and `sha1` in `data/plugins/GuabRickroll/pack.properties`, then restart Paper. Run this after `tools/build-rickroll-pack.sh`, because the rickroll script recreates the base zip.
 
 **Pub features**
 
