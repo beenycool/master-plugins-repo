@@ -26,5 +26,6 @@ final class BattleKit {
         inventory.setItem(4, new ItemStack(Material.COOKED_BEEF, 16));
         inventory.setItem(5, new ItemStack(Material.COBBLESTONE, 32));
         inventory.setItem(6, new ItemStack(Material.IRON_PICKAXE));
+        inventory.setItem(7, new ItemStack(Material.IRON_AXE));
     }
 }
