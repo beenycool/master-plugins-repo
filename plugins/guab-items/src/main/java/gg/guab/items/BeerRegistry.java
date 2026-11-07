@@ -54,7 +54,7 @@ public final class BeerRegistry {
         addBrand("heineken", "Heineken", "lager", "guab:beer_heineken", 5.0, 568);
         addBrand("corona", "Corona", "lager", "guab:beer_corona", 4.5, 568);
         addBrand("budweiser", "Budweiser", "lager", "guab:beer_budweiser", 4.5, 568);
-        addBrand("guinness", "Guinness", "stout", "guab:beer_guinness", 4.2, 568);
+        addBrand("guinness", "Guinness", "stout", "guab:beer_guinness", 4.1, 568);
         addBrand("johnsmiths", "John Smith's", "ale", "guab:beer_johnsmiths", 3.6, 568);
         addBrand("londonpride", "London Pride", "ale", "guab:beer_londonpride", 4.7, 568);
         addBrand("strongbow", "Strongbow", "cider", "guab:beer_strongbow", 4.5, 568);
