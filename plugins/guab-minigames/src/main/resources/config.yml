@@ -14,6 +14,11 @@ battlepit:
   # Restore your inventory if you teleport or walk far outside the arena.
   auto-leave-outside: true
 
+  # Brief invulnerability after joining or respawning in the pit.
+  spawn-protection:
+    enabled: true
+    seconds: 5
+
   # Cobblestone placed by fighters inside the arena crumbles after this many seconds.
   cobblestone-decay:
     enabled: true

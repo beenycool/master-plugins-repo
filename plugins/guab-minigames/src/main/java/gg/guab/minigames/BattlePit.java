@@ -8,10 +8,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -40,6 +43,7 @@ public final class BattlePit implements Listener {
     private final Set<UUID> fighters = new LinkedHashSet<>();
     private final Map<UUID, Integer> streaks = new HashMap<>();
     private final Map<UUID, SavedInventory> savedInventories = new HashMap<>();
+    private final Map<UUID, Long> protectedUntil = new HashMap<>();
     private BukkitTask task;
 
     public BattlePit(GuabMinigamesPlugin plugin) {
@@ -65,6 +69,7 @@ public final class BattlePit implements Listener {
         fighters.clear();
         streaks.clear();
         savedInventories.clear();
+        protectedUntil.clear();
     }
 
     public boolean inPit(Player player) {
@@ -130,6 +135,7 @@ public final class BattlePit implements Listener {
         if (maxHealth != null) {
             player.setHealth(maxHealth.getValue());
         }
+        protect(player);
         msg(player, "&aWelcome to the battle pit. Kills pay &6"
                 + plugin.getConfig().getInt("battlepit.kill-reward", 50)
                 + " points&a, deaths cost &6"
@@ -146,6 +152,7 @@ public final class BattlePit implements Listener {
             return false;
         }
         streaks.remove(player.getUniqueId());
+        protectedUntil.remove(player.getUniqueId());
         restore(player);
         Location exit = exit();
         if (exit != null) {
@@ -164,6 +171,7 @@ public final class BattlePit implements Listener {
         if (!fighters.contains(victimId)) {
             return;
         }
+        protectedUntil.remove(victimId);
         boolean keepInventory = plugin.getConfig().getBoolean("battlepit.keep-inventory", true);
         if (keepInventory) {
             event.setKeepInventory(true);
@@ -216,6 +224,7 @@ public final class BattlePit implements Listener {
                 player.teleport(spawn);
                 player.setFallDistance(0);
                 BattleKit.give(player);
+                protect(player);
             }
         }, 1L);
     }
@@ -228,6 +237,62 @@ public final class BattlePit implements Listener {
             broadcast("&7" + event.getPlayer().getName() + " left the pit.", NamedTextColor.DARK_GRAY);
         }
         streaks.remove(id);
+        protectedUntil.remove(id);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onDamage(EntityDamageByEntityEvent event) {
+        if (!(event.getEntity() instanceof Player victim) || !fighters.contains(victim.getUniqueId())) {
+            return;
+        }
+        Player attacker = attacker(event.getDamager());
+        if (attacker == null || attacker.getUniqueId().equals(victim.getUniqueId())) {
+            return;
+        }
+        if (isProtected(victim.getUniqueId())) {
+            event.setCancelled(true);
+            msg(attacker, "&e" + victim.getName() + " &7is spawn protected.", NamedTextColor.GRAY);
+            victim.sendActionBar(Component.text("Spawn protection blocked a hit", NamedTextColor.AQUA));
+            return;
+        }
+        if (isProtected(attacker.getUniqueId())) {
+            protectedUntil.remove(attacker.getUniqueId());
+            msg(attacker, "&7Your spawn protection ended because you attacked.", NamedTextColor.GRAY);
+        }
+    }
+
+    private Player attacker(Entity damager) {
+        if (damager instanceof Player player) {
+            return player;
+        }
+        if (damager instanceof Projectile projectile && projectile.getShooter() instanceof Player player) {
+            return player;
+        }
+        return null;
+    }
+
+    private void protect(Player player) {
+        if (!plugin.getConfig().getBoolean("battlepit.spawn-protection.enabled", true)) {
+            return;
+        }
+        int seconds = Math.max(1, plugin.getConfig().getInt("battlepit.spawn-protection.seconds", 5));
+        protectedUntil.put(player.getUniqueId(), System.currentTimeMillis() + seconds * 1000L);
+        player.sendMessage(Component.text("[BattlePit] ", NamedTextColor.GOLD)
+                .append(Component.text("Spawn protection for " + seconds + "s.", NamedTextColor.AQUA)));
+    }
+
+    private boolean isProtected(UUID id) {
+        Long until = protectedUntil.get(id);
+        return until != null && until > System.currentTimeMillis();
+    }
+
+    private int protectionSeconds(UUID id) {
+        Long until = protectedUntil.get(id);
+        if (until == null) {
+            return 0;
+        }
+        long left = until - System.currentTimeMillis();
+        return left <= 0 ? 0 : (int) Math.ceil(left / 1000.0);
     }
 
     private void tick() {
@@ -235,6 +300,7 @@ public final class BattlePit implements Listener {
             return;
         }
         boolean actionBar = plugin.getConfig().getBoolean("battlepit.action-bar", true);
+        long now = System.currentTimeMillis();
         for (UUID id : new ArrayList<>(fighters)) {
             Player player = Bukkit.getPlayer(id);
             if (player == null || !player.isOnline()) {
@@ -245,17 +311,29 @@ public final class BattlePit implements Listener {
                 leave(player);
                 continue;
             }
+            Long until = protectedUntil.get(id);
+            if (until != null && until <= now) {
+                protectedUntil.remove(id);
+                player.sendMessage(Component.text("[BattlePit] ", NamedTextColor.GOLD)
+                        .append(Component.text("Spawn protection ended.", NamedTextColor.GRAY)));
+            }
             if (!actionBar) {
                 continue;
             }
             int streak = streaks.getOrDefault(id, 0);
-            player.sendActionBar(Component.text("Battle Pit", NamedTextColor.GOLD)
+            Component bar = Component.text("Battle Pit", NamedTextColor.GOLD)
                     .append(Component.text("  |  ", NamedTextColor.DARK_GRAY))
                     .append(Component.text(fighters.size() + " fighters", NamedTextColor.GRAY))
                     .append(Component.text("  |  ", NamedTextColor.DARK_GRAY))
                     .append(Component.text("Streak " + streak, NamedTextColor.YELLOW))
                     .append(Component.text("  |  ", NamedTextColor.DARK_GRAY))
-                    .append(Component.text("/battlepit leave", NamedTextColor.DARK_GRAY)));
+                    .append(Component.text("/battlepit leave", NamedTextColor.DARK_GRAY));
+            int shield = protectionSeconds(id);
+            if (shield > 0) {
+                bar = bar.append(Component.text("  |  ", NamedTextColor.DARK_GRAY))
+                        .append(Component.text("Shield " + shield + "s", NamedTextColor.AQUA));
+            }
+            player.sendActionBar(bar);
         }
     }
 
