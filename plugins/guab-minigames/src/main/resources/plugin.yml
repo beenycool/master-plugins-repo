@@ -18,6 +18,9 @@ commands:
   kit:
     description: Take the battle pit PvP kit.
     usage: /kit
+  killplane:
+    description: Show or change the kill plane.
+    usage: /killplane [on|off|set <y>|reload|status]
 
 permissions:
   guab.battlepit.use:
@@ -35,3 +38,6 @@ permissions:
   guab.kit.use:
     description: Take the battle pit PvP kit.
     default: true
+  guab.killplane.admin:
+    description: Change the kill plane threshold or toggle it.
+    default: op

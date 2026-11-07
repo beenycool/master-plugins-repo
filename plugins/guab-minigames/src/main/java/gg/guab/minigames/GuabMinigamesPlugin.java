@@ -6,12 +6,22 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class GuabMinigamesPlugin extends JavaPlugin {
 
     private BattlePit pit;
+    private KillPlane killPlane;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         this.pit = new BattlePit(this);
         this.pit.start();
+        this.killPlane = new KillPlane(this);
+        this.killPlane.start();
+
+        PluginCommand killPlaneCommand = getCommand("killplane");
+        if (killPlaneCommand != null) {
+            KillPlaneCommand executor = new KillPlaneCommand(this, killPlane);
+            killPlaneCommand.setExecutor(executor);
+            killPlaneCommand.setTabCompleter(executor);
+        }
 
         PluginCommand command = getCommand("battlepit");
         if (command != null) {
@@ -37,6 +47,10 @@ public final class GuabMinigamesPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (killPlane != null) {
+            killPlane.stop();
+            killPlane = null;
+        }
         if (pit != null) {
             pit.stop();
             pit = null;
