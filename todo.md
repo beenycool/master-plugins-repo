@@ -55,7 +55,7 @@ Status: implemented and built. `/guabblocks add|remove|list|reload`, `blocks.yml
 
 **What it does:** the prank items, Wetherspoons pub, beer, milk and darts room.
 
-Status: implemented and built. PDC-tagged items, wind charge, jump feather, `/guabitems give`, main/off-hand handling, cooldowns and anvil/craft guards. The pub now has 16 branded pints, milk, lethal Baileys and Lime, a 71-question quiz, and a dedicated darts room.
+Status: live. PDC-tagged items, wind charge, jump feather, `/guabitems give`, main/off-hand handling, cooldowns and anvil/craft guards. The pub has 16 branded pints, milk, lethal Baileys and Lime, a 71-question quiz, a bartender and a dedicated darts room. `/guab` is the native hub with Pub, Casino, Darts, Parkour and Stats pages; the old quest page is gone. Darts defaults to 101 with beginner assist (no busts, any dart can finish).
 
 - [x] PDC-tagged items so names cannot be faked
 - [x] Wind charge item: boost self forward, knock nearby players away
@@ -66,13 +66,17 @@ Status: implemented and built. PDC-tagged items, wind charge, jump feather, `/gu
 - [x] Block crafting/renaming from producing fake copies
 - [x] Wetherspoons menu with 16 branded pints, milk, lethal Baileys and constant drunken effects
 - [x] Darts room with bow, 3x3 board, oche lock and shared live-hit hologram
+- [x] Beginner darts: 101 default, no busts, any dart can finish, wider rings
+- [x] Native `/guab` dialog hub with Pub, Casino, Darts, Parkour and Stats
+- [x] Parkour hub button and `/guab parkour` teleport to the configured start
+- [x] Bartender moved behind the bar in the expanded pub
 - [x] Pub quiz expanded to 71 general and beer questions
 
 ## guab-rickroll — `█████████░` 85% (17/20)
 
 **What it does:** the 5% joke. A tagged block sends the victim to a hidden cinema, locks them in spectator, and plays the rickroll video and song, then puts them back exactly where they were.
 
-Status: live. One-minute cut from 0:19 (720 frames, 60s, 7.62 MB pack), 12 fps, shared 256-color palette, synced lyrics, notched 1:00 boss bar, brighter cinema, disconnect restore, and a 65%/5 min trigger. Shows are counted in the shared stats tracker.
+Status: live. 25-second show cut from 0:19, 12 fps, shared 256-color palette, synced lyrics, notched boss bar, brighter cinema, disconnect restore, and a 65%/5 min trigger. Shows are counted in the shared stats tracker. Post-effect blur is off; the brief tracking flash remains.
 
 - [x] 5% trigger block, per-player cooldown (300s)
 - [x] `/rickroll setblock`, `remove`, `test`, `stop`, `verify`, `reload`
@@ -83,17 +87,17 @@ Status: live. One-minute cut from 0:19 (720 frames, 60s, 7.62 MB pack), 12 fps, 
 - [x] SHA-1 verification, frame count/fps/duration via `pack.properties`
 - [x] Spectator lock, per-player midnight, restore on stop/quit/restart
 - [x] Fallback when the pack is declined
-- [x] 60-second cut from 0:19 (AV1 source, 12 fps, 192x108, shared 256-color palette, 7.62 MB lossless)
+- [x] 25-second show from 0:19 (single cut, 12 fps, shared 256-color palette, compact pack)
 - [x] Visual QA: video, texture path, audio on the old 6-block screen
 - [x] Synced lyrics on the action bar (LRC timestamps)
-- [x] Boss-bar countdown timer (1:00 to 0:00, notched)
+- [x] Boss-bar countdown timer (0:25 to 0:00, notched)
 - [ ] Check the new 10-block screen, red frame, lights, and stair direction
 - [x] Mark the first block in-game with `/rickroll setblock`
-- [ ] Full 1-minute show test, including disconnect mid-show
+- [ ] Full 25-second show test, including disconnect mid-show
 - [x] Tune `cinema.width`/`height`, `chance`, `cooldown-seconds` (20/11.25, 65%, 5 min)
 - [x] Report every show to the shared stats tracker
 - [x] Decide full video vs loop: 1-minute cut, no loop
-- [ ] Optional: VHS static, scanlines
+- [x] VHS tracking beat, projector sounds and a short particle burst
 
 ## guab-gambling — `█████████░` 86% (12/14)
 
