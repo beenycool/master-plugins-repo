@@ -11,6 +11,9 @@ battlepit:
   # Horizontal radius from the pit spawn that counts as inside the arena.
   arena-radius: 24.0
 
+  # Restore your inventory if you teleport or walk far outside the arena.
+  auto-leave-outside: true
+
   # Cobblestone placed by fighters inside the arena crumbles after this many seconds.
   cobblestone-decay:
     enabled: true

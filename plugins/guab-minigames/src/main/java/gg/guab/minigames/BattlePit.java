@@ -120,6 +120,7 @@ public final class BattlePit implements Listener {
         player.getInventory().clear();
         player.getInventory().setArmorContents(new ItemStack[4]);
         player.getInventory().setItemInOffHand(null);
+        player.setItemOnCursor(null);
         BattleKit.give(player);
         player.teleport(spawn);
         player.setFallDistance(0);
@@ -239,6 +240,11 @@ public final class BattlePit implements Listener {
             if (player == null || !player.isOnline()) {
                 continue;
             }
+            if (plugin.getConfig().getBoolean("battlepit.auto-leave-outside", true)
+                    && !inArena(player.getLocation())) {
+                leave(player);
+                continue;
+            }
             if (!actionBar) {
                 continue;
             }
@@ -331,6 +337,8 @@ public final class BattlePit implements Listener {
                 clone(inventory.getContents()),
                 clone(inventory.getArmorContents()),
                 inventory.getItemInOffHand() == null ? null : inventory.getItemInOffHand().clone(),
+                player.getItemOnCursor() == null ? null : player.getItemOnCursor().clone(),
+                inventory.getHeldItemSlot(),
                 player.getLevel(),
                 player.getExp());
     }
@@ -345,6 +353,8 @@ public final class BattlePit implements Listener {
         inventory.setContents(saved.contents());
         inventory.setArmorContents(saved.armor());
         inventory.setItemInOffHand(saved.offHand());
+        inventory.setHeldItemSlot(saved.heldSlot());
+        player.setItemOnCursor(saved.cursor());
         player.setLevel(saved.level());
         player.setExp(saved.exp());
     }
@@ -358,7 +368,7 @@ public final class BattlePit implements Listener {
     }
 
     private record SavedInventory(ItemStack[] contents, ItemStack[] armor, ItemStack offHand,
-                                  int level, float exp) {
+                                  ItemStack cursor, int heldSlot, int level, float exp) {
     }
 
 }
