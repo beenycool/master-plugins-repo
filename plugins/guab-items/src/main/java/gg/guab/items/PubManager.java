@@ -167,20 +167,20 @@ public final class PubManager {
     }
 
     public void recordDrink(Player player, BeerBrand brand) {
-        recordDrink(player, brand.style(), brand.unitsMilli(), brand.displayName());
+        recordDrink(player, brand.style(), brand.unitsMilli());
     }
 
     public void recordDrink(Player player, BeerStyle style) {
-        recordDrink(player, style, style.unitsMilli(), style.displayName());
+        recordDrink(player, style, style.unitsMilli());
     }
 
-    private void recordDrink(Player player, BeerStyle style, int unitsMilli, String drinkName) {
+    private void recordDrink(Player player, BeerStyle style, int unitsMilli) {
         PlayerPints entry = players.computeIfAbsent(player.getUniqueId(),
                 id -> new PlayerPints(player.getName()));
         entry.name = player.getName();
         entry.total++;
         entry.unitsMilli += unitsMilli;
-        entry.recent.addLast(new Drink(System.currentTimeMillis(), unitsMilli, drinkName));
+        entry.recent.addLast(new Drink(System.currentTimeMillis(), unitsMilli, style.id()));
         prune(entry);
         dirty = true;
         hologramDirty = true;
@@ -189,7 +189,7 @@ public final class PubManager {
         entry.peakUnits = Math.max(entry.peakUnits, units);
         DrunkEffects.Tier tier = DrunkEffects.forUnits(units);
         DrunkEffects.Tier previous = lastTier.put(player.getUniqueId(), tier);
-        DrunkEffects.apply(player, tier, previous);
+        DrunkEffects.apply(player, tier, previous, style.id());
         if (previous == null || tier.level() > previous.level()) {
             player.sendMessage(prefix().append(Component.text(
                     "You are now " + tier.label() + ".", tier.colour())));
@@ -228,6 +228,20 @@ public final class PubManager {
         recordDrink(player, plugin.beer().houseBrand());
     }
 
+    private String latestStyle(PlayerPints entry) {
+        if (entry == null) {
+            return null;
+        }
+        var drinks = entry.recent.descendingIterator();
+        while (drinks.hasNext()) {
+            Drink drink = drinks.next();
+            if (drink.unitsMilli() > 0) {
+                return drink.styleId();
+            }
+        }
+        return null;
+    }
+
     private void prune(PlayerPints entry) {
         long cutoff = System.currentTimeMillis() - windowMillis();
         while (!entry.recent.isEmpty() && entry.recent.peekFirst().at < cutoff) {
@@ -247,6 +261,8 @@ public final class PubManager {
             double units = drunkUnits(id);
             DrunkEffects.Tier tier = DrunkEffects.forUnits(units);
             DrunkEffects.Tier previous = lastTier.get(id);
+            PlayerPints profile = players.get(id);
+            String latestStyle = latestStyle(profile);
 
             if (units <= 0.05) {
                 if (previous != null) {
@@ -261,7 +277,7 @@ public final class PubManager {
             }
 
             if (previous == null || previous != tier || tickCounter % 5 == 0) {
-                DrunkEffects.apply(player, tier, previous);
+                DrunkEffects.apply(player, tier, previous, latestStyle);
             }
             if (previous == null || previous != tier) {
                 lastTier.put(id, tier);
@@ -539,6 +555,6 @@ public final class PubManager {
         }
     }
 
-    private record Drink(long at, int unitsMilli, String style) {
+    private record Drink(long at, int unitsMilli, String styleId) {
     }
 }
