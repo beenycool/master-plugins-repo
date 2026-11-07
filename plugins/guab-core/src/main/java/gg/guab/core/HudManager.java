@@ -120,36 +120,42 @@ public final class HudManager implements Listener, CommandExecutor {
         return !hide;
     }
 
-    private static final List<String> DEFAULT_WELCOME = List.of(
+    private static final List<String> DEFAULT_FIRST_JOIN = List.of(
             "&6&lWelcome to Guab, &f%player%&6!",
+            "&7You start with &6%points% &7points.",
+            "&eMenu &8» &f/guab",
+            "&ePub &8» &f/beer &7· &ePit &8» &f/battlepit join",
+            "&eCasino &8» &f/casino &7· &eDarts &8» &f/darts");
+
+    private static final List<String> DEFAULT_RETURNING = List.of(
+            "&6&lWelcome back, &f%player%&6!",
             "&7Balance &8» &6%points% &7points",
-            "",
-            "&6Where everything is:",
-            "&eCasino &8» &f/casino &7— slots, roulette, chicken, fights",
-            "&eWetherspoons &8» &7inside the casino, north-west corner &8— &f1-point beer",
-            "&eBattle pit &8» &f/battlepit join &7— 50 points per kill",
-            "&eBlackjack &8» &f/bj <bet> &7— hit, stand or double",
-            "&ePoints &8» &f/points &7| &f/bal &7| &f/points top",
-            "&eHUD &8» &f/hud &7to hide or show the sidebar");
+            "&eMenu &8» &f/guab");
 
     private void sendWelcome(Player player) {
         if (!player.isOnline() || !plugin.getConfig().getBoolean("hud.join-message.enabled", true)) {
             return;
         }
-        List<String> template = plugin.getConfig().getStringList("hud.join-message.lines");
+        boolean firstJoin = !player.hasPlayedBefore();
+        String path = firstJoin
+                ? "hud.join-message.first-join.lines"
+                : "hud.join-message.returning.lines";
+        List<String> template = plugin.getConfig().getStringList(path);
+        if (template.isEmpty() && !firstJoin) {
+            template = plugin.getConfig().getStringList("hud.join-message.lines");
+        }
         if (template.isEmpty()) {
-            template = DEFAULT_WELCOME;
+            template = firstJoin ? DEFAULT_FIRST_JOIN : DEFAULT_RETURNING;
         }
         player.sendMessage(Component.empty());
         for (String line : template) {
             player.sendMessage(parse(replace(line, player)));
         }
-        player.sendMessage(Component.empty()
-                .append(button("[Enter casino]", "/casino", NamedTextColor.GREEN, "Teleport to the casino"))
-                .append(Component.text("  "))
-                .append(button("[Battle pit]", "/battlepit join", NamedTextColor.RED, "Join the free-for-all pit"))
-                .append(Component.text("  "))
-                .append(button("[Blackjack]", "/bj 10", NamedTextColor.AQUA, "Start a 10-point blackjack hand")));
+        if (firstJoin) {
+            player.sendMessage(Component.empty()
+                    .append(button("[Open menu]", "/guab", NamedTextColor.GREEN,
+                            "Open the Guab menu")));
+        }
     }
 
     private Component button(String label, String command, NamedTextColor color, String hover) {

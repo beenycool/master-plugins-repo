@@ -30,21 +30,22 @@ hud:
     header: "&6&lGUAB PARKOUR\n&7Casino night"
     footer: "&7Points &8» &6%points% &8| &7Online &f%online%"
 
-  # Welcome guide shown only to the player who just joined. Supports %player%
-  # and %points%. A row of clickable command buttons is appended automatically.
+  # Welcome guide shown only to the player who just joined. Supports %player%,
+  # %points% and %online%. First-time joiners get the longer guide.
   join-message:
     enabled: true
-    lines:
-      - "&6&lWelcome to Guab, &f%player%&6!"
-      - "&7Balance &8» &6%points% &7points"
-      - ""
-      - "&6Where everything is:"
-      - "&eCasino &8» &f/casino &7— slots, roulette, chicken, fights"
-      - "&eWetherspoons &8» &7inside the casino, north-west corner &8— &f1-point beer"
-      - "&eBattle pit &8» &f/battlepit join &7— 50 points per kill"
-      - "&eBlackjack &8» &f/bj <bet> &7— hit, stand or double"
-      - "&ePoints &8» &f/points &7| &f/bal &7| &f/points top"
-      - "&eHUD &8» &f/hud &7to hide or show the sidebar"
+    first-join:
+      lines:
+        - "&6&lWelcome to Guab, &f%player%&6!"
+        - "&7You start with &6%points% &7points."
+        - "&eMenu &8» &f/guab"
+        - "&ePub &8» &f/beer &7· &ePit &8» &f/battlepit join"
+        - "&eCasino &8» &f/casino &7· &eDarts &8» &f/darts"
+    returning:
+      lines:
+        - "&6&lWelcome back, &f%player%&6!"
+        - "&7Balance &8» &6%points% &7points"
+        - "&eMenu &8» &f/guab"
 
   # Balance floating under each player's nametag, right above their head.
   # Uses the vanilla below_name scoreboard slot, so it follows players and works
