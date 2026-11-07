@@ -140,6 +140,24 @@ beer:
 
 # The Wetherspoons pub side of the plugin.
 pub:
+  # The Wetherspoons bartender NPC behind the bar.
+  bartender:
+    enabled: true
+    world: guab_casino
+    x: -17.5
+    y: 65.0
+    z: -15.5
+    yaw: 0.0
+    pitch: 0.0
+    name: "&6Wetherspoons Bartender"
+    menu: true
+    messages:
+      - "What can I get you?"
+      - "The Guinness is off. It isn't, but it's tradition."
+      - "Kitchen's closed."
+      - "You want ice in that? In a pint?"
+      - "Cash or points, love."
+
   # Protect the bar tap, shelves and dartboard from being broken.
   protection:
     enabled: true

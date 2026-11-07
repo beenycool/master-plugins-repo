@@ -15,6 +15,7 @@ public final class GuabItemsPlugin extends JavaPlugin {
     private PubQuiz quiz;
     private DartsManager darts;
     private MenuShelves menuShelves;
+    private Bartender bartender;
 
     @Override
     public void onEnable() {
@@ -33,6 +34,8 @@ public final class GuabItemsPlugin extends JavaPlugin {
         this.darts = new DartsManager(this);
         this.darts.start();
         this.menuShelves = new MenuShelves(this);
+        this.bartender = new Bartender(this);
+        this.bartender.start();
 
         getServer().getPluginManager().registerEvents(new ItemListener(this), this);
         getServer().getPluginManager().registerEvents(new BeerTapListener(this), this);
@@ -102,6 +105,7 @@ public final class GuabItemsPlugin extends JavaPlugin {
         quiz.reloadQuestions();
         menuShelves.reload();
         darts.reload();
+        bartender.reload();
     }
 
     public ItemsConfig config() {
@@ -118,6 +122,10 @@ public final class GuabItemsPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (bartender != null) {
+            bartender.stop();
+            bartender = null;
+        }
         if (darts != null) {
             darts.stop();
             darts = null;
