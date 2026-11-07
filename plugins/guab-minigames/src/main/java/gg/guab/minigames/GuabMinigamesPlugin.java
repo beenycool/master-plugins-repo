@@ -15,6 +15,7 @@ public final class GuabMinigamesPlugin extends JavaPlugin {
         this.pit.start();
         this.killPlane = new KillPlane(this);
         this.killPlane.start();
+        getServer().getPluginManager().registerEvents(new ArenaDecay(this, pit), this);
 
         PluginCommand killPlaneCommand = getCommand("killplane");
         if (killPlaneCommand != null) {

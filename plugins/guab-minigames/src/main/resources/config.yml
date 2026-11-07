@@ -8,6 +8,14 @@ battlepit:
   # Announce a kill streak every N kills.
   streak-announce-every: 5
 
+  # Horizontal radius from the pit spawn that counts as inside the arena.
+  arena-radius: 24.0
+
+  # Cobblestone placed by fighters inside the arena crumbles after this many seconds.
+  cobblestone-decay:
+    enabled: true
+    seconds: 15
+
   # Where /battlepit join drops you.
   spawn:
     world: world

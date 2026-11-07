@@ -75,6 +75,21 @@ public final class BattlePit implements Listener {
         return fighters.size();
     }
 
+    /** True when the location is inside the pit's horizontal arena bounds. */
+    public boolean inArena(Location location) {
+        Location spawn = spawn();
+        if (spawn == null || location.getWorld() == null) {
+            return false;
+        }
+        if (!location.getWorld().equals(spawn.getWorld())) {
+            return false;
+        }
+        double radius = plugin.getConfig().getDouble("battlepit.arena-radius", 24.0);
+        double dx = location.getX() + 0.5 - spawn.getX();
+        double dz = location.getZ() + 0.5 - spawn.getZ();
+        return dx * dx + dz * dz <= radius * radius;
+    }
+
     public List<String> fighterNames() {
         List<String> names = new ArrayList<>();
         for (UUID id : fighters) {
