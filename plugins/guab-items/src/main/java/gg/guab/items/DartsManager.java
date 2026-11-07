@@ -89,6 +89,8 @@ public final class DartsManager implements Listener {
         }
         store.save();
         games.clear();
+        matches.clear();
+        invites.clear();
         removeDisplay();
     }
 
