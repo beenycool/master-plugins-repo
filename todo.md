@@ -135,7 +135,7 @@ Status: live. Battle pit built in the overworld at `100, -61, 100` with join/lea
 - [x] Smart inventory save/restore on battle pit join, leave, disconnect and graceful stop
 - [x] `/parkour` teleport command with configurable start
 - [x] Respawn bell sound for every player respawn
-- [x] Kill plane below the play area (`/killplane`, default Y -63)
+- [x] Kill plane below the play area (`/killplane`, default Y -66)
 - [ ] Additional point-earning minigames outside the main parkour
 
 ## Platform

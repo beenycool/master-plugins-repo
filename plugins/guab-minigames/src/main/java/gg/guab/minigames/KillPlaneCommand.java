@@ -90,7 +90,7 @@ public final class KillPlaneCommand implements CommandExecutor, TabCompleter {
             return options;
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("set")) {
-            return List.of("-63", "-62", "-64");
+            return List.of("-66", "-64", "-62");
         }
         return List.of();
     }

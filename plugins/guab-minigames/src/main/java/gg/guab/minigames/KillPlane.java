@@ -104,7 +104,7 @@ public final class KillPlane implements Listener {
     }
 
     public double threshold() {
-        return plugin.getConfig().getDouble("killplane.y", -63.0);
+        return plugin.getConfig().getDouble("killplane.y", -66.0);
     }
 
     public void setThreshold(double y) {

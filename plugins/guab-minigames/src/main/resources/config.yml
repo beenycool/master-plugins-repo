@@ -36,12 +36,12 @@ parkour:
   pitch: 0.0
 
 # Kill players who fall below this Y. The playable floor sits around Y -61,
-# the pit floor is -62 and the world bottom is -64, so -63 catches falls fast.
+# the pit floor is -62 and the world bottom is -64, so -66 catches falls fast.
 killplane:
   enabled: true
   worlds:
     - world
-  y: -63.0
+  y: -66.0
   # Gamemodes the plane never kills, so admins can build below it.
   ignore-gamemodes:
     - CREATIVE
