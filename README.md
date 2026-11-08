@@ -143,6 +143,8 @@ A dedicated **Blackjack Dealer** NPC stands in the main casino hall near the bar
 
 `/blackjack <bet>` (aliases `/bj`, `/21`) also deals a hand directly. `/bj hit`, `/bj stand` and `/bj double` play it out; the chat buttons do the same. Blackjack pays 3:2, the dealer stands on 17, and the table settles directly against the points ledger. Hands auto-stand after `blackjack.timeout-seconds` and settle if the player disconnects.
 
+`/new [bet]` deals another hand at your previous bet (or the table minimum if you have not played yet), so you do not have to retype the amount after every hand.
+
 ### Chicken
 
 Players bet on red, blue, gold or green, then either cash out at the live multiplier or ride the lightning for the 4.6× colour bonus. The 7×7 board has 10 black (dead) tiles, so the chance of landing on the chosen colour is **39/196 ≈ 19.9%**. The chicken's multiplier climbs as it walks and golden pickups add to it, so cashing out early is a real choice rather than a flat refund. Winners are paid even if they disconnect before the round resolves.

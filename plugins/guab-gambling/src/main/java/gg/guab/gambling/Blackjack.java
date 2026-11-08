@@ -33,6 +33,7 @@ public final class Blackjack implements Listener {
     private final GuabGamblingPlugin plugin;
     private final Map<UUID, Hand> hands = new HashMap<>();
     private final Deque<Card> shoe = new ArrayDeque<>();
+    private final Map<UUID, Integer> lastBets = new HashMap<>();
     private final Random random = new Random();
     private BukkitTask task;
 
@@ -51,10 +52,17 @@ public final class Blackjack implements Listener {
             task = null;
         }
         hands.clear();
+        lastBets.clear();
     }
 
     public boolean hasHand(Player player) {
         return hands.containsKey(player.getUniqueId());
+    }
+
+    /** The player's last blackjack bet, or the table minimum when they have not played yet. */
+    public int lastBet(Player player) {
+        int fallback = Math.max(1, plugin.getConfig().getInt("blackjack.min-bet", 10));
+        return lastBets.getOrDefault(player.getUniqueId(), fallback);
     }
 
     /** Re-print the current hand and its action buttons (used by the dealer NPC). */
@@ -93,6 +101,7 @@ public final class Blackjack implements Listener {
             msg(player, "&cYou do not have enough points.", NamedTextColor.RED);
             return;
         }
+        lastBets.put(player.getUniqueId(), bet);
         Hand hand = new Hand(player.getUniqueId(), player.getName(), bet);
         hand.cards.add(draw());
         hand.dealer.add(draw());

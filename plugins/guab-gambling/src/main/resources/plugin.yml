@@ -18,6 +18,9 @@ commands:
     description: Play a hand of blackjack against the dealer.
     usage: /blackjack <bet> | /blackjack hit|stand|double | /blackjack setdealer
     aliases: [bj, 21]
+  new:
+    description: Deal another blackjack hand at your last bet.
+    usage: /new [bet]
 
 permissions:
   guab.casino.use:

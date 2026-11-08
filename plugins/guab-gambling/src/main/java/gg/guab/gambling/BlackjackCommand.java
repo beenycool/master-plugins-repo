@@ -30,6 +30,10 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
             error(sender, "Blackjack is played in game.");
             return true;
         }
+        if (command.getName().equalsIgnoreCase("new")) {
+            newHand(player, args);
+            return true;
+        }
         if (args.length == 0) {
             if (blackjack.hasHand(player)) {
                 info(player, "You have a hand in play. Use /bj hit, /bj stand or /bj double.");
@@ -61,6 +65,24 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    /** /new starts another hand at the same bet without retyping the amount. */
+    private void newHand(Player player, String[] args) {
+        if (blackjack.hasHand(player)) {
+            info(player, "Finish this hand first: /bj hit, /bj stand or /bj double.");
+            return;
+        }
+        int bet = blackjack.lastBet(player);
+        if (args.length > 0) {
+            try {
+                bet = Integer.parseInt(args[0]);
+            } catch (NumberFormatException exception) {
+                error(player, "Usage: /new [bet]");
+                return;
+            }
+        }
+        blackjack.start(player, bet);
+    }
+
     private void info(CommandSender sender, String message) {
         sender.sendMessage(Component.text("[Blackjack] ", NamedTextColor.GOLD)
                 .append(Component.text(message, NamedTextColor.WHITE)));
@@ -75,6 +97,12 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> out = new ArrayList<>();
         if (args.length == 1) {
+            if (command.getName().equalsIgnoreCase("new")) {
+                if (sender instanceof Player player) {
+                    out.add(String.valueOf(blackjack.lastBet(player)));
+                }
+                return out;
+            }
             if (sender instanceof Player player && blackjack.hasHand(player)) {
                 out.addAll(List.of("hit", "stand", "double"));
             } else {

@@ -35,11 +35,16 @@ public final class GuabGamblingPlugin extends JavaPlugin {
         this.blackjack.start();
         this.dealer = new BlackjackDealer(this, blackjack);
         this.dealer.start();
+        BlackjackCommand blackjackExecutor = new BlackjackCommand(this, blackjack, dealer);
         PluginCommand blackjackCommand = getCommand("blackjack");
         if (blackjackCommand != null) {
-            BlackjackCommand executor = new BlackjackCommand(this, blackjack, dealer);
-            blackjackCommand.setExecutor(executor);
-            blackjackCommand.setTabCompleter(executor);
+            blackjackCommand.setExecutor(blackjackExecutor);
+            blackjackCommand.setTabCompleter(blackjackExecutor);
+        }
+        PluginCommand newHandCommand = getCommand("new");
+        if (newHandCommand != null) {
+            newHandCommand.setExecutor(blackjackExecutor);
+            newHandCommand.setTabCompleter(blackjackExecutor);
         }
         getServer().getPluginManager().registerEvents(new CasinoGuard(venue), this);
         getServer().getPluginManager().registerEvents(dealer, this);
