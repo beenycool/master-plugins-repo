@@ -92,7 +92,7 @@ public final class Bartender implements Listener {
         }
         event.setCancelled(true);
         Player player = event.getPlayer();
-        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_YES, 0.8f, 1.0f);
+        GuabSounds.play(player, Sound.ENTITY_VILLAGER_YES, 0.8f, 1.0f);
         List<String> messages = plugin.getConfig().getStringList("pub.bartender.messages");
         if (!messages.isEmpty()) {
             String line = messages.get(ThreadLocalRandom.current().nextInt(messages.size()));

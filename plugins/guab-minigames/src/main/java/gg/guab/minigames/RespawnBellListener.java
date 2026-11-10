@@ -5,6 +5,7 @@ import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerRespawnEvent;
 
@@ -17,19 +18,28 @@ public final class RespawnBellListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onRespawn(PlayerRespawnEvent event) {
         if (!plugin.getConfig().getBoolean("respawn-bell.enabled", true)) {
             return;
         }
         Player player = event.getPlayer();
+        if (plugin.getConfig().getBoolean("respawn-bell.only-in-pit", false)
+                && (plugin.pit() == null || !plugin.pit().inPit(player))) {
+            return;
+        }
         Location location = event.getRespawnLocation();
+        if (location == null || location.getWorld() == null) {
+            return;
+        }
         float volume = (float) plugin.getConfig().getDouble("respawn-bell.volume", 4.0);
         float pitch = (float) plugin.getConfig().getDouble("respawn-bell.pitch", 0.5);
 
-        player.getWorld().playSound(location, Sound.BLOCK_BELL_USE,
+        // Play at the actual respawn point and in its world, so a respawn that
+        // crosses worlds (or a bed/anchor) still rings in the right place.
+        location.getWorld().playSound(location, Sound.BLOCK_BELL_USE,
                 SoundCategory.MASTER, volume, pitch);
-        player.getWorld().playSound(location, Sound.BLOCK_BELL_RESONATE,
+        location.getWorld().playSound(location, Sound.BLOCK_BELL_RESONATE,
                 SoundCategory.MASTER, volume, pitch);
 
         // A second ring makes it feel much bigger.

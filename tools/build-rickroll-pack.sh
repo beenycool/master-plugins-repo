@@ -148,6 +148,14 @@ sha1=${SHA1}
 audio=${HAS_AUDIO}
 EOF
 
+# Re-open the finished pack and check every frame/model/texture chain, the
+# sound event and duration*fps before reporting success.
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$ROOT/tools/verify-rickroll-pack.py" \
+    --pack "$DEST/resourcepack/rickroll.zip" \
+    --properties "$DEST/data/plugins/GuabRickroll/pack.properties"
+fi
+
 UNIQUE=$(find "$FRAMES" -name '*.png' | wc -l)
 echo
 echo "Installed:"

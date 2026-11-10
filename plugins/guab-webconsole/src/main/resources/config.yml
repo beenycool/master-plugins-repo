@@ -1,16 +1,22 @@
 # Token-protected HTTP command endpoint.
 #
-#   curl "http://YOUR_IP:39100/command?token=SECRET&cmd=list"
-#   curl -H "Authorization: Bearer SECRET" "http://YOUR_IP:39100/command?cmd=list"
-#   curl -X POST -H "Authorization: Bearer SECRET" --data "say hello" \
-#        "http://YOUR_IP:39100/command"
+# Loopback by default: the port is not reachable from the internet. Use an SSH
+# tunnel from your laptop (see README.md):
 #
-# The port must be reachable from the internet. On shared Minecraft hosting only
-# the game port is usually exposed, so ask the host for an extra TCP port or run
-# a relay (see README.md).
+#   ssh -N -L 39100:127.0.0.1:39100 user@your-server
+#   curl -H "Authorization: Bearer SECRET" "http://127.0.0.1:39100/command?cmd=list"
+#   curl -X POST -H "Authorization: Bearer SECRET" --data "say hello" \
+#        "http://127.0.0.1:39100/command"
+#
+# Prefer the Authorization header over ?token=; query strings end up in logs
+# and shell history. If you must expose the port directly, put TLS in front of
+# it (reverse proxy) and set web.allowed-ips.
 web:
   enabled: true
-  bind: "0.0.0.0"
+  # Loopback only for bare-metal installs. When running inside Docker with a
+  # 127.0.0.1:39100:39100 host mapping, set this to 0.0.0.0: Docker forwards
+  # to the container interface but the host mapping is still loopback-only.
+  bind: "127.0.0.1"
   port: 39100
 
   # Must be a long random string. The server refuses to start with the default.
@@ -18,6 +24,9 @@ web:
 
   request-timeout-seconds: 10
   max-command-length: 1000
+  # Cap on POST bodies before they are read/decoded.
+  max-body-bytes: 16384
+  # Per-source-IP cap for all /command requests, including failed auth attempts.
   rate-limit-per-minute: 60
 
   # Empty list = allow any source IP. Otherwise list exact IPs.

@@ -5,11 +5,36 @@ chance: 0.05
 cooldown-seconds: 300
 
 pack:
+  # Set false (or leave url blank) to skip the pack wait entirely and use the
+  # blindness/Pigstep fallback immediately.
+  enabled: true
   url: "http://145.241.198.214:39002/rickroll.zip"
   preload: true
   # How long to wait for the client to accept/download the pack before falling back.
   timeout-seconds: 180
   file: "/resourcepack/rickroll.zip"
+
+trigger:
+  # /rickroll pause sets this to true and persists it; /rickroll resume clears it.
+  paused: false
+  # GuabCore /settings preferences are respected: rickroll-opt-out blocks
+  # natural triggers (staff /rickroll test still works) and reduced-motion
+  # skips the camera dolly and flashing effects.
+  # Natural triggers are skipped in these worlds. The cinema, darts and casino
+  # are the hosted minigame worlds; add your own event worlds here.
+  ignore-worlds:
+    - guab_darts
+    - guab_casino
+    - guab_cinema
+  # Natural triggers are skipped in these game modes (spectators are always skipped).
+  ignore-gamemodes:
+    - SPECTATOR
+    - CREATIVE
+  # Grace period after joining / teleporting before a block can trigger.
+  join-grace-seconds: 30
+  teleport-grace-seconds: 5
+  ignore-vehicles: true
+  ignore-gliding: true
 
 cinema:
   world: "guab_cinema"

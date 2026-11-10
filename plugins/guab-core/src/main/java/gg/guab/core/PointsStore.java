@@ -1,5 +1,6 @@
 package gg.guab.core;
 
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -12,6 +13,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -24,28 +26,69 @@ public final class PointsStore implements PointsService {
     private final Path file;
     private final Map<UUID, Integer> balances = new ConcurrentHashMap<>();
     private final Object writeLock = new Object();
+    private volatile boolean loadFailed;
+    private volatile String loadError;
 
     public PointsStore(Path file) {
         this.file = file;
     }
 
+    /**
+     * Loads the ledger fail-safe: a non-empty file that cannot be understood is
+     * preserved (and copied to {@code .bak}) instead of being silently replaced by
+     * an empty ledger on the next save.
+     */
     public void load() {
-        balances.clear();
+        loadFailed = false;
+        loadError = null;
         if (!Files.isRegularFile(file)) {
+            balances.clear();
             return;
         }
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
-        ConfigurationSection section = yaml.getConfigurationSection("players");
-        if (section == null) {
-            return;
-        }
-        for (String key : section.getKeys(false)) {
-            try {
-                balances.put(UUID.fromString(key), Math.max(0, section.getInt(key, 0)));
-            } catch (IllegalArgumentException ignored) {
-                // Skip malformed keys instead of failing the whole ledger.
+        Map<UUID, Integer> parsed = new HashMap<>();
+        try {
+            if (Files.size(file) == 0) {
+                balances.clear();
+                return;
             }
+            YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
+            ConfigurationSection section = yaml.getConfigurationSection("players");
+            if (section == null) {
+                failLoad("no 'players' section");
+                return;
+            }
+            for (String key : section.getKeys(false)) {
+                try {
+                    parsed.put(UUID.fromString(key), Math.max(0, section.getInt(key, 0)));
+                } catch (IllegalArgumentException ignored) {
+                    // Skip malformed keys instead of failing the whole ledger.
+                }
+            }
+        } catch (RuntimeException | IOException exception) {
+            failLoad(exception.getMessage() == null ? exception.getClass().getSimpleName()
+                    : exception.getMessage());
+            return;
         }
+        balances.clear();
+        balances.putAll(parsed);
+    }
+
+    private void failLoad(String reason) {
+        loadFailed = true;
+        loadError = reason;
+        try {
+            backup();
+        } catch (IOException ignored) {
+            // The original file is still untouched; a later save will try again.
+        }
+    }
+
+    public boolean loadFailed() {
+        return loadFailed;
+    }
+
+    public String loadError() {
+        return loadError;
     }
 
     @Override
@@ -55,7 +98,10 @@ public final class PointsStore implements PointsService {
 
     @Override
     public void set(UUID player, int amount) {
-        balances.put(player, Math.max(0, amount));
+        int before = get(player);
+        int after = Math.max(0, amount);
+        balances.put(player, after);
+        fireChange(player, before, after);
     }
 
     @Override
@@ -63,13 +109,17 @@ public final class PointsStore implements PointsService {
         if (amount == 0) {
             return get(player);
         }
-        return balances.merge(player, amount, (current, delta) -> {
-            long next = (long) current + delta;
+        int[] before = new int[1];
+        int after = balances.compute(player, (key, current) -> {
+            before[0] = current == null ? 0 : current;
+            long next = (long) before[0] + amount;
             if (next <= 0) {
                 return 0;
             }
             return next > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) next;
         });
+        fireChange(player, before[0], after);
+        return after;
     }
 
     @Override
@@ -78,15 +128,67 @@ public final class PointsStore implements PointsService {
             return false;
         }
         boolean[] taken = { false };
+        int[] before = new int[1];
         balances.compute(player, (key, current) -> {
             int balance = current == null ? 0 : current;
+            before[0] = balance;
             if (balance < amount) {
                 return balance;
             }
             taken[0] = true;
             return balance - amount;
         });
+        if (taken[0]) {
+            fireChange(player, before[0], before[0] - amount);
+        }
         return taken[0];
+    }
+
+    @Override
+    public boolean transfer(UUID from, UUID to, int amount) {
+        if (from == null || to == null || from.equals(to) || amount <= 0) {
+            return false;
+        }
+        boolean[] moved = { false };
+        int[] fromBefore = new int[1];
+        int fromAfter = balances.compute(from, (key, current) -> {
+            int balance = current == null ? 0 : current;
+            fromBefore[0] = balance;
+            if (balance < amount) {
+                return balance;
+            }
+            moved[0] = true;
+            return balance - amount;
+        });
+        if (!moved[0]) {
+            return false;
+        }
+        int[] toBefore = new int[1];
+        int toAfter = balances.compute(to, (key, current) -> {
+            int balance = current == null ? 0 : current;
+            toBefore[0] = balance;
+            long next = (long) balance + amount;
+            return next > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) next;
+        });
+        fireChange(from, fromBefore[0], fromAfter);
+        fireChange(to, toBefore[0], toAfter);
+        return true;
+    }
+
+    @Override
+    public Set<UUID> knownPlayers() {
+        return Set.copyOf(balances.keySet());
+    }
+
+    private static void fireChange(UUID player, int before, int after) {
+        if (before == after || Bukkit.getServer() == null) {
+            return;
+        }
+        var manager = Bukkit.getPluginManager();
+        if (manager == null) {
+            return;
+        }
+        manager.callEvent(new GuabPointsChangeEvent(player, before, after));
     }
 
     @Override
@@ -94,7 +196,8 @@ public final class PointsStore implements PointsService {
         int wanted = Math.max(1, limit);
         return balances.entrySet().stream()
                 .filter(entry -> entry.getValue() > 0)
-                .sorted(Map.Entry.<UUID, Integer>comparingByValue().reversed())
+                .sorted(Map.Entry.<UUID, Integer>comparingByValue().reversed()
+                        .thenComparing(entry -> entry.getKey().toString()))
                 .limit(wanted)
                 .map(entry -> Map.entry(entry.getKey(), entry.getValue()))
                 .toList();
@@ -107,17 +210,29 @@ public final class PointsStore implements PointsService {
     /** Write a snapshot to disk. Safe to call from an async task. */
     public void save() {
         Map<UUID, Integer> snapshot = new HashMap<>(balances);
+        if (loadFailed && snapshot.isEmpty()) {
+            throw new IllegalStateException("Refusing to overwrite unreadable "
+                    + file.getFileName() + ": " + loadError);
+        }
         YamlConfiguration yaml = new YamlConfiguration();
-        for (Map.Entry<UUID, Integer> entry : snapshot.entrySet()) {
-            yaml.set("players." + entry.getKey(), entry.getValue());
+        if (snapshot.isEmpty()) {
+            yaml.createSection("players");
+        } else {
+            for (Map.Entry<UUID, Integer> entry : snapshot.entrySet()) {
+                yaml.set("players." + entry.getKey(), entry.getValue());
+            }
         }
         synchronized (writeLock) {
             try {
-                Files.createDirectories(file.getParent());
+                if (file.getParent() != null) {
+                    Files.createDirectories(file.getParent());
+                }
+                backup();
                 Path temp = file.resolveSibling(file.getFileName() + ".tmp");
                 Files.writeString(temp, yaml.saveToString(), StandardCharsets.UTF_8);
                 try {
-                    Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                    Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
+                            StandardCopyOption.ATOMIC_MOVE);
                 } catch (AtomicMoveNotSupportedException ignored) {
                     Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
                 }
@@ -125,5 +240,14 @@ public final class PointsStore implements PointsService {
                 throw new IllegalStateException("Could not save " + file.getFileName(), exception);
             }
         }
+    }
+
+    /** Keeps one previous revision next to the live ledger. */
+    private void backup() throws IOException {
+        if (!Files.isRegularFile(file)) {
+            return;
+        }
+        Path bak = file.resolveSibling(file.getFileName() + ".bak");
+        Files.copy(file, bak, StandardCopyOption.REPLACE_EXISTING);
     }
 }

@@ -17,8 +17,8 @@ import java.util.Locale;
 public final class GuabMenuCommand implements CommandExecutor, TabCompleter {
 
     private static final String PERMISSION = "guab.menu.use";
-    private static final List<String> PAGES =
-            List.of("pub", "casino", "darts", "parkour", "stats");
+    private static final List<String> PAGES = List.of(
+            "help", "pub", "beer", "casino", "darts", "parkour", "battlepit", "stats", "points");
 
     private final GuabItemsPlugin plugin;
 
@@ -45,15 +45,19 @@ public final class GuabMenuCommand implements CommandExecutor, TabCompleter {
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "home", "menu" -> plugin.menu().openHome(player);
+            case "help", "commands", "?" -> plugin.menu().openHelp(player);
             case "pub", "beer" -> plugin.menu().openPub(player);
             case "casino" -> plugin.menu().openCasino(player);
             case "darts", "dart" -> plugin.menu().openDarts(player);
             case "parkour", "jump" -> player.performCommand("parkour");
+            case "battlepit", "battle", "pit" -> plugin.menu().openBattlePit(player);
             case "stats", "stat" -> plugin.menu().openStats(player);
+            case "points", "balance" -> player.performCommand("points");
             default -> {
                 player.sendMessage(Component.text("[Guab] ", NamedTextColor.GOLD)
                         .append(Component.text("Usage: /" + label
-                                + " [pub|casino|darts|parkour|stats]", NamedTextColor.GRAY)));
+                                + " [help|pub|casino|darts|parkour|battlepit|stats]",
+                                NamedTextColor.GRAY)));
                 return true;
             }
         }

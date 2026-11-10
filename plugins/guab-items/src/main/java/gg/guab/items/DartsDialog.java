@@ -69,6 +69,7 @@ public final class DartsDialog {
                         },
                         options()))
                 .build());
+        actions.add(backToHub(plugin));
 
         player.showDialog(build(
                 Component.text("The Wetherspoons Dartboard", NamedTextColor.GOLD),
@@ -76,6 +77,49 @@ public final class DartsDialog {
                 actions,
                 Component.text("Not tonight", NamedTextColor.GRAY),
                 2));
+    }
+
+    /** Contextual dialog for a player who already has a leg on the board. */
+    public static void openActive(GuabItemsPlugin plugin, Player player) {
+        DartsGame game = plugin.darts().game(player.getUniqueId());
+        String score = game == null ? "?" : String.valueOf(game.score());
+        List<DialogBody> body = List.of(
+                DialogBody.plainMessage(Component.text(
+                        "You are already on the oche: " + score + " left. Resume to go back, "
+                                + "quit to forfeit the leg, or check your record.",
+                        NamedTextColor.GRAY), 280),
+                DialogBody.plainMessage(Component.text(
+                        game == null ? "Practice/ranked leg in progress."
+                                : (game.practice() ? "Practice leg — no stats or rewards."
+                                        : "Ranked leg · " + game.mode() + " · leg "
+                                                + game.legNumber() + "/" + game.legsToWin()),
+                        NamedTextColor.GOLD), 280));
+
+        List<ActionButton> actions = new ArrayList<>();
+        actions.add(GuabDialogFactory.button(plugin,
+                Component.text("Resume", NamedTextColor.GREEN),
+                Component.text("Teleport back to your oche and show the HUD."), 140,
+                clicker -> plugin.darts().resume(clicker)));
+        actions.add(GuabDialogFactory.button(plugin,
+                Component.text("Quit", NamedTextColor.RED),
+                Component.text("Leave the leg. In a 1v1 this is a forfeit."), 140,
+                clicker -> plugin.darts().endGame(clicker, "You step away from the oche.")));
+        actions.add(GuabDialogFactory.button(plugin,
+                Component.text("My stats", NamedTextColor.AQUA),
+                Component.text("Career legs, 180s, checkouts and best leg."), 140,
+                clicker -> openStats(plugin, clicker)));
+        actions.add(backToHub(plugin));
+
+        player.showDialog(build(
+                Component.text("Your leg is still live", NamedTextColor.GOLD),
+                body, actions, Component.text("Close", NamedTextColor.GRAY), 2));
+    }
+
+    private static ActionButton backToHub(GuabItemsPlugin plugin) {
+        return GuabDialogFactory.button(plugin,
+                Component.text("Back to hub", NamedTextColor.YELLOW),
+                Component.text("Return to the main Guab menu."), 150,
+                clicker -> plugin.menu().openHome(clicker));
     }
 
     public static void openStats(GuabItemsPlugin plugin, Player player) {
@@ -96,22 +140,26 @@ public final class DartsDialog {
                                 + "   ·   Best visit: " + stats.bestVisit(),
                         NamedTextColor.GOLD), 280));
 
+        List<ActionButton> actions = new ArrayList<>();
+        actions.add(ActionButton.builder(Component.text("Back to the board", NamedTextColor.YELLOW))
+                .width(160)
+                .action(DialogAction.customClick(
+                        (DialogResponseView response, Audience audience) -> {
+                            if (audience instanceof Player clicker) {
+                                plugin.getServer().getScheduler().runTask(plugin,
+                                        () -> openMenu(plugin, clicker));
+                            }
+                        },
+                        options()))
+                .build());
+        actions.add(backToHub(plugin));
+
         player.showDialog(build(
                 Component.text("Your darts record", NamedTextColor.GOLD),
                 body,
-                List.of(ActionButton.builder(Component.text("Back to the board", NamedTextColor.YELLOW))
-                        .width(160)
-                        .action(DialogAction.customClick(
-                                (DialogResponseView response, Audience audience) -> {
-                                    if (audience instanceof Player clicker) {
-                                        plugin.getServer().getScheduler().runTask(plugin,
-                                                () -> openMenu(plugin, clicker));
-                                    }
-                                },
-                                options()))
-                        .build()),
+                actions,
                 Component.text("Close", NamedTextColor.GRAY),
-                1));
+                2));
     }
 
     private static Dialog build(Component title, List<DialogBody> body, List<ActionButton> actions,

@@ -6,6 +6,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -13,6 +14,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -37,7 +39,7 @@ public final class KillPlane implements Listener {
 
     public void start() {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
-        task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
+        task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tick, 1L, 5L);
     }
 
     public void stop() {
@@ -53,9 +55,15 @@ public final class KillPlane implements Listener {
             return;
         }
         double limit = threshold();
+        if (!Double.isFinite(limit)) {
+            return;
+        }
         List<String> worlds = worlds();
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (player.isDead()) {
+                continue;
+            }
+            if (player.hasPermission("guab.killplane.bypass")) {
                 continue;
             }
             if (!worlds.isEmpty() && !worlds.contains(player.getWorld().getName().toLowerCase(Locale.ROOT))) {
@@ -64,11 +72,16 @@ public final class KillPlane implements Listener {
             if (ignored(player.getGameMode())) {
                 continue;
             }
-            if (player.getLocation().getY() >= limit) {
+            if (!isBelow(player.getLocation().getY(), limit)) {
                 continue;
             }
             kill(player);
         }
+    }
+
+    /** Pure predicate so malformed config values can never kill anyone. */
+    static boolean isBelow(double y, double limit) {
+        return Double.isFinite(y) && Double.isFinite(limit) && y < limit;
     }
 
     private void kill(Player player) {
@@ -118,12 +131,43 @@ public final class KillPlane implements Listener {
                 .toList();
     }
 
+    public List<String> ignoredGamemodes() {
+        return plugin.getConfig().getStringList("killplane.ignore-gamemodes");
+    }
+
+    public boolean addWorld(String name) {
+        World world = Bukkit.getWorld(name);
+        if (world == null) {
+            return false;
+        }
+        List<String> worlds = new ArrayList<>(plugin.getConfig().getStringList("killplane.worlds"));
+        boolean present = worlds.stream().anyMatch(value -> value.equalsIgnoreCase(world.getName()));
+        if (!present) {
+            worlds.add(world.getName());
+            plugin.getConfig().set("killplane.worlds", worlds);
+            plugin.saveConfig();
+        }
+        return true;
+    }
+
+    public boolean removeWorld(String name) {
+        World world = Bukkit.getWorld(name);
+        String wanted = world != null ? world.getName() : name;
+        List<String> worlds = new ArrayList<>(plugin.getConfig().getStringList("killplane.worlds"));
+        boolean removed = worlds.removeIf(value -> value.equalsIgnoreCase(wanted));
+        if (removed) {
+            plugin.getConfig().set("killplane.worlds", worlds);
+            plugin.saveConfig();
+        }
+        return removed;
+    }
+
     public String message() {
         return plugin.getConfig().getString("killplane.message", "&cYou fell out of the world.");
     }
 
     private boolean ignored(GameMode mode) {
-        for (String raw : plugin.getConfig().getStringList("killplane.ignore-gamemodes")) {
+        for (String raw : ignoredGamemodes()) {
             if (raw.equalsIgnoreCase(mode.name())) {
                 return true;
             }

@@ -3,8 +3,15 @@ name: Build plugins
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - '**.md'
+    # Only plugin changes should restart the live server. Docker, tool and
+    # documentation-only changes are verified by ci.yml instead.
+    paths:
+      - 'plugins/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
   workflow_dispatch:
 
 permissions:

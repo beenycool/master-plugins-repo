@@ -3,6 +3,7 @@ package gg.guab.core;
 import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** Shared counters such as deaths, kills, rickrolls and parkour uses. */
@@ -25,6 +26,11 @@ public interface StatsService {
     UUID find(String name);
 
     List<Entry> top(String metric, int limit);
+
+    /** Known tracked UUIDs and their last-seen names. */
+    default Map<UUID, String> knownPlayers() {
+        return Map.of();
+    }
 
     record Entry(UUID uuid, String name, int value) {
     }

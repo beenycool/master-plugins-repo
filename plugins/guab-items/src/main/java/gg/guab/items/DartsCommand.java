@@ -19,6 +19,7 @@ import java.util.Map;
 public final class DartsCommand implements CommandExecutor, TabCompleter {
 
     private static final String ADMIN = "guab.pub.darts.admin";
+    private static final List<String> MODES = List.of("101", "301", "501");
 
     private final GuabItemsPlugin plugin;
 
@@ -37,10 +38,13 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
-            case "start" -> start(sender, args);
+            case "start", "play" -> start(sender, args);
+            case "again", "rematch", "replay" -> again(sender);
+            case "practice", "practise", "training" -> practice(sender, args);
             case "challenge", "1v1" -> challenge(sender, args);
             case "accept" -> accept(sender, args);
             case "quit", "stop", "leave" -> quit(sender);
+            case "status", "info" -> status(sender);
             case "stats", "record" -> stats(sender, args);
             case "top", "leaderboard" -> top(sender, args);
             case "help", "howto" -> help(sender);
@@ -59,22 +63,65 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
         int mode = plugin.darts().config().defaultMode();
         int legs = plugin.darts().config().legsToWin();
         if (args.length >= 2) {
-            try {
-                mode = Integer.parseInt(args[1]);
-            } catch (NumberFormatException exception) {
-                error(sender, "Mode must be 101, 301 or 501.");
+            mode = parseMode(sender, args[1]);
+            if (mode == 0) {
                 return;
             }
         }
         if (args.length >= 3) {
             try {
-                legs = Math.clamp(Integer.parseInt(args[2]), 1, 9);
+                legs = Integer.parseInt(args[2]);
             } catch (NumberFormatException exception) {
+                error(sender, "Legs must be a number from 1 to 9.");
+                return;
+            }
+            if (legs < 1 || legs > 9) {
                 error(sender, "Legs must be a number from 1 to 9.");
                 return;
             }
         }
         plugin.darts().startGame(player, mode, legs);
+    }
+
+    private void again(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            error(sender, "Only players can replay a leg.");
+            return;
+        }
+        DartsManager.Preset preset = plugin.darts().lastPreset(player.getUniqueId());
+        if (preset == null) {
+            error(sender, "You have not played yet. Try /darts start.");
+            return;
+        }
+        plugin.darts().startGame(player, preset.mode(), preset.legs());
+    }
+
+    private void practice(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            error(sender, "Only players can practise.");
+            return;
+        }
+        int mode = plugin.darts().config().defaultMode();
+        if (args.length >= 2) {
+            mode = parseMode(sender, args[1]);
+            if (mode == 0) {
+                return;
+            }
+        }
+        plugin.darts().startGame(player, mode, 1, true);
+    }
+
+    private int parseMode(CommandSender sender, String raw) {
+        try {
+            int mode = Integer.parseInt(raw);
+            if (mode == 101 || mode == 301 || mode == 501) {
+                return mode;
+            }
+        } catch (NumberFormatException ignored) {
+            // Fall through to the shared message.
+        }
+        error(sender, "Mode must be 101, 301 or 501.");
+        return 0;
     }
 
     private void challenge(CommandSender sender, String[] args) {
@@ -116,30 +163,52 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
             error(sender, "Only players can leave a leg.");
             return;
         }
+        if (!plugin.darts().isPlaying(player.getUniqueId())) {
+            info(sender, "You are not in a leg. Start one with /darts start.");
+            return;
+        }
         plugin.darts().endGame(player, "You step away from the oche.");
     }
 
+    private void status(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            error(sender, "Use /darts status in game.");
+            return;
+        }
+        sender.sendMessage(prefix().append(Component.text("Your darts status", NamedTextColor.GOLD)));
+        for (String line : plugin.darts().statusLines(player)) {
+            sender.sendMessage(Component.text("  " + line, NamedTextColor.GRAY));
+        }
+    }
+
     private void stats(CommandSender sender, String[] args) {
-        Player target;
+        DartsStatsStore.Stats stats;
+        String name;
         if (args.length >= 2) {
-            if (!sender.hasPermission(ADMIN)) {
-                error(sender, "You need " + ADMIN + " to inspect another player.");
-                return;
+            // Public records: no admin permission and offline players are read
+            // straight from darts.yml.
+            name = args[1];
+            stats = plugin.darts().statsByName(name);
+            if (stats == null) {
+                Player online = Bukkit.getPlayerExact(name);
+                if (online != null) {
+                    stats = plugin.darts().stats(online.getUniqueId());
+                    name = online.getName();
+                }
             }
-            target = Bukkit.getPlayerExact(args[1]);
-            if (target == null) {
-                error(sender, "Player not online: " + args[1]);
+            if (stats == null) {
+                error(sender, "No darts record for " + args[1] + ".");
                 return;
             }
         } else if (sender instanceof Player player) {
-            target = player;
+            stats = plugin.darts().stats(player.getUniqueId());
+            name = player.getName();
         } else {
             error(sender, "Use /darts stats <player> from the console.");
             return;
         }
 
-        DartsStatsStore.Stats stats = plugin.darts().stats(target.getUniqueId());
-        sender.sendMessage(prefix().append(Component.text(target.getName() + "'s darts record",
+        sender.sendMessage(prefix().append(Component.text(name + "'s darts record",
                 NamedTextColor.GOLD)));
         line(sender, "Legs", stats.legsWon() + " won / " + stats.legsPlayed() + " played");
         line(sender, "Darts", stats.dartsThrown() + " thrown");
@@ -156,7 +225,8 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
             info(sender, "No darts records yet. The board is waiting.");
             return;
         }
-        sender.sendMessage(prefix().append(Component.text("Darts — top " + metric, NamedTextColor.GOLD)));
+        sender.sendMessage(prefix().append(Component.text("Darts — top " + metric,
+                NamedTextColor.GOLD)));
         for (int i = 0; i < entries.size(); i++) {
             sender.sendMessage(Component.text("  " + (i + 1) + ". ", NamedTextColor.DARK_GRAY)
                     .append(Component.text(entries.get(i).getKey(), NamedTextColor.WHITE))
@@ -166,19 +236,26 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
     }
 
     private void help(CommandSender sender) {
+        DartsConfig config = plugin.darts().config();
+        boolean beginner = config.beginnerAssist();
         sender.sendMessage(prefix().append(Component.text("How to play darts", NamedTextColor.GOLD)));
         sender.sendMessage(Component.text("  1. Right-click the dartboard on the pub's west wall.",
                 NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("  2. Pick 101, 301 or 501. You'll be teleported to the darts room.",
+        sender.sendMessage(Component.text("  2. Pick 101, 301 or 501 (default " + config.defaultMode()
+                + "). First to " + config.legsToWin() + " leg(s). You'll be teleported to the darts room.",
                 NamedTextColor.GRAY));
         sender.sendMessage(Component.text("  3. Hold right-click to draw the bow, release to shoot the target.",
                 NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("  4. Three arrows per visit. Reach exactly 0; the last arrow must be a double "
-                + "(bullseye 50 counts).", NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("  4. Three arrows per visit. " + (beginner
+                ? "Beginner assist is on: no busts, and any dart can finish on exactly 0."
+                : "Double out: the last arrow must be a double (bullseye 50 counts)."),
+                NamedTextColor.GRAY));
         sender.sendMessage(Component.text("  5. Challenge someone with /darts challenge <player>; they accept with "
                 + "/darts accept <you>.", NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("  Checkout hints show on the action bar. Use /darts stats, /darts top or /darts quit.",
-                NamedTextColor.DARK_GRAY));
+        sender.sendMessage(Component.text("  Practice with /darts practice [101|301|501] (no stats or rewards), "
+                + "or replay with /darts again.", NamedTextColor.DARK_GRAY));
+        sender.sendMessage(Component.text("  Checkout hints show on the action bar. Use /darts status, "
+                + "/darts stats [player], /darts top or /darts quit.", NamedTextColor.DARK_GRAY));
     }
 
     private void board(CommandSender sender) {
@@ -218,6 +295,7 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
 
     private void usage(CommandSender sender, String label) {
         sender.sendMessage(Component.text("/" + label + " start [101|301|501] [legs]", NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("/" + label + " again | practice [101|301|501] | status", NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/" + label + " challenge <player> | accept <player>", NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/" + label + " quit | stats [player] | top [legs|180s|checkout|best] | help",
                 NamedTextColor.GRAY));
@@ -249,29 +327,35 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
         if (args.length == 1) {
-            List<String> options = new ArrayList<>(List.of("start", "challenge", "accept", "quit", "stats", "top", "menu", "help"));
+            List<String> options = new ArrayList<>(List.of(
+                    "menu", "start", "play", "again", "rematch", "replay", "practice", "practise",
+                    "training", "challenge", "1v1", "accept", "quit", "stop", "leave", "status",
+                    "info", "stats", "record", "top", "leaderboard", "help", "howto"));
             if (sender.hasPermission(ADMIN)) {
                 options.add("board");
+                options.add("setboard");
                 options.add("reload");
             }
             return matching(options, args[0]);
         }
         if (args.length == 2) {
-            if (args[0].equalsIgnoreCase("start")) {
-                return matching(List.of("101", "301", "501"), args[1]);
+            String sub = args[0].toLowerCase(Locale.ROOT);
+            if (sub.equals("start") || sub.equals("play") || sub.equals("practice")
+                    || sub.equals("practise") || sub.equals("training")) {
+                return matching(MODES, args[1]);
             }
-            if (args[0].equalsIgnoreCase("top")) {
-                return matching(List.of("legs", "180s", "checkout", "best", "darts"), args[1]);
+            if (sub.equals("top") || sub.equals("leaderboard")) {
+                return matching(List.of("legs", "180s", "checkout", "best", "darts", "thrown"), args[1]);
             }
-            if ((args[0].equalsIgnoreCase("stats") && sender.hasPermission(ADMIN))
-                    || args[0].equalsIgnoreCase("challenge")
-                    || args[0].equalsIgnoreCase("1v1")
-                    || args[0].equalsIgnoreCase("accept")) {
+            if (sub.equals("stats") || sub.equals("record")
+                    || sub.equals("challenge") || sub.equals("1v1")
+                    || sub.equals("accept")) {
                 return matching(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
             }
         }
-        if (args.length == 3 && args[0].equalsIgnoreCase("start")) {
-            return matching(List.of("1", "3", "5"), args[2]);
+        if (args.length == 3 && (args[0].equalsIgnoreCase("start")
+                || args[0].equalsIgnoreCase("play"))) {
+            return matching(List.of("1", "3", "5", "7", "9"), args[2]);
         }
         return List.of();
     }

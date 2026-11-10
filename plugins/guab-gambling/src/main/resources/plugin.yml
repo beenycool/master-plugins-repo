@@ -12,11 +12,11 @@ loadbefore: [MineGames]
 commands:
   casino:
     description: Walk into the Guab casino, or build and inspect it.
-    usage: /casino [enter|build|setspawn|status|snapshot|reload]
+    usage: /casino [enter|leave|open|close|build|setup [player]|dispatch <player> <command>|setspawn|status|snapshot|reload]
     aliases: [gcasino]
   blackjack:
     description: Play a hand of blackjack against the dealer.
-    usage: /blackjack <bet> | /blackjack hit|stand|double | /blackjack setdealer
+    usage: /blackjack [gui|<bet>|hit|stand|double|history|setdealer]
     aliases: [bj, 21]
   new:
     description: Deal another blackjack hand at your last bet.

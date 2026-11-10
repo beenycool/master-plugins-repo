@@ -8,13 +8,13 @@ depend: [GuabCore]
 
 commands:
   guabitems:
-    description: Give or reload the Guab prank items.
-    usage: /guabitems give <player> <wind_charge|jump_boost|beer[:brand|style]> [amount] | /guabitems reload
+    description: Give or reload the Guab prank items, and inspect the pub setup.
+    usage: /guabitems give <player> <wind_charge|jump_boost|beer[:brand|style]|milk> [amount] | /guabitems reload | /guabitems tapinfo|status | /guabitems shelf <add|remove>
     permission: guab.items.admin
     aliases: [gi]
   round:
     description: Buy a round of beers for everyone in the pub.
-    usage: /round [style]
+    usage: /round [style] (confirm with /round confirm)
     permission: guab.pub.use
   pints:
     description: Show your pint count and the pub leaderboard.
@@ -22,39 +22,39 @@ commands:
     permission: guab.pub.use
   beer:
     description: Open the Wetherspoons beer menu or buy a pint.
-    usage: /beer [menu|list|stats|buy <style> [amount]]
+    usage: /beer [menu|list|stats|milk|again [amount]|buy <style> [amount]]
     permission: guab.pub.use
     aliases: [pint, spoons]
   darts:
     description: Play the pub dartboard.
-    usage: /darts [menu|start [101|301|501] [legs]|quit|stats [player]|top [legs|180s|checkout|best]]
+    usage: /darts [menu|start [101|301|501] [legs]|again|practice [101|301|501]|quit|status|stats [player]|top [legs|180s|checkout|best]]
     permission: guab.pub.darts.use
     aliases: [dart]
   guab:
-    description: "Open the Guab hub: pub, casino, darts, parkour and stats."
-    usage: /guab [pub|casino|darts|parkour|stats]
+    description: "Open the Guab hub: pub, casino, darts, parkour, battle pit, stats and help."
+    usage: /guab [help|pub|casino|darts|parkour|battlepit|stats|points]
     permission: guab.menu.use
     aliases: [menu]
   quiz:
-    description: Start a pub quiz question.
-    usage: /quiz
+    description: Start or manage the pub quiz.
+    usage: /quiz [start|stop|skip|status]
     permission: guab.pub.quiz.start
 
 permissions:
   guab.menu.use:
-    description: Open the Guab hub and its pub, casino, darts, quests and stats pages.
+    description: Open the Guab hub and its pub, casino, darts, parkour, battle pit, stats and help pages.
     default: true
   guab.items.admin:
     description: Give Guab items and reload their configuration.
     default: op
   guab.items.use:
-    description: Use tagged Guab prank items, the beer tap and the beer menu.
+    description: Use tagged Guab prank items.
     default: true
   guab.pub.protection.bypass:
     description: Break the pub's protected tap, shelves and dartboard.
     default: op
   guab.pub.use:
-    description: Buy rounds, open the beer menu and check the pint leaderboard.
+    description: Buy beer, milk and rounds, open the beer menu and check the pint leaderboard.
     default: true
   guab.pub.darts.use:
     description: Play the pub dartboard.
@@ -67,4 +67,7 @@ permissions:
     default: op
   guab.pub.quiz.start:
     description: Start a pub quiz question.
+    default: op
+  guab.pub.quiz.admin:
+    description: Stop, skip and inspect the pub quiz.
     default: op

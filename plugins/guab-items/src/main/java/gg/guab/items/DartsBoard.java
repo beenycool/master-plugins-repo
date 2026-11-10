@@ -66,8 +66,8 @@ public final class DartsBoard implements Listener {
         }
 
         if (plugin.darts().isPlaying(player.getUniqueId())) {
-            player.sendActionBar(Component.text("You are already on the oche. Shoot the target; /darts quit to leave.",
-                    NamedTextColor.GRAY));
+            // Contextual Resume / Quit / My stats dialog instead of a dead end.
+            plugin.darts().openMenu(player);
             return;
         }
         if (player.isSneaking()) {

@@ -10,27 +10,57 @@ loadbefore: [MineGames]
 commands:
   points:
     description: Show or change Guab points.
-    usage: /points [player] | /points top [count] | /points <set|add|take> <player> <amount>
+    usage: /points [player] | /points top [count] | /points history [player] | /points pay <player> <amount> | /points <set|add|take> <player> <amount> | /points reset <player|all>
     aliases: [guabpoints, bal, balance]
+  top:
+    description: Show the points leaderboard (alias of /points top).
+    usage: /top [count]
+    aliases: [pointstop, pointleaderboard]
   hud:
-    description: Show or hide your Guab sidebar.
-    usage: /hud
+    description: Toggle your sidebar or one of your HUD preferences.
+    usage: /hud [sidebar|tab|nametag|sounds|actionbar|titles|rickroll-motion|rickroll] [on|off|toggle]
     aliases: [sidebar]
+  settings:
+    description: Open your clickable Guab settings summary.
+    usage: /settings
+    aliases: [prefs, preferences]
   stats:
     description: Show deaths, kills, rickrolls and parkour stats.
     usage: /stats [player|top [metric] [count]]
     aliases: [tracker, records]
+  spawn:
+    description: Teleport to the Guab spawn point.
+    usage: /spawn
+    aliases: [sp]
+  hub:
+    description: Return to the Guab hub (currently the same as spawn).
+    usage: /hub
+    aliases: [lobby]
+  guabcore:
+    description: Flush the ledger, inspect core state or reload the config.
+    usage: /guabcore save|status|reload
+    aliases: [gcore]
+    permission: guab.core.admin
 
 permissions:
   guab.points.others:
-    description: Check another player's points.
+    description: Check another player's points and points history.
     default: op
   guab.points.admin:
-    description: Set, add or take points.
+    description: Set, add, take or reset points, including /points reset all.
     default: op
+  guab.points.pay:
+    description: Send your own points to another known player with /points pay.
+    default: true
   guab.stats.use:
-    description: View your own stats.
+    description: View your own stats with /stats. Requires guab.stats.others for /stats <player> and /stats top.
     default: true
   guab.stats.others:
-    description: View other players' stats and leaderboards.
+    description: View other players' stats and leaderboards (/stats <player> and /stats top).
     default: true
+  guab.spawn.use:
+    description: Use /spawn and /hub.
+    default: true
+  guab.core.admin:
+    description: Flush, inspect and reload GuabCore with /guabcore.
+    default: op

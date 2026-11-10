@@ -5,8 +5,11 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -21,6 +24,7 @@ public final class StatsStore implements StatsService {
 
     private final Path file;
     private final Map<UUID, PlayerStats> players = new LinkedHashMap<>();
+    private final Object writeLock = new Object();
 
     public StatsStore(Path file) {
         this.file = file;
@@ -58,21 +62,45 @@ public final class StatsStore implements StatsService {
         }
     }
 
-    public synchronized void save() {
-        YamlConfiguration yaml = new YamlConfiguration();
-        for (Map.Entry<UUID, PlayerStats> entry : players.entrySet()) {
-            String path = "players." + entry.getKey();
-            PlayerStats stats = entry.getValue();
-            yaml.set(path + ".name", stats.name);
-            for (Map.Entry<String, Integer> count : stats.counts.entrySet()) {
-                yaml.set(path + "." + count.getKey(), count.getValue());
+    public void save() {
+        // Copy under the lock, then do all formatting and disk I/O outside it so a
+        // timer-driven save never stalls gameplay threads waiting for the disk.
+        Map<UUID, PlayerStats> snapshot;
+        synchronized (this) {
+            snapshot = new LinkedHashMap<>(players.size());
+            for (Map.Entry<UUID, PlayerStats> entry : players.entrySet()) {
+                snapshot.put(entry.getKey(), entry.getValue().copy());
             }
         }
-        try {
-            Files.createDirectories(file.getParent());
-            yaml.save(file.toFile());
-        } catch (IOException exception) {
-            throw new IllegalStateException("Could not save " + file.getFileName(), exception);
+        YamlConfiguration yaml = new YamlConfiguration();
+        if (snapshot.isEmpty()) {
+            yaml.createSection("players");
+        } else {
+            for (Map.Entry<UUID, PlayerStats> entry : snapshot.entrySet()) {
+                String path = "players." + entry.getKey();
+                PlayerStats stats = entry.getValue();
+                yaml.set(path + ".name", stats.name);
+                for (Map.Entry<String, Integer> count : stats.counts.entrySet()) {
+                    yaml.set(path + "." + count.getKey(), count.getValue());
+                }
+            }
+        }
+        synchronized (writeLock) {
+            try {
+                if (file.getParent() != null) {
+                    Files.createDirectories(file.getParent());
+                }
+                Path temp = file.resolveSibling(file.getFileName() + ".tmp");
+                Files.writeString(temp, yaml.saveToString(), StandardCharsets.UTF_8);
+                try {
+                    Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
+                            StandardCopyOption.ATOMIC_MOVE);
+                } catch (AtomicMoveNotSupportedException ignored) {
+                    Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException exception) {
+                throw new IllegalStateException("Could not save " + file.getFileName(), exception);
+            }
         }
     }
 
@@ -117,6 +145,15 @@ public final class StatsStore implements StatsService {
     }
 
     @Override
+    public synchronized Map<UUID, String> knownPlayers() {
+        Map<UUID, String> names = new LinkedHashMap<>(players.size());
+        for (Map.Entry<UUID, PlayerStats> entry : players.entrySet()) {
+            names.put(entry.getKey(), entry.getValue().name);
+        }
+        return names;
+    }
+
+    @Override
     public synchronized List<Entry> top(String metric, int limit) {
         List<Entry> entries = new ArrayList<>();
         for (Map.Entry<UUID, PlayerStats> entry : players.entrySet()) {
@@ -136,6 +173,12 @@ public final class StatsStore implements StatsService {
 
         private PlayerStats(String name) {
             this.name = name;
+        }
+
+        private PlayerStats copy() {
+            PlayerStats copy = new PlayerStats(name);
+            copy.counts.putAll(counts);
+            return copy;
         }
     }
 }

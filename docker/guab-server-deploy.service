@@ -5,4 +5,6 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+# A deploy waits for the 90s stop grace period plus the container healthcheck.
+TimeoutStartSec=15min
 ExecStart=/opt/guab-server/deploy.sh

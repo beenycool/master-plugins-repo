@@ -1,14 +1,18 @@
 package gg.guab.items;
 
+import gg.guab.core.HudChannel;
 import gg.guab.core.PointsService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
+import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -20,6 +24,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -147,6 +152,33 @@ public final class PubManager {
         return DrunkEffects.forUnits(units).label();
     }
 
+    private static DrunkEffects.Tier nextTier(DrunkEffects.Tier tier) {
+        DrunkEffects.Tier[] tiers = DrunkEffects.Tier.values();
+        return tier.ordinal() + 1 < tiers.length ? tiers[tier.ordinal() + 1] : null;
+    }
+
+    private static void playTierChime(Player player) {
+        GuabSounds.play(player, Sound.BLOCK_NOTE_BLOCK_CHIME, SoundCategory.PLAYERS, 0.6f, 1.2f);
+    }
+
+    /** Drunk meter text shares the meter lane with other passive HUD meters. */
+    private void sendMeter(Player player, Component bar) {
+        HudChannel channel = plugin.hudChannel();
+        if (channel != null) {
+            channel.send(player, bar, HudChannel.PRIORITY_METER, 30);
+            return;
+        }
+        if (plugin.preferences() != null
+                && !plugin.preferences().actionbar(player.getUniqueId())) {
+            return;
+        }
+        player.sendActionBar(bar);
+    }
+
+    private void clearMeter(Player player) {
+        sendMeter(player, Component.empty());
+    }
+
     public int rank(UUID player) {
         int pints = pints(player);
         if (pints <= 0) {
@@ -190,7 +222,10 @@ public final class PubManager {
         DrunkEffects.Tier tier = DrunkEffects.forUnits(units);
         DrunkEffects.Tier previous = lastTier.put(player.getUniqueId(), tier);
         DrunkEffects.apply(player, tier, previous, style.id());
-        if (previous == null || tier.level() > previous.level()) {
+        if (tier.level() > 0 && (previous == null || tier.level() > previous.level())) {
+            player.showTitle(Title.title(Component.text(tier.label(), tier.colour()), Component.empty(),
+                    Title.Times.times(Duration.ofMillis(200), Duration.ofMillis(800), Duration.ofMillis(400))));
+            GuabSounds.play(player, Sound.BLOCK_NOTE_BLOCK_BASS, SoundCategory.PLAYERS, 0.8f, 1.0f);
             player.sendMessage(prefix().append(Component.text(
                     "You are now " + tier.label() + ".", tier.colour())));
         }
@@ -221,7 +256,7 @@ public final class PubManager {
         }
         DrunkEffects.clear(player);
         lastTier.remove(player.getUniqueId());
-        player.sendActionBar(Component.empty());
+        clearMeter(player);
     }
 
     public void recordDrink(Player player) {
@@ -277,7 +312,10 @@ public final class PubManager {
                         applyHangover(player);
                     }
                     lastTier.remove(id);
-                    player.sendActionBar(Component.empty());
+                    if (previous.level() > 0) {
+                        playTierChime(player);
+                    }
+                    clearMeter(player);
                 }
                 continue;
             }
@@ -288,14 +326,24 @@ public final class PubManager {
             if (previous == null || previous != tier) {
                 lastTier.put(id, tier);
             }
+            if (previous != null && tier.level() < previous.level()) {
+                playTierChime(player);
+            }
             if (plugin.darts() == null || !plugin.darts().isPlaying(id)) {
-                player.sendActionBar(Component.text("Pints ", NamedTextColor.GOLD)
+                Component bar = Component.text("Pints ", NamedTextColor.GOLD)
                         .append(Component.text(pints(id), NamedTextColor.WHITE))
                         .append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
                         .append(Component.text(String.format(Locale.ROOT, "%.1f", units) + " units",
                                 NamedTextColor.AQUA))
                         .append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
-                        .append(Component.text(tier.label(), tier.colour())));
+                        .append(Component.text(tier.label(), tier.colour()));
+                DrunkEffects.Tier next = nextTier(tier);
+                if (next != null) {
+                    bar = bar.append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
+                            .append(Component.text(String.format(Locale.ROOT, "%.1f", next.minimumUnits())
+                                    + " to " + next.label(), NamedTextColor.GRAY));
+                }
+                sendMeter(player, bar);
             }
             if (tier.level() >= 3 && ThreadLocalRandom.current().nextInt(100) < 8) {
                 player.getWorld().spawnParticle(Particle.NOTE,
@@ -304,6 +352,14 @@ public final class PubManager {
             if (tier.level() >= 4 && ThreadLocalRandom.current().nextInt(100) < 5) {
                 player.getWorld().spawnParticle(Particle.SMOKE,
                         player.getLocation().add(0.5, 1.0, 0.5), 2, 0.2, 0.2, 0.2, 0.01);
+            }
+            if (tier.level() >= 4 && ThreadLocalRandom.current().nextInt(100) < 5) {
+                player.getWorld().spawnParticle(Particle.WITCH,
+                        player.getLocation().add(0, 1.2, 0), 3, 0.4, 0.5, 0.4, 0.0);
+            }
+            if (tier.level() >= 5 && ThreadLocalRandom.current().nextInt(100) < 4) {
+                player.getWorld().spawnParticle(Particle.SOUL,
+                        player.getLocation().add(0, 0.4, 0), 1, 0.3, 0.1, 0.3, 0.0);
             }
         }
         if (hologramDirty) {

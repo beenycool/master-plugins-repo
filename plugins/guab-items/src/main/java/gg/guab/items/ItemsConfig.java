@@ -46,7 +46,7 @@ public record ItemsConfig(
                 Math.max(0, cfg.getInt("wind-charge.cooldown-seconds", 8)),
                 Math.clamp(cfg.getInt("jump-boost.amplifier", 2), 0, 255),
                 Math.max(0, cfg.getInt("jump-boost.cooldown-seconds", 30)),
-                Math.max(0, cfg.getInt("beer.cooldown-seconds", 3)),
+                Math.max(0, cfg.getInt("beer.cooldown-seconds", 2)),
                 Math.max(0, cfg.getInt("beer.tap-cooldown-seconds", 1)),
                 Math.clamp(cfg.getDouble("beer.consume-seconds", 1.1), 0.2, 5.0),
                 cfg.getBoolean("beer.return-empty-bottle", false),

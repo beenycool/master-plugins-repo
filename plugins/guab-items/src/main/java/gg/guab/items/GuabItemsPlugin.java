@@ -1,6 +1,10 @@
 package gg.guab.items;
 
+import gg.guab.core.HudChannel;
+import gg.guab.core.HudContextService;
+import gg.guab.core.PlayerPreferencesStore;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class GuabItemsPlugin extends JavaPlugin {
@@ -16,6 +20,7 @@ public final class GuabItemsPlugin extends JavaPlugin {
     private PubQuiz quiz;
     private DartsManager darts;
     private MenuShelves menuShelves;
+    private BeerTapListener beerTap;
     private Bartender bartender;
 
     @Override
@@ -35,12 +40,15 @@ public final class GuabItemsPlugin extends JavaPlugin {
         this.quiz.start();
         this.darts = new DartsManager(this);
         this.darts.start();
+        getServer().getServicesManager().register(
+                HudContextService.class, new PubHudContext(this), this, ServicePriority.Normal);
         this.menuShelves = new MenuShelves(this);
         this.bartender = new Bartender(this);
         this.bartender.start();
 
+        this.beerTap = new BeerTapListener(this);
         getServer().getPluginManager().registerEvents(new ItemListener(this), this);
-        getServer().getPluginManager().registerEvents(new BeerTapListener(this), this);
+        getServer().getPluginManager().registerEvents(beerTap, this);
         getServer().getPluginManager().registerEvents(new BeerDrinkListener(this), this);
         getServer().getPluginManager().registerEvents(new DartsBoard(this), this);
         getServer().getPluginManager().registerEvents(darts, this);
@@ -77,7 +85,7 @@ public final class GuabItemsPlugin extends JavaPlugin {
 
         getLogger().info("GuabItems ready (wind charge power=" + config.windChargePower()
                 + ", jump boost amplifier=" + config.jumpBoostAmplifier()
-                + ", " + pub.pintsCount() + " pints on record, "
+                + ", " + pub.totalPints() + " pints served, "
                 + beer.all().size() + " beers on the menu).");
     }
 
@@ -130,6 +138,27 @@ public final class GuabItemsPlugin extends JavaPlugin {
 
     public Cooldowns cooldowns() {
         return cooldowns;
+    }
+
+    public MenuShelves menuShelves() {
+        return menuShelves;
+    }
+
+    public BeerTapListener beerTap() {
+        return beerTap;
+    }
+
+    /** Shared action-bar channel from GuabCore, or null during early startup. */
+    public HudChannel hudChannel() {
+        var registration = getServer().getServicesManager().getRegistration(HudChannel.class);
+        return registration == null ? null : registration.getProvider();
+    }
+
+    /** Shared player preferences, or null during early startup. */
+    public PlayerPreferencesStore preferences() {
+        var registration = getServer().getServicesManager()
+                .getRegistration(PlayerPreferencesStore.class);
+        return registration == null ? null : registration.getProvider();
     }
 
     @Override

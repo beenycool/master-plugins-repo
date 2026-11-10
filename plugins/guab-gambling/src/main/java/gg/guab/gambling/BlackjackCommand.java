@@ -2,6 +2,7 @@ package gg.guab.gambling;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -17,11 +18,13 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
     private final GuabGamblingPlugin plugin;
     private final Blackjack blackjack;
     private final BlackjackDealer dealer;
+    private final BlackjackGui gui;
 
-    public BlackjackCommand(GuabGamblingPlugin plugin, Blackjack blackjack, BlackjackDealer dealer) {
+    public BlackjackCommand(GuabGamblingPlugin plugin, Blackjack blackjack, BlackjackDealer dealer, BlackjackGui gui) {
         this.plugin = plugin;
         this.blackjack = blackjack;
         this.dealer = dealer;
+        this.gui = gui;
     }
 
     @Override
@@ -31,21 +34,28 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if (command.getName().equalsIgnoreCase("new")) {
+            if (!openForPlay(player)) {
+                return true;
+            }
             newHand(player, args);
             return true;
         }
         if (args.length == 0) {
-            if (blackjack.hasHand(player)) {
-                info(player, "You have a hand in play. Use /bj hit, /bj stand or /bj double.");
-            } else {
-                info(player, "Usage: /bj <bet> — then /bj hit, /bj stand or /bj double.");
+            if (!openForPlay(player)) {
+                return true;
             }
+            openGui(player);
             return true;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "hit", "h" -> blackjack.hit(player);
             case "stand", "s", "stay" -> blackjack.stand(player);
             case "double", "d", "dd" -> blackjack.doubleDown(player);
+            case "history", "log" -> {
+                for (String line : blackjack.history(player)) {
+                    player.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize(line));
+                }
+            }
             case "dealer", "setdealer" -> {
                 if (!player.hasPermission("guab.casino.admin")) {
                     error(player, "You need guab.casino.admin to move the dealer.");
@@ -53,12 +63,22 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
                 }
                 dealer.moveTo(player);
             }
+            case "gui", "menu", "table" -> {
+                if (!openForPlay(player)) {
+                    return true;
+                }
+                openGui(player);
+            }
             default -> {
+                if (!openForPlay(player)) {
+                    return true;
+                }
                 try {
                     int bet = Integer.parseInt(args[0]);
                     blackjack.start(player, bet);
+                    openAfterStart(player);
                 } catch (NumberFormatException exception) {
-                    error(sender, "Usage: /bj <bet> | /bj hit | /bj stand | /bj double");
+                    error(sender, "Usage: /bj [gui|<bet>|hit|stand|double|history]");
                 }
             }
         }
@@ -81,6 +101,39 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
             }
         }
         blackjack.start(player, bet);
+        openAfterStart(player);
+    }
+
+    private void openGui(Player player) {
+        if (gui != null && plugin.getConfig().getBoolean("blackjack.gui.enabled", true)) {
+            gui.open(player);
+            return;
+        }
+        if (blackjack.hasHand(player)) {
+            blackjack.showHand(player);
+        } else {
+            info(player, "Usage: /bj <bet> — then /bj hit, /bj stand, /bj double or /bj history.");
+        }
+    }
+
+    private void openAfterStart(Player player) {
+        if (gui != null && plugin.getConfig().getBoolean("blackjack.gui.enabled", true)
+                && (blackjack.hasHand(player) || blackjack.result(player) != null)) {
+            gui.open(player);
+        }
+    }
+
+    /** New hands need both the event and the blackjack table to be open. */
+    private boolean openForPlay(Player player) {
+        if (!plugin.config().enabled()) {
+            error(player, "The casino is closed. An admin can open it with /casino open.");
+            return false;
+        }
+        if (!plugin.getConfig().getBoolean("blackjack.enabled", true)) {
+            error(player, "Blackjack is closed.");
+            return false;
+        }
+        return true;
     }
 
     private void info(CommandSender sender, String message) {
@@ -108,6 +161,10 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
             } else {
                 out.add("10");
             }
+            if (plugin.getConfig().getBoolean("blackjack.gui.enabled", true)) {
+                out.addAll(List.of("gui", "menu"));
+            }
+            out.add("history");
             if (sender.hasPermission("guab.casino.admin")) {
                 out.add("setdealer");
             }

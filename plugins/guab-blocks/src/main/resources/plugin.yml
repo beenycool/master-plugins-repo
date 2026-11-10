@@ -8,8 +8,11 @@ depend: [GuabCore]
 commands:
   guabblocks:
     description: Manage the fake, potion and swap prank blocks
-    usage: /guabblocks add <fake|potion|swap> | remove | list | reload
+    usage: /guabblocks add <fake|potion|swap> | remove [world] <x> <y> <z> | info | test [player] | set <field> <value> | list [page] | tp [world] <x> <y> <z> | reload
 permissions:
   guab.blocks.admin:
     description: Manage GuabBlocks prank blocks
     default: op
+  guab.blocks.bypass:
+    description: Never trigger prank blocks
+    default: false

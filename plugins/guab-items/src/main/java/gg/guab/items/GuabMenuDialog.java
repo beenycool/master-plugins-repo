@@ -41,7 +41,7 @@ public final class GuabMenuDialog {
                         NamedTextColor.GRAY),
                 plain("Balance: " + balance + " points", NamedTextColor.GOLD),
                 plain(pubLine, NamedTextColor.WHITE),
-                plain("Pub · Casino · Darts · Parkour · Stats", NamedTextColor.AQUA));
+                plain("Pub · Casino · Darts · Parkour · Battle Pit · Stats · Help", NamedTextColor.AQUA));
 
         List<ActionButton> actions = List.of(
                 page("Pub", NamedTextColor.GOLD, "Beer, milk and the drunk meter.", 160,
@@ -53,8 +53,13 @@ public final class GuabMenuDialog {
                 page("Parkour", NamedTextColor.GREEN,
                         "Teleport to the parkour start.", 160,
                         clicker -> clicker.performCommand("parkour")),
+                page("Battle Pit", NamedTextColor.RED,
+                        "Join, leave, check the pit or see the top streak.", 160,
+                        this::openBattlePit),
                 page("Stats", NamedTextColor.AQUA,
-                        "Points, kills, deaths, rickrolls, parkour and darts.", 160, this::openStats));
+                        "Points, kills, deaths, rickrolls, parkour and darts.", 160, this::openStats),
+                page("Help", NamedTextColor.WHITE,
+                        "Every hub command, clickable.", 160, this::openHelp));
 
         player.showDialog(GuabDialogFactory.build(
                 Component.text("The Guab Arms", NamedTextColor.GOLD),
@@ -67,25 +72,38 @@ public final class GuabMenuDialog {
         double units = plugin.pub().drunkUnits(id);
         String tier = plugin.pub().tierLabel(units);
 
+        boolean menuEnabled = plugin.getConfig().getBoolean("beer.menu.enabled", true);
         List<DialogBody> body = List.of(
                 plain("Charging is delegated to BeerService, so prices and points stay "
                         + "in one place.", NamedTextColor.GRAY),
                 plain("Balance " + balance + " points   ·   Lifetime pints "
                         + plugin.pub().pints(id), NamedTextColor.GOLD),
                 plain("Drunk meter: " + fmt(units) + " units   ·   " + tier, NamedTextColor.AQUA),
-                plain("Branded pints show name · price · ABV · units. "
-                        + "Milk clears the meter and the effects.", NamedTextColor.WHITE));
+                plain(menuEnabled
+                        ? "Branded pints show name · price · ABV · units. "
+                                + "The house pint is a random cheap tap pint. "
+                                + "Milk clears the meter and the effects."
+                        : "The beer menu is chalked off tonight. Shift-right-click the barrel for a house pint.",
+                        NamedTextColor.WHITE));
 
         List<ActionButton> actions = new ArrayList<>();
-        for (BeerBrand brand : plugin.beer().allBrands()) {
-            BeerStyle style = brand.style();
-            Component label = Component.text(brand.displayName() + " · " + style.price() + " pt · "
-                    + fmt(brand.abv()) + "% · " + brand.unitsLabel() + "u", style.colour());
-            Component tooltip = Component.text(style.displayName() + ", " + brand.unitsLabel()
-                    + " units, " + fmt(brand.abv()) + "% ABV"
-                    + (style.lethal() ? " · ☠ Kills you." : ""));
-            actions.add(GuabDialogFactory.button(plugin, label, tooltip, 280,
-                    clicker -> plugin.beerService().purchase(clicker, brand, 1, style.price(), true)));
+        if (menuEnabled) {
+            int houseCost = Math.max(0, plugin.getConfig().getInt("beer.cost", 1));
+            actions.add(GuabDialogFactory.button(plugin,
+                    Component.text("House pint · " + houseCost + " pt", NamedTextColor.YELLOW),
+                    Component.text("A random cheap pint from the tap."), 280,
+                    clicker -> plugin.beerService().purchase(clicker,
+                            plugin.beer().randomHouseBrand(), 1, houseCost, true)));
+            for (BeerBrand brand : plugin.beer().allBrands()) {
+                BeerStyle style = brand.style();
+                Component label = Component.text(brand.displayName() + " · " + style.price() + " pt · "
+                        + fmt(brand.abv()) + "% · " + brand.unitsLabel() + "u", style.colour());
+                Component tooltip = Component.text(style.displayName() + ", " + brand.unitsLabel()
+                        + " units, " + fmt(brand.abv()) + "% ABV"
+                        + (style.lethal() ? " · ☠ Kills you." : ""));
+                actions.add(GuabDialogFactory.button(plugin, label, tooltip, 280,
+                        clicker -> plugin.beerService().purchase(clicker, brand, 1, style.price(), true)));
+            }
         }
 
         if (plugin.getConfig().getBoolean("beer.milk.enabled", true)) {
@@ -97,6 +115,10 @@ public final class GuabMenuDialog {
                     clicker -> plugin.beerService().buyMilk(clicker, true)));
         }
 
+        actions.add(GuabDialogFactory.button(plugin,
+                Component.text("Drinking record", NamedTextColor.AQUA),
+                Component.text("Lifetime pints, rank, units and your current tier."), 280,
+                clicker -> plugin.beerMenu().openStats(clicker)));
         actions.add(page("Back to the hub", NamedTextColor.YELLOW, "Return to the main menu.", 180,
                 this::openHome));
 
@@ -234,6 +256,81 @@ public final class GuabMenuDialog {
         player.showDialog(GuabDialogFactory.build(
                 Component.text("Your Guab record", NamedTextColor.GOLD),
                 body, actions, Component.text("Close", NamedTextColor.GRAY), 1));
+    }
+
+    /** Every hub command in one place; each row is a real clickable button. */
+    public void openHelp(Player player) {
+        List<DialogBody> body = List.of(
+                plain("Everything the Guab hub can do. Click a command to run it.",
+                        NamedTextColor.GRAY),
+                plain("Pub · /guab pub        Beer · /beer menu        Darts · /darts menu",
+                        NamedTextColor.WHITE),
+                plain("Parkour · /parkour     Battle Pit · /guab battlepit     Stats · /guab stats",
+                        NamedTextColor.WHITE),
+                plain("Points · /points       Casino · /guab casino", NamedTextColor.WHITE),
+                plain("Balance: " + balance(player) + " points", NamedTextColor.GOLD));
+
+        List<ActionButton> actions = List.of(
+                page("Pub · /guab pub", NamedTextColor.GOLD,
+                        "Beer, milk, rounds and the drunk meter.", 220,
+                        clicker -> clicker.performCommand("guab pub")),
+                page("Beer · /beer menu", NamedTextColor.YELLOW,
+                        "Open the Wetherspoons beer menu.", 220,
+                        clicker -> clicker.performCommand("beer menu")),
+                page("Darts · /darts menu", NamedTextColor.AQUA,
+                        "Open the dartboard menu.", 220,
+                        clicker -> clicker.performCommand("darts menu")),
+                page("Parkour · /parkour", NamedTextColor.GREEN,
+                        "Teleport to the parkour start.", 220,
+                        clicker -> clicker.performCommand("parkour")),
+                page("Battle Pit · /guab battlepit", NamedTextColor.RED,
+                        "Join, leave or inspect the battle pit.", 220,
+                        clicker -> clicker.performCommand("guab battlepit")),
+                page("Stats · /guab stats", NamedTextColor.LIGHT_PURPLE,
+                        "Points, kills, parkour, rickrolls and darts.", 220,
+                        clicker -> clicker.performCommand("guab stats")),
+                page("Points · /points", NamedTextColor.GOLD,
+                        "Check your point balance.", 220,
+                        clicker -> clicker.performCommand("points")),
+                page("Casino · /guab casino", NamedTextColor.LIGHT_PURPLE,
+                        "Enter the casino page.", 220,
+                        clicker -> clicker.performCommand("guab casino")),
+                page("Back to the hub", NamedTextColor.YELLOW,
+                        "Return to the main menu.", 220, this::openHome));
+
+        player.showDialog(GuabDialogFactory.build(
+                Component.text("Guab hub help", NamedTextColor.GOLD),
+                body, actions, Component.text("Close", NamedTextColor.GRAY), 2));
+    }
+
+    /** The Battle Pit page. Every action is the real /battlepit command. */
+    public void openBattlePit(Player player) {
+        List<DialogBody> body = List.of(
+                plain("The pit is a free-for-all arena. Kills earn points, deaths cost points, "
+                        + "and your streak is announced.", NamedTextColor.GRAY),
+                plain("Join with /battlepit join, leave with /battlepit leave, "
+                        + "or check who is fighting with /battlepit status.", NamedTextColor.WHITE),
+                plain("Balance: " + balance(player) + " points", NamedTextColor.GOLD));
+
+        List<ActionButton> actions = List.of(
+                page("Join · /battlepit join", NamedTextColor.GREEN,
+                        "Teleport into the battle pit and take the kit.", 220,
+                        clicker -> clicker.performCommand("battlepit join")),
+                page("Leave · /battlepit leave", NamedTextColor.RED,
+                        "Leave the pit and return to the exit.", 220,
+                        clicker -> clicker.performCommand("battlepit leave")),
+                page("Status · /battlepit status", NamedTextColor.YELLOW,
+                        "Show the pit spawn, rewards and current fighters.", 220,
+                        clicker -> clicker.performCommand("battlepit status")),
+                page("Top · /battlepit top", NamedTextColor.GOLD,
+                        "Show the battle pit leaderboard.", 220,
+                        clicker -> clicker.performCommand("battlepit top")),
+                page("Back to the hub", NamedTextColor.YELLOW,
+                        "Return to the main menu.", 220, this::openHome));
+
+        player.showDialog(GuabDialogFactory.build(
+                Component.text("The Battle Pit", NamedTextColor.RED),
+                body, actions, Component.text("Close", NamedTextColor.GRAY), 2));
     }
 
     private void challengeSelected(Player player, DialogResponseView response) {

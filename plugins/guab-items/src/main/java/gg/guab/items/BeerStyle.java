@@ -16,7 +16,6 @@ public record BeerStyle(
         double abv,
         int volumeMl,
         int price,
-        String itemModel,
         NamedTextColor colour,
         List<String> names,
         List<String> messages,

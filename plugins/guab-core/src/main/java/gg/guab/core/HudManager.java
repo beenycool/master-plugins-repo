@@ -2,14 +2,10 @@ package gg.guab.core;
 
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
+import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -25,19 +21,20 @@ import org.bukkit.scoreboard.Team;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
  * Per-player sidebar and tab-list header: the balance, the online count and whatever
  * the event needs players to remember. Refreshed on a timer so point changes show up
  * even when they come from a third-party plugin through the Vault bridge.
+ *
+ * <p>Visibility is driven by {@link PlayerPreferencesStore}; the manager keeps no
+ * separate in-memory hidden set, so toggles survive relogs.</p>
  */
-public final class HudManager implements Listener, CommandExecutor {
+public final class HudManager implements Listener {
 
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
     private static final Key HUD_FONT = Key.key("guab", "hud");
@@ -46,14 +43,16 @@ public final class HudManager implements Listener, CommandExecutor {
     private final GuabCorePlugin plugin;
     private final PointsService points;
     private final StatsService stats;
+    private final PlayerPreferencesStore preferences;
     private final Map<UUID, Panel> panels = new HashMap<>();
-    private final Set<UUID> sidebarHidden = new HashSet<>();
     private BukkitTask task;
 
-    public HudManager(GuabCorePlugin plugin, PointsService points, StatsService stats) {
+    public HudManager(GuabCorePlugin plugin, PointsService points, StatsService stats,
+                      PlayerPreferencesStore preferences) {
         this.plugin = plugin;
         this.points = points;
         this.stats = stats;
+        this.preferences = preferences;
     }
 
     public void start() {
@@ -71,124 +70,76 @@ public final class HudManager implements Listener, CommandExecutor {
             task = null;
         }
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (panels.containsKey(player.getUniqueId())) {
+            if (!panels.containsKey(player.getUniqueId())) {
+                continue;
+            }
+            try {
+                player.sendPlayerListHeaderAndFooter(Component.empty(), Component.empty());
                 player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+            } catch (RuntimeException exception) {
+                plugin.getLogger().warning("Could not clear HUD for " + player.getName()
+                        + ": " + exception.getMessage());
             }
         }
         panels.clear();
     }
 
+    public void applyPreferences(Player player) {
+        if (player == null || !player.isOnline()) {
+            return;
+        }
+        Panel panel = panels.get(player.getUniqueId());
+        if (panel == null) {
+            attach(player);
+            return;
+        }
+        try {
+            panel.refresh();
+        } catch (RuntimeException exception) {
+            plugin.getLogger().warning("Could not refresh HUD for " + player.getName()
+                    + ": " + exception.getMessage());
+        }
+    }
+
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         // One tick later so the player is fully in the world before the sidebar lands.
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            attach(event.getPlayer());
-            sendWelcome(event.getPlayer());
-        });
+        plugin.getServer().getScheduler().runTask(plugin, () -> attach(event.getPlayer()));
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         panels.remove(event.getPlayer().getUniqueId());
-        sidebarHidden.remove(event.getPlayer().getUniqueId());
-    }
-
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("[HUD] Only players can toggle their own HUD.", NamedTextColor.RED));
-            return true;
-        }
-        boolean visible = toggleSidebar(player);
-        player.sendMessage(Component.text("[HUD] ", NamedTextColor.GOLD)
-                .append(Component.text(visible
-                        ? "Sidebar shown."
-                        : "Sidebar hidden. Your balance stays under your nametag.", NamedTextColor.GRAY)));
-        return true;
-    }
-
-    /** Returns whether the sidebar is now visible. */
-    private boolean toggleSidebar(Player player) {
-        UUID id = player.getUniqueId();
-        boolean hide = !sidebarHidden.contains(id);
-        if (hide) {
-            sidebarHidden.add(id);
-        } else {
-            sidebarHidden.remove(id);
-        }
-        Panel panel = panels.get(id);
-        if (panel != null) {
-            panel.setSidebarVisible(!hide);
-        }
-        return !hide;
-    }
-
-    private static final List<String> DEFAULT_FIRST_JOIN = List.of(
-            "&6&lWelcome to Guab, &f%player%&6!",
-            "&7You start with &6%points% &7points.",
-            "&eMenu &8» &f/guab",
-            "&ePub &8» &f/beer &7· &ePit &8» &f/battlepit join",
-            "&eCasino &8» &f/casino &7· &eDarts &8» &f/darts");
-
-    private static final List<String> DEFAULT_RETURNING = List.of(
-            "&6&lWelcome back, &f%player%&6!",
-            "&7Balance &8» &6%points% &7points",
-            "&eMenu &8» &f/guab");
-
-    private void sendWelcome(Player player) {
-        if (!player.isOnline() || !plugin.getConfig().getBoolean("hud.join-message.enabled", true)) {
-            return;
-        }
-        boolean firstJoin = !player.hasPlayedBefore();
-        String path = firstJoin
-                ? "hud.join-message.first-join.lines"
-                : "hud.join-message.returning.lines";
-        List<String> template = plugin.getConfig().getStringList(path);
-        if (template.isEmpty() && !firstJoin) {
-            template = plugin.getConfig().getStringList("hud.join-message.lines");
-        }
-        if (template.isEmpty()) {
-            template = firstJoin ? DEFAULT_FIRST_JOIN : DEFAULT_RETURNING;
-        }
-        player.sendMessage(Component.empty());
-        for (String line : template) {
-            Component message = parse(replace(line, player));
-            if (line.contains("%points%")) {
-                message = withIcon(GLYPH_COIN, NamedTextColor.GOLD, message);
-            }
-            player.sendMessage(message);
-        }
-        if (firstJoin) {
-            player.sendMessage(Component.empty()
-                    .append(button("[Open menu]", "/guab", NamedTextColor.GREEN,
-                            "Open the Guab menu")));
-        }
-    }
-
-    private Component button(String label, String command, NamedTextColor color, String hover) {
-        return Component.text(label, color)
-                .clickEvent(ClickEvent.runCommand(command))
-                .hoverEvent(HoverEvent.showText(Component.text(hover, NamedTextColor.GRAY)));
     }
 
     private void attach(Player player) {
-        if (!player.isOnline()) {
+        if (player == null || !player.isOnline()) {
             return;
         }
-        Panel panel = new Panel(player);
-        panels.put(player.getUniqueId(), panel);
-        panel.refresh();
-        panel.setSidebarVisible(!sidebarHidden.contains(player.getUniqueId()));
+        try {
+            Panel panel = new Panel(player);
+            panels.put(player.getUniqueId(), panel);
+            panel.refresh();
+        } catch (RuntimeException exception) {
+            plugin.getLogger().warning("Could not attach HUD for " + player.getName()
+                    + ": " + exception.getMessage());
+        }
     }
 
     private void updateAll() {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            Panel panel = panels.get(player.getUniqueId());
-            if (panel == null) {
-                attach(player);
-                continue;
+            try {
+                Panel panel = panels.get(player.getUniqueId());
+                if (panel == null) {
+                    attach(player);
+                    continue;
+                }
+                panel.refresh();
+            } catch (RuntimeException exception) {
+                // One bad provider or scoreboard must not cancel the repeating task.
+                plugin.getLogger().warning("HUD update failed for " + player.getName()
+                        + ": " + exception.getMessage());
             }
-            panel.refresh();
         }
     }
 
@@ -220,23 +171,85 @@ public final class HudManager implements Listener, CommandExecutor {
                 .append(body);
     }
 
-    private String replace(String raw, Player player) {
-        if (raw == null) {
-            return "";
+    private HudTokens tokens(Player player) {
+        HudTokens tokens = new HudTokens()
+                .put("%player%", player.getName())
+                .put("%points%", formatNumber(points.get(player.getUniqueId())))
+                .put("%deaths%", String.valueOf(stats.get(player.getUniqueId(), StatsService.DEATHS)))
+                .put("%voiddeaths%",
+                        String.valueOf(stats.get(player.getUniqueId(), StatsService.VOID_DEATHS)))
+                .put("%online%", String.valueOf(Bukkit.getOnlinePlayers().size()))
+                .put("%area%", areaName(player));
+        List<Map.Entry<UUID, Integer>> ranking = points.top(3);
+        for (int i = 0; i < 3; i++) {
+            tokens.put("%top" + (i + 1) + "%", topLine(ranking, i));
         }
-        String out = raw
-                .replace("%player%", player.getName())
-                .replace("%points%", String.format(Locale.ROOT, "%,d", points.get(player.getUniqueId())))
-                .replace("%deaths%", String.valueOf(stats.get(player.getUniqueId(), StatsService.DEATHS)))
-                .replace("%voiddeaths%", String.valueOf(stats.get(player.getUniqueId(), StatsService.VOID_DEATHS)))
-                .replace("%online%", String.valueOf(Bukkit.getOnlinePlayers().size()));
-        if (out.contains("%top")) {
-            List<Map.Entry<UUID, Integer>> ranking = points.top(3);
-            for (int i = 0; i < 3; i++) {
-                out = out.replace("%top" + (i + 1) + "%", topLine(ranking, i));
+        return tokens;
+    }
+
+    private static String formatNumber(int value) {
+        return String.format(Locale.ROOT, "%,d", value);
+    }
+
+    private String areaName(Player player) {
+        for (HudContextService provider : contextProviders()) {
+            try {
+                String area = provider.area(player);
+                if (area != null && !area.isBlank()) {
+                    return area;
+                }
+            } catch (RuntimeException exception) {
+                plugin.getLogger().warning("HUD area provider "
+                        + provider.getClass().getName() + " failed: " + exception.getMessage());
             }
         }
-        return out;
+        String world = player.getWorld().getName();
+        return switch (world) {
+            case "guab_casino" -> "Casino";
+            case "guab_darts" -> "Darts";
+            case "guab_cinema" -> "Cinema";
+            default -> plugin.getConfig().getString("hud.area.default", "Guab");
+        };
+    }
+
+    private List<HudContextService> contextProviders() {
+        var registrations = plugin.getServer().getServicesManager()
+                .getRegistrations(HudContextService.class);
+        List<HudContextService> providers = new ArrayList<>(registrations.size());
+        Map<HudContextService, Integer> priorities = new HashMap<>();
+        for (var registration : registrations) {
+            try {
+                HudContextService provider = registration.getProvider();
+                providers.add(provider);
+                try {
+                    priorities.put(provider, provider.priority());
+                } catch (RuntimeException exception) {
+                    plugin.getLogger().warning("HUD provider "
+                            + provider.getClass().getName() + " priority failed: "
+                            + exception.getMessage());
+                    priorities.put(provider, Integer.MIN_VALUE);
+                }
+            } catch (RuntimeException exception) {
+                plugin.getLogger().warning("Could not read a HUD service registration: "
+                        + exception.getMessage());
+            }
+        }
+        providers.sort(java.util.Comparator
+                .comparingInt((HudContextService provider) ->
+                        priorities.getOrDefault(provider, 0))
+                .reversed());
+        return providers;
+    }
+
+    private List<String> safeLines(HudContextService provider, Player player) {
+        try {
+            List<String> lines = provider.lines(player);
+            return lines == null ? List.of() : lines;
+        } catch (RuntimeException exception) {
+            plugin.getLogger().warning("HUD context provider "
+                    + provider.getClass().getName() + " failed: " + exception.getMessage());
+            return List.of();
+        }
     }
 
     private String topLine(List<Map.Entry<UUID, Integer>> ranking, int index) {
@@ -248,7 +261,7 @@ public final class HudManager implements Listener, CommandExecutor {
         if (name == null) {
             name = entry.getKey().toString().substring(0, 8);
         }
-        return name + " " + String.format(Locale.ROOT, "%,d", entry.getValue());
+        return name + " " + formatNumber(entry.getValue());
     }
 
     private final class Panel {
@@ -261,6 +274,7 @@ public final class HudManager implements Listener, CommandExecutor {
         private final List<String> lastLines = new ArrayList<>();
         private final Map<String, Integer> lastScores = new HashMap<>();
         private boolean lastFontIcons;
+        private int lastPointsLine = -1;
         private Component lastHeader;
         private Component lastFooter;
 
@@ -293,13 +307,38 @@ public final class HudManager implements Listener, CommandExecutor {
             if (!player.isOnline()) {
                 return;
             }
-            if (plugin.getConfig().getBoolean("hud.scoreboard.enabled", true)) {
-                refreshSidebar();
+            boolean showNametag = belowName != null
+                    && preferences.nametag(player.getUniqueId());
+            if (belowName != null) {
+                boolean hide = !showNametag
+                        || player.getGameMode() == GameMode.SPECTATOR
+                        || player.getWorld().getName().equals("guab_cinema");
+                belowName.setDisplaySlot(hide ? null : DisplaySlot.BELOW_NAME);
             }
-            if (plugin.getConfig().getBoolean("hud.tab.enabled", true)) {
-                refreshTab();
+
+            boolean showSidebar = plugin.getConfig().getBoolean("hud.scoreboard.enabled", true)
+                    && preferences.sidebar(player.getUniqueId());
+            boolean showTab = plugin.getConfig().getBoolean("hud.tab.enabled", true)
+                    && preferences.tab(player.getUniqueId());
+            if (showSidebar || showTab) {
+                HudTokens tokens = tokens(player);
+                if (showSidebar) {
+                    refreshSidebar(tokens);
+                } else {
+                    board.clearSlot(DisplaySlot.SIDEBAR);
+                }
+                if (showTab) {
+                    refreshTab(tokens);
+                } else {
+                    clearTab();
+                }
+            } else {
+                board.clearSlot(DisplaySlot.SIDEBAR);
+                clearTab();
             }
-            refreshBelowName();
+            if (showNametag) {
+                refreshBelowName();
+            }
         }
 
         private void refreshBelowName() {
@@ -328,38 +367,82 @@ public final class HudManager implements Listener, CommandExecutor {
             }
         }
 
-        private void setSidebarVisible(boolean visible) {
-            if (visible && plugin.getConfig().getBoolean("hud.scoreboard.enabled", true)) {
-                objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-            } else {
-                board.clearSlot(DisplaySlot.SIDEBAR);
-            }
-        }
-
-        private void refreshSidebar() {
+        private void refreshSidebar(HudTokens tokens) {
+            objective.setDisplaySlot(DisplaySlot.SIDEBAR);
             List<String> raw = plugin.getConfig().getStringList("hud.scoreboard.lines");
             if (raw.isEmpty()) {
                 raw = List.of("&7Points &8» &6%points%", "", "&7Online &8» &f%online%");
             }
             List<String> lines = new ArrayList<>(raw.size());
-            int pointsLine = -1;
-            for (int i = 0; i < raw.size(); i++) {
-                String template = raw.get(i);
-                if (pointsLine < 0 && template.contains("%points%")) {
-                    pointsLine = i;
-                }
-                lines.add(replace(template, player));
+            List<Boolean> pointsFlags = new ArrayList<>(raw.size());
+            for (String template : raw) {
+                lines.add(tokens.apply(template));
+                pointsFlags.add(template.contains("%points%"));
             }
+
+            List<String> context = new ArrayList<>();
+            for (HudContextService provider : contextProviders()) {
+                for (String line : safeLines(provider, player)) {
+                    if (line != null && !line.isEmpty()) {
+                        context.add(tokens.apply(line));
+                    }
+                }
+            }
+            if (!context.isEmpty()) {
+                int budget = Math.max(0, 15 - context.size() - (lines.isEmpty() ? 0 : 1));
+                if (lines.size() > budget) {
+                    lines = new ArrayList<>(lines.subList(0, budget));
+                    pointsFlags = new ArrayList<>(pointsFlags.subList(0, budget));
+                }
+                if (!lines.isEmpty() && !lines.get(lines.size() - 1).isEmpty()) {
+                    lines.add("");
+                    pointsFlags.add(false);
+                }
+                lines.addAll(context);
+                for (int i = 0; i < context.size(); i++) {
+                    pointsFlags.add(false);
+                }
+            } else if (lines.size() > 15) {
+                lines = new ArrayList<>(lines.subList(0, 15));
+                pointsFlags = new ArrayList<>(pointsFlags.subList(0, 15));
+            }
+
+            // Recompute after truncation: the old index went stale and the coin icon
+            // could land on the wrong line (or be lost entirely).
+            int pointsLine = -1;
+            for (int i = 0; i < pointsFlags.size(); i++) {
+                if (pointsFlags.get(i)) {
+                    pointsLine = i;
+                    break;
+                }
+            }
+
             boolean icons = fontIcons();
-            if (lines.equals(lastLines) && icons == lastFontIcons) {
+            if (lines.equals(lastLines) && icons == lastFontIcons
+                    && pointsLine == lastPointsLine) {
                 return;
             }
             lastFontIcons = icons;
+            lastPointsLine = pointsLine;
+            if (entries.size() > lines.size()) {
+                for (int i = lines.size(); i < entries.size(); i++) {
+                    String entry = entries.get(i);
+                    objective.getScore(entry).resetScore();
+                    Team team = board.getTeam("guab_line_" + i);
+                    if (team != null) {
+                        team.removeEntry(entry);
+                    }
+                }
+                entries.subList(lines.size(), entries.size()).clear();
+            }
             while (entries.size() < lines.size()) {
                 int index = entries.size();
-                String entry = "§" + Integer.toHexString(index % 16) + "§r";
+                String entry = entryFor(index);
                 entries.add(entry);
-                Team team = board.registerNewTeam("guab_line_" + index);
+                Team team = board.getTeam("guab_line_" + index);
+                if (team == null) {
+                    team = board.registerNewTeam("guab_line_" + index);
+                }
                 team.addEntry(entry);
                 objective.getScore(entry).setScore(lines.size() - index);
             }
@@ -378,10 +461,27 @@ public final class HudManager implements Listener, CommandExecutor {
             lastLines.addAll(lines);
         }
 
-        private void refreshTab() {
-            Component header = parse(replace(plugin.getConfig().getString("hud.tab.header", "&6&lGUAB PARKOUR"), player));
-            String footerRaw = plugin.getConfig().getString("hud.tab.footer", "&7Points &8» &6%points%");
-            Component footer = parse(replace(footerRaw, player));
+        /**
+         * Builds an invisible, unique scoreboard entry for the given index. A single
+         * colour-code pair only yields 16 unique values, so higher indices stack
+         * additional pairs instead of colliding.
+         */
+        private static String entryFor(int index) {
+            StringBuilder entry = new StringBuilder();
+            int value = index;
+            do {
+                entry.append('§').append(Integer.toHexString(value & 0xF)).append('§').append('r');
+                value >>>= 4;
+            } while (value > 0);
+            return entry.toString();
+        }
+
+        private void refreshTab(HudTokens tokens) {
+            Component header = parse(tokens.apply(
+                    plugin.getConfig().getString("hud.tab.header", "&6&lGUAB &8» &f%area%")));
+            String footerRaw = plugin.getConfig().getString("hud.tab.footer",
+                    "&7Points &8» &6%points%");
+            Component footer = parse(tokens.apply(footerRaw));
             if (footerRaw != null && footerRaw.contains("%points%")) {
                 footer = withIcon(GLYPH_COIN, NamedTextColor.GOLD, footer);
             }
@@ -391,6 +491,15 @@ public final class HudManager implements Listener, CommandExecutor {
             player.sendPlayerListHeaderAndFooter(header, footer);
             lastHeader = header;
             lastFooter = footer;
+        }
+
+        private void clearTab() {
+            if (lastHeader == null && lastFooter == null) {
+                return;
+            }
+            player.sendPlayerListHeaderAndFooter(Component.empty(), Component.empty());
+            lastHeader = null;
+            lastFooter = null;
         }
     }
 }

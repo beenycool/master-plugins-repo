@@ -5,14 +5,25 @@ battlepit:
   death-penalty: 25
   keep-inventory: true
   action-bar: true
-  # Announce a kill streak every N kills.
+  # Announce a kill streak every N kills. Zero or below disables announcements.
   streak-announce-every: 5
 
   # Horizontal radius from the pit spawn that counts as inside the arena.
   arena-radius: 24.0
 
-  # Restore your inventory if you teleport or walk far outside the arena.
+  # Leave the session and restore your inventory if you teleport or walk far
+  # outside the arena. Auto-leave never teleports you back.
   auto-leave-outside: true
+
+  # Where /battlepit leave sends you:
+  #   configured - battlepit.exit (legacy behaviour)
+  #   join       - the exact spot you were standing when you joined
+  # Auto-leave never teleports anyone: if another plugin (for example /parkour)
+  # moved the player out, only the saved inventory is restored.
+  exit-mode: configured
+
+  # Restore an inventory left behind by a crash/restart when the player rejoins.
+  restore-saved-on-join: true
 
   # Brief invulnerability after joining or respawning in the pit.
   spawn-protection:
@@ -65,19 +76,27 @@ killplane:
   ignore-gamemodes:
     - CREATIVE
     - SPECTATOR
+  # Players with guab.killplane.bypass are also never killed.
   message: "&cYou fell out of the world."
 
 # Big bell ring every time a player respawns.
 respawn-bell:
   enabled: true
+  # Only ring for players who respawn while in the battle pit.
+  only-in-pit: false
   volume: 4.0
   pitch: 0.5
 
 # Battle pit PvP kit, taken with /kit.
 kit:
+  # Master switch for the /kit command and the automatic arena loadout.
   enabled: true
   # Only allow /kit while in the battle pit.
   require-battlepit: true
   # Clear the player's inventory before giving the kit.
   clear-inventory: true
   cooldown-seconds: 30
+  # Arena gear is tagged in its persistent data container; stop players from
+  # dropping it or placing it in the world.
+  prevent-drop: true
+  prevent-place: true

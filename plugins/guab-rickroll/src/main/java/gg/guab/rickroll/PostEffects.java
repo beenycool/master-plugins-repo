@@ -24,6 +24,7 @@ final class PostEffects {
 
     private final GuabRickrollPlugin plugin;
     private final Player player;
+    private final boolean reducedMotion;
 
     private List<Key> original = List.of();
     private Key flashKey;
@@ -33,8 +34,13 @@ final class PostEffects {
     private boolean unavailable;
 
     PostEffects(GuabRickrollPlugin plugin, Player player) {
+        this(plugin, player, false);
+    }
+
+    PostEffects(GuabRickrollPlugin plugin, Player player, boolean reducedMotion) {
         this.plugin = plugin;
         this.player = player;
+        this.reducedMotion = reducedMotion;
     }
 
     void apply() {
@@ -55,7 +61,7 @@ final class PostEffects {
                 add(effects, blur, false);
             }
 
-            if (config.flashTicks() > 0) {
+            if (config.flashTicks() > 0 && !reducedMotion) {
                 Key flash = parse(config.flashKey());
                 if (flash != null && add(effects, flash, true)) {
                     flashKey = flash;

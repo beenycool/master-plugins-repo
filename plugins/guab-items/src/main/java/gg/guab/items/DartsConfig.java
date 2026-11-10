@@ -50,6 +50,8 @@ public record DartsConfig(
         double trebleInner = clamp(cfg.getDouble("pub.darts.rings.treble-inner", 0.52), outerBull + 0.01, 0.95);
         double trebleOuter = clamp(cfg.getDouble("pub.darts.rings.treble-outer", 0.68), trebleInner + 0.01, 0.98);
         double doubleInner = clamp(cfg.getDouble("pub.darts.rings.double-inner", 0.90), trebleOuter + 0.01, 1.0);
+        double doubleOuter = clamp(cfg.getDouble("pub.darts.rings.double-outer", 1.0),
+                Math.min(1.0, doubleInner + 0.01), 1.0);
 
         int mode = cfg.getInt("pub.darts.default-mode", 101);
         if (mode != 101 && mode != 301 && mode != 501) {
@@ -78,7 +80,7 @@ public record DartsConfig(
                 trebleInner,
                 trebleOuter,
                 doubleInner,
-                1.0,
+                doubleOuter,
                 cfg.getBoolean("pub.darts.rewards.enabled", true),
                 Math.max(0, cfg.getInt("pub.darts.rewards.base-101", 20)),
                 Math.max(0, cfg.getInt("pub.darts.rewards.base-301", 60)),

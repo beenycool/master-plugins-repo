@@ -9,28 +9,28 @@ depend: [GuabCore]
 commands:
   battlepit:
     description: Join, leave or manage the battle pit.
-    usage: /battlepit join|leave|status
+    usage: /battlepit join|leave|quit|status|stats [player]|top [kills|deaths|streak]|kick <player>|purge|setspawn|setexit|reload
     aliases: [pit, bp]
   parkour:
     description: Teleport to the parkour start.
-    usage: /parkour [set|reload]
+    usage: /parkour [restart|quit|status] or /parkour [set|reload]
     aliases: [pk]
   kit:
     description: Take the battle pit PvP kit.
     usage: /kit
   killplane:
     description: Show or change the kill plane.
-    usage: /killplane [on|off|set <y>|reload|status]
+    usage: /killplane [on|off|set <y>|world add|remove|list|reload|status]
 
 permissions:
   guab.battlepit.use:
-    description: Join and leave the battle pit.
+    description: Join and leave the battle pit, and view session stats.
     default: true
   guab.battlepit.admin:
-    description: Set the pit spawn and exit, and reload its config.
+    description: Set the pit spawn and exit, kick, purge, and reload its config.
     default: op
   guab.parkour.use:
-    description: Teleport to the parkour start.
+    description: Teleport to the parkour start, restart and quit.
     default: true
   guab.parkour.admin:
     description: Set or reload the parkour start.
@@ -39,5 +39,11 @@ permissions:
     description: Take the battle pit PvP kit.
     default: true
   guab.killplane.admin:
-    description: Change the kill plane threshold or toggle it.
+    description: Change the kill plane threshold, toggle it and edit worlds.
     default: op
+  guab.killplane.status:
+    description: View the kill plane status without admin rights.
+    default: true
+  guab.killplane.bypass:
+    description: Never be killed by the kill plane.
+    default: false

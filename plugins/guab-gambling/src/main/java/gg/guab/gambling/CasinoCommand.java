@@ -1,9 +1,11 @@
 package gg.guab.gambling;
 
+import gg.guab.core.GuabFx;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -39,12 +41,15 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "enter", "tp" -> enter(sender, true);
+            case "leave", "exit" -> leave(sender);
+            case "open" -> setEventEnabled(sender, true);
+            case "close" -> setEventEnabled(sender, false);
             case "build" -> build(sender);
             case "setup" -> setup(sender, args);
             case "dispatch" -> dispatch(sender, args);
             case "setspawn" -> setSpawn(sender);
             case "status" -> status(sender);
-            case "snapshot", "backup" -> snapshot(sender);
+            case "snapshot", "backup" -> snapshot(sender, args);
             case "reload" -> reload(sender);
             default -> usage(sender);
         }
@@ -56,6 +61,10 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
             error(sender, "Only players can walk into the casino.");
             return;
         }
+        if (!player.hasPermission("guab.casino.use")) {
+            error(sender, "You need guab.casino.use to enter the casino.");
+            return;
+        }
         boolean allowed = plugin.config().enabled() || (adminOverride && player.hasPermission("guab.casino.admin"));
         if (!allowed) {
             error(sender, "The casino is closed. An admin can open it with event.enabled in the config.");
@@ -64,7 +73,58 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         Location spawn = plugin.venue().spawn();
         player.teleport(spawn);
         player.setFallDistance(0.0f);
+        GuabFx.arrival(player, "CASINO", NamedTextColor.GOLD, Sound.BLOCK_ENDER_CHEST_OPEN, 0.7f);
         info(sender, "Welcome to the Guab Casino. Play safe, lose everything.");
+    }
+
+    /** /casino leave|exit returns the player to the configured exit or world spawn. */
+    private void leave(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            error(sender, "Only players can leave the casino.");
+            return;
+        }
+        player.closeInventory();
+        player.teleport(exitLocation());
+        player.setFallDistance(0.0f);
+        GuabFx.arrival(player, "OUTSIDE", NamedTextColor.GRAY, Sound.BLOCK_WOODEN_DOOR_CLOSE, 0.8f);
+        info(sender, "You step out of the casino.");
+    }
+
+    private Location exitLocation() {
+        var cfg = plugin.getConfig();
+        String worldName = cfg.getString("venue.exit-world", "");
+        if (worldName != null && !worldName.isBlank()) {
+            org.bukkit.World world = Bukkit.getWorld(worldName);
+            if (world != null) {
+                return new Location(world,
+                        cfg.getDouble("venue.exit-x", 0.5),
+                        cfg.getDouble("venue.exit-y", 64.0),
+                        cfg.getDouble("venue.exit-z", 0.5),
+                        (float) cfg.getDouble("venue.exit-yaw", 0.0),
+                        (float) cfg.getDouble("venue.exit-pitch", 0.0));
+            }
+        }
+        var worlds = Bukkit.getWorlds();
+        if (worlds.isEmpty()) {
+            return plugin.venue().spawn();
+        }
+        return worlds.get(0).getSpawnLocation();
+    }
+
+    /** /casino open|close flips event.enabled, reloads and tells everyone. */
+    private void setEventEnabled(CommandSender sender, boolean enabled) {
+        if (!sender.hasPermission("guab.casino.admin")) {
+            error(sender, "You need guab.casino.admin to open or close the casino.");
+            return;
+        }
+        plugin.getConfig().set("event.enabled", enabled);
+        plugin.saveConfig();
+        plugin.reload();
+        Bukkit.broadcast(Component.text("[Casino] ", NamedTextColor.GOLD)
+                .append(Component.text(enabled
+                        ? "The casino is now OPEN. Good luck."
+                        : "The casino is now closed.", NamedTextColor.WHITE)));
+        info(sender, enabled ? "Event enabled and casino reloaded." : "Event disabled and casino reloaded.");
     }
 
     private void build(CommandSender sender) {
@@ -75,7 +135,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         int blocks = plugin.venue().build();
         info(sender, "Casino rebuilt in " + plugin.config().worldName() + " at "
                 + plugin.config().x() + ", " + plugin.config().y() + ", " + plugin.config().z()
-                + " (" + blocks + " blocks cleared).");
+                + " (" + blocks + " blocks cleared; pub area preserved).");
         info(sender, "Now stand on each coloured pad in game and run:");
         info(sender, "  /rouletteadmin create   (red, centre)");
         info(sender, "  /slotsadmin create 3 1  (lime, three pads)");
@@ -135,12 +195,26 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         }
         SetupStep step = steps.get(index);
         Location at = new Location(world, step.x(), step.y(), step.z(), 180.0f, 0.0f);
-        player.teleport(at);
+        if (!player.teleport(at)) {
+            error(sender, "Could not move " + player.getName() + " to " + step.command()
+                    + "; stopping setup.");
+            player.teleport(home);
+            return;
+        }
         player.setFallDistance(0.0f);
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            boolean ran = Bukkit.dispatchCommand(player, step.command());
-            info(sender, "  " + step.command() + " -> " + (ran ? "ran" : "not handled"));
-            runStep(sender, player, world, steps, index + 1, home);
+            try {
+                boolean ran = Bukkit.dispatchCommand(player, step.command());
+                info(sender, "  " + step.command() + " -> " + (ran ? "ran" : "not handled"));
+                runStep(sender, player, world, steps, index + 1, home);
+            } catch (RuntimeException exception) {
+                // Never strand the setup player on a pad when MineGames or another
+                // station plugin is missing/disabled.
+                error(sender, step.command() + " failed: " + exception.getMessage()
+                        + "; returning " + player.getName() + " to their start.");
+                player.teleport(home);
+                player.setFallDistance(0.0f);
+            }
         }, 4L);
     }
 
@@ -185,15 +259,34 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
     }
 
     private void status(CommandSender sender) {
+        if (!sender.hasPermission("guab.casino.admin")) {
+            error(sender, "You need guab.casino.admin to inspect the casino.");
+            return;
+        }
         var mineGames = Bukkit.getPluginManager().getPlugin("MineGames");
         var vault = Bukkit.getPluginManager().getPlugin("Vault");
         var points = Bukkit.getServicesManager().getRegistration(gg.guab.core.PointsService.class);
+        boolean worldLoaded = Bukkit.getWorld(plugin.config().worldName()) != null;
+        int activeHands = plugin.blackjack() == null ? 0 : plugin.blackjack().activeHands();
+        boolean blackjackOpen = plugin.getConfig().getBoolean("blackjack.enabled", true);
+        boolean guiOpen = plugin.getConfig().getBoolean("blackjack.gui.enabled", true);
+
         info(sender, "Casino: " + (plugin.config().enabled() ? "OPEN" : "closed")
-                + " | world " + plugin.config().worldName()
+                + " | event.enabled " + plugin.config().enabled()
+                + " | plugin " + state(plugin.isEnabled()));
+        info(sender, "World: " + plugin.config().worldName() + " (" + (worldLoaded ? "loaded" : "not loaded") + ")"
                 + " | spawn " + plugin.config().spawnX() + ", " + plugin.config().spawnY() + ", " + plugin.config().spawnZ());
-        info(sender, "MineGames: " + (mineGames == null ? "missing" : "installed")
-                + " | Vault: " + (vault == null ? "missing" : "installed")
+        info(sender, "Blackjack: " + (blackjackOpen ? "enabled" : "disabled")
+                + " | GUI " + (guiOpen ? "enabled" : "disabled")
+                + " | active hands " + activeHands);
+        info(sender, "Dealer: " + (plugin.dealer() == null ? "missing" : plugin.dealer().describe()));
+        info(sender, "MineGames: " + (mineGames == null ? "missing" : state(mineGames.isEnabled()))
+                + " | Vault: " + (vault == null ? "missing" : state(vault.isEnabled()))
                 + " | PointsService: " + (points == null ? "missing" : "registered"));
+    }
+
+    private String state(boolean enabled) {
+        return enabled ? "enabled" : "disabled";
     }
 
     private void reload(CommandSender sender) {
@@ -209,12 +302,27 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
      * Zips the points ledger and every casino-side config into {@code data/backups}, so a
      * staff member can take a pre-event snapshot without touching the shell.
      */
-    private void snapshot(CommandSender sender) {
+    private void snapshot(CommandSender sender, String[] args) {
         if (!sender.hasPermission("guab.casino.admin")) {
             error(sender, "You need guab.casino.admin to take a snapshot.");
             return;
         }
         Path data = plugin.getServer().getWorldContainer().toPath().toAbsolutePath().normalize();
+        Path folder = data.resolve("backups");
+        if (args.length >= 2 && args[1].equalsIgnoreCase("list")) {
+            listSnapshots(sender, folder);
+            return;
+        }
+        // Flush the live ledger first: the 60-second save timer may otherwise leave the
+        // snapshot with a balance that is a minute behind the table.
+        try {
+            if (Bukkit.getPluginCommand("guabcore") != null) {
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "guabcore save");
+            }
+        } catch (RuntimeException exception) {
+            plugin.getLogger().warning("Could not flush GuabCore before snapshot: "
+                    + exception.getMessage());
+        }
         Path plugins = data.resolve("plugins");
         List<Path> sources = new ArrayList<>();
         addIfFile(sources, plugins.resolve("GuabCore/points.yml"));
@@ -252,6 +360,34 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         info(sender, "Snapshot saved to " + out + " (" + sources.size() + " files).");
     }
 
+    private void listSnapshots(CommandSender sender, Path folder) {
+        if (!Files.isDirectory(folder)) {
+            info(sender, "No casino snapshots yet.");
+            return;
+        }
+        try (Stream<Path> files = Files.list(folder)) {
+            List<Path> snapshots = files
+                    .filter(path -> path.getFileName().toString().startsWith("casino-snapshot-"))
+                    .filter(path -> path.getFileName().toString().endsWith(".zip"))
+                    .sorted(java.util.Comparator.comparing(Path::getFileName).reversed())
+                    .toList();
+            if (snapshots.isEmpty()) {
+                info(sender, "No casino snapshots yet.");
+                return;
+            }
+            info(sender, "Casino snapshots (" + snapshots.size() + "):");
+            for (Path snapshot : snapshots) {
+                long bytes = Files.size(snapshot);
+                sender.sendMessage(Component.text("  " + snapshot.getFileName()
+                                + "  ", NamedTextColor.WHITE)
+                        .append(Component.text(String.format(Locale.ROOT, "%,d KB", bytes / 1024),
+                                NamedTextColor.GRAY)));
+            }
+        } catch (IOException exception) {
+            error(sender, "Could not list snapshots: " + exception.getMessage());
+        }
+    }
+
     private void addIfFile(List<Path> sources, Path path) {
         if (Files.isRegularFile(path)) {
             sources.add(path);
@@ -259,7 +395,7 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
     }
 
     private void usage(CommandSender sender) {
-        info(sender, "/casino [enter|build|setup [player]|dispatch <player> <command>|setspawn|status|snapshot|reload]");
+        info(sender, "/casino [enter|leave|open|close|build|setup [player]|dispatch <player> <command>|setspawn|status|snapshot [list]|reload]");
     }
 
     private void info(CommandSender sender, String message) {
@@ -276,9 +412,17 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> out = new ArrayList<>();
         if (args.length == 1) {
-            out.add("enter");
+            out.addAll(List.of("enter", "leave", "exit"));
             if (sender.hasPermission("guab.casino.admin")) {
-                out.addAll(List.of("build", "setup", "dispatch", "setspawn", "status", "snapshot", "reload"));
+                out.addAll(List.of("open", "close", "build", "setup", "dispatch",
+                        "setspawn", "status", "snapshot", "reload"));
+            }
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("snapshot")) {
+            out.add("list");
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("setup")
+                || args[0].equalsIgnoreCase("dispatch"))) {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                out.add(player.getName());
             }
         }
         String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);

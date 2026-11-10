@@ -1,6 +1,16 @@
 # How often balances are flushed to points.yml (seconds).
 save-interval-seconds: 60
 
+# Used by /spawn and /hub. Leave world empty to use the first loaded world.
+# Leave x/y/z unset to use that world's configured spawn point.
+spawn:
+  world: ""
+  # x: 0.5
+  # y: 65.0
+  # z: 0.5
+  # yaw: 0.0
+  # pitch: 0.0
+
 # The sidebar and the tab-list header. Both refresh on a timer so points earned
 # through the casino show up without any extra plugin hooks.
 hud:
@@ -11,6 +21,10 @@ hud:
   # guab-items.zip (or the rickroll pack, which embeds the same assets) show
   # missing-character boxes. Set false for a plain-text HUD.
   font-icons: true
+
+  # Neutral label for the %area% tab-header token outside the venue worlds.
+  area:
+    default: "Guab"
 
   scoreboard:
     enabled: true
@@ -32,11 +46,13 @@ hud:
 
   tab:
     enabled: true
-    header: "&6&lGUAB PARKOUR\n&7Casino night"
+    header: "&6&lGUAB &8» &f%area%\n&7Casino night"
     footer: "&7Points &8» &6%points% &8| &7Online &f%online%"
 
   # Welcome guide shown only to the player who just joined. Supports %player%,
-  # %points% and %online%. First-time joiners get the longer guide.
+  # %points% and %online%. First-time joiners get the longer guide. Returning
+  # players also get a clickable [Open menu] button. This guide is registered
+  # even when hud.enabled is false; only this enabled flag controls it.
   join-message:
     enabled: true
     first-join:

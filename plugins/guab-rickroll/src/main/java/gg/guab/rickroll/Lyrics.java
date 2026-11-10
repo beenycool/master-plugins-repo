@@ -35,6 +35,9 @@ public final class Lyrics {
                 int minutes = Integer.parseInt(matcher.group(1));
                 int seconds = Integer.parseInt(matcher.group(2));
                 int hundredths = Integer.parseInt(matcher.group(3));
+                if (seconds >= 60 || hundredths >= 100) {
+                    continue;
+                }
                 double time = minutes * 60.0 + seconds + hundredths / 100.0;
                 String text = matcher.group(4).trim();
                 if (!text.isEmpty()) {
@@ -57,6 +60,10 @@ public final class Lyrics {
             current = line.text();
         }
         return current;
+    }
+
+    public int size() {
+        return lines.size();
     }
 
     private record Line(double seconds, String text) {

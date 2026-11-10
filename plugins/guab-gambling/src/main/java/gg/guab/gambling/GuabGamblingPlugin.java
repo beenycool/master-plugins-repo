@@ -1,6 +1,8 @@
 package gg.guab.gambling;
 
+import gg.guab.core.HudContextService;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class GuabGamblingPlugin extends JavaPlugin {
@@ -8,6 +10,7 @@ public final class GuabGamblingPlugin extends JavaPlugin {
     private CasinoConfig config;
     private CasinoVenue venue;
     private Blackjack blackjack;
+    private BlackjackGui gui;
     private BlackjackDealer dealer;
 
     @Override
@@ -33,9 +36,12 @@ public final class GuabGamblingPlugin extends JavaPlugin {
 
         this.blackjack = new Blackjack(this);
         this.blackjack.start();
-        this.dealer = new BlackjackDealer(this, blackjack);
+        this.gui = new BlackjackGui(this, blackjack);
+        this.gui.start();
+        this.blackjack.setViewListener(gui::onViewChanged);
+        this.dealer = new BlackjackDealer(this, blackjack, gui);
         this.dealer.start();
-        BlackjackCommand blackjackExecutor = new BlackjackCommand(this, blackjack, dealer);
+        BlackjackCommand blackjackExecutor = new BlackjackCommand(this, blackjack, dealer, gui);
         PluginCommand blackjackCommand = getCommand("blackjack");
         if (blackjackCommand != null) {
             blackjackCommand.setExecutor(blackjackExecutor);
@@ -48,6 +54,9 @@ public final class GuabGamblingPlugin extends JavaPlugin {
         }
         getServer().getPluginManager().registerEvents(new CasinoGuard(venue), this);
         getServer().getPluginManager().registerEvents(dealer, this);
+
+        getServer().getServicesManager().register(
+                HudContextService.class, new CasinoHudContext(this), this, ServicePriority.Normal);
 
         getLogger().info("GuabGambling ready (casino " + (config.enabled() ? "open" : "closed") + ").");
     }
@@ -69,12 +78,24 @@ public final class GuabGamblingPlugin extends JavaPlugin {
         return venue;
     }
 
+    public Blackjack blackjack() {
+        return blackjack;
+    }
+
+    public BlackjackGui gui() {
+        return gui;
+    }
+
     public BlackjackDealer dealer() {
         return dealer;
     }
 
     @Override
     public void onDisable() {
+        if (gui != null) {
+            gui.closeAll();
+            gui = null;
+        }
         if (dealer != null) {
             dealer.stop();
             dealer = null;

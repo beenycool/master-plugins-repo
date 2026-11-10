@@ -43,19 +43,22 @@ public final class BeerTapListener implements Listener {
         event.setCancelled(true);
 
         Player player = event.getPlayer();
-        if (!player.hasPermission("guab.items.use")) {
+        if (!player.hasPermission("guab.pub.use")) {
             msg(player, "You are not old enough to drink here.", NamedTextColor.RED);
             return;
         }
-        long now = System.currentTimeMillis();
-        long cooldown = plugin.config().beerTapCooldownSeconds() * 1000L;
-        if (now - cooldowns.getOrDefault(player.getUniqueId(), 0L) < cooldown) {
+        if (!player.isSneaking()) {
+            plugin.beerMenu().open(player);
             return;
         }
 
-        if (!player.isSneaking()) {
-            cooldowns.put(player.getUniqueId(), now);
-            plugin.beerMenu().open(player);
+        long now = System.currentTimeMillis();
+        long cooldown = plugin.config().beerTapCooldownSeconds() * 1000L;
+        long remaining = cooldown - (now - cooldowns.getOrDefault(player.getUniqueId(), 0L));
+        if (remaining > 0L) {
+            msg(player, "The tap is still settling. "
+                    + String.format(java.util.Locale.ROOT, "%.1f", remaining / 1000.0) + "s to go.",
+                    NamedTextColor.GRAY);
             return;
         }
 

@@ -24,6 +24,10 @@ public final class CasinoVenue {
     private static final int HALF_WIDTH = 25;
     private static final int HALF_DEPTH = 17;
     private static final int HEIGHT = 9;
+    private static final int PUB_MIN_DX = -24;
+    private static final int PUB_MAX_DX = -16;
+    private static final int PUB_MIN_DZ = -16;
+    private static final int PUB_MAX_DZ = -10;
 
     private final GuabGamblingPlugin plugin;
     private World world;
@@ -82,6 +86,9 @@ public final class CasinoVenue {
         // Clear the volume first so a rebuild never leaves stale blocks.
         for (int dx = -HALF_WIDTH; dx <= HALF_WIDTH; dx++) {
             for (int dz = -HALF_DEPTH; dz <= HALF_DEPTH; dz++) {
+                if (inPub(dx, dz)) {
+                    continue;
+                }
                 for (int dy = 0; dy <= HEIGHT; dy++) {
                     set(world, cx + dx, cy + dy, cz + dz, Material.AIR);
                 }
@@ -91,12 +98,18 @@ public final class CasinoVenue {
         // Checkerboard floor and lit ceiling.
         for (int dx = -HALF_WIDTH; dx <= HALF_WIDTH; dx++) {
             for (int dz = -HALF_DEPTH; dz <= HALF_DEPTH; dz++) {
+                if (inPub(dx, dz)) {
+                    continue;
+                }
                 boolean dark = Math.floorMod(dx + dz, 2) == 0;
                 set(world, cx + dx, cy, cz + dz, dark ? Material.POLISHED_BLACKSTONE : Material.POLISHED_DEEPSLATE);
             }
         }
         for (int dx = -HALF_WIDTH; dx <= HALF_WIDTH; dx++) {
             for (int dz = -HALF_DEPTH; dz <= HALF_DEPTH; dz++) {
+                if (inPub(dx, dz)) {
+                    continue;
+                }
                 boolean light = Math.floorMod(dx, 6) == 0 && Math.floorMod(dz, 6) == 0;
                 set(world, cx + dx, cy + HEIGHT, cz + dz, light ? Material.SEA_LANTERN : Material.SMOOTH_QUARTZ);
             }
@@ -107,13 +120,17 @@ public final class CasinoVenue {
             for (int dx = -HALF_WIDTH; dx <= HALF_WIDTH; dx++) {
                 boolean pillar = Math.floorMod(dx, 5) == 0;
                 Material material = pillar ? Material.POLISHED_BLACKSTONE : Material.SMOOTH_QUARTZ;
-                set(world, cx + dx, cy + dy, cz - HALF_DEPTH, material);
+                if (!inPubX(dx)) {
+                    set(world, cx + dx, cy + dy, cz - HALF_DEPTH, material);
+                }
                 set(world, cx + dx, cy + dy, cz + HALF_DEPTH, material);
             }
             for (int dz = -HALF_DEPTH; dz <= HALF_DEPTH; dz++) {
                 boolean pillar = Math.floorMod(dz, 5) == 0;
                 Material material = pillar ? Material.POLISHED_BLACKSTONE : Material.SMOOTH_QUARTZ;
-                set(world, cx - HALF_WIDTH, cy + dy, cz + dz, material);
+                if (!inPubZ(dz)) {
+                    set(world, cx - HALF_WIDTH, cy + dy, cz + dz, material);
+                }
                 set(world, cx + HALF_WIDTH, cy + dy, cz + dz, material);
             }
         }
@@ -121,7 +138,9 @@ public final class CasinoVenue {
             for (int dz = -HALF_DEPTH; dz <= HALF_DEPTH; dz++) {
                 boolean edgeX = dx == -HALF_WIDTH || dx == HALF_WIDTH;
                 boolean edgeZ = dz == -HALF_DEPTH || dz == HALF_DEPTH;
-                if (edgeX || edgeZ) {
+                boolean pubWall = (dx == -HALF_WIDTH && inPubZ(dz))
+                        || (dz == -HALF_DEPTH && inPubX(dx));
+                if ((edgeX || edgeZ) && !pubWall) {
                     set(world, cx + dx, cy + HEIGHT - 1, cz + dz, Material.GOLD_BLOCK);
                 }
             }
@@ -129,11 +148,17 @@ public final class CasinoVenue {
 
         // Red carpet runner down the aisles, kept off the play areas.
         for (int dz = -HALF_DEPTH + 1; dz <= HALF_DEPTH - 1; dz++) {
-            set(world, cx - 24, cy + 1, cz + dz, Material.RED_CARPET);
-            set(world, cx + 24, cy + 1, cz + dz, Material.RED_CARPET);
+            if (!inPub(-24, dz)) {
+                set(world, cx - 24, cy + 1, cz + dz, Material.RED_CARPET);
+            }
+            if (!inPub(24, dz)) {
+                set(world, cx + 24, cy + 1, cz + dz, Material.RED_CARPET);
+            }
         }
         for (int dx = -8; dx <= 8; dx++) {
-            set(world, cx + dx, cy + 1, cz - 16, Material.RED_CARPET);
+            if (!inPub(dx, -16)) {
+                set(world, cx + dx, cy + 1, cz - 16, Material.RED_CARPET);
+            }
         }
 
         // Plots. Each ring is painted on the floor; the interior stays clear for MineGames.
@@ -171,6 +196,18 @@ public final class CasinoVenue {
 
         world.setSpawnLocation(spawn());
         return (HALF_WIDTH * 2 + 1) * (HALF_DEPTH * 2 + 1) * (HEIGHT + 1);
+    }
+
+    private static boolean inPub(int dx, int dz) {
+        return inPubX(dx) && inPubZ(dz);
+    }
+
+    private static boolean inPubX(int dx) {
+        return dx >= PUB_MIN_DX && dx <= PUB_MAX_DX;
+    }
+
+    private static boolean inPubZ(int dz) {
+        return dz >= PUB_MIN_DZ && dz <= PUB_MAX_DZ;
     }
 
     private void plot(World world, int cx, int cy, int cz, int offsetX, int offsetZ, int width, int depth, Material edge) {

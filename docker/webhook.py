@@ -11,11 +11,27 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 TOKEN = os.environ.get("DEPLOY_TOKEN", "")
 PORT = int(os.environ.get("DEPLOY_PORT", "39001"))
-SCRIPT = "/opt/guab-server/deploy.sh"
-COOLDOWN = 30
+BIND = os.environ.get("DEPLOY_BIND", "0.0.0.0")
+SCRIPT = os.environ.get("DEPLOY_SCRIPT", "/opt/guab-server/deploy.sh")
+PAUSE_FILE = os.environ.get("DEPLOY_PAUSE_FILE", "/opt/guab-server/.deploy-paused")
+COOLDOWN = int(os.environ.get("DEPLOY_COOLDOWN", "30"))
+TIMEOUT = int(os.environ.get("DEPLOY_TIMEOUT", "600"))
 
 last_run = 0.0
 lock = threading.Lock()
+
+
+def paused() -> bool:
+    try:
+        with open(PAUSE_FILE, "r", encoding="utf-8") as handle:
+            reason = handle.read().strip()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        # If the guard exists but cannot be read, fail closed.
+        return True
+    print(f"Deploy skipped: paused ({reason or PAUSE_FILE})", flush=True)
+    return True
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -30,15 +46,21 @@ class Handler(BaseHTTPRequestHandler):
         ):
             return self.reply(401, {"error": "unauthorized"})
 
+        if paused():
+            return self.reply(503, {"ok": False, "error": "deploy paused"})
+
         with lock:
             now = time.time()
             if now - last_run < COOLDOWN:
                 return self.reply(429, {"error": "deploy already ran recently"})
             last_run = now
 
+        if paused():
+            return self.reply(503, {"ok": False, "error": "deploy paused"})
+
         try:
             result = subprocess.run(
-                [SCRIPT], capture_output=True, text=True, timeout=240
+                [SCRIPT], capture_output=True, text=True, timeout=TIMEOUT
             )
         except subprocess.TimeoutExpired:
             return self.reply(504, {"ok": False, "error": "deploy timed out"})
@@ -58,4 +80,4 @@ class Handler(BaseHTTPRequestHandler):
         print(f"{self.address_string()} {fmt % args}", flush=True)
 
 
-ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+ThreadingHTTPServer((BIND, PORT), Handler).serve_forever()

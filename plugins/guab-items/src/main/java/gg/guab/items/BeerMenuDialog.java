@@ -60,30 +60,18 @@ public final class BeerMenuDialog {
                         NamedTextColor.YELLOW))
                 .tooltip(Component.text("A random cheap pint from the tap."))
                 .width(180)
-                .action(DialogAction.customClick(
-                        (DialogResponseView response, Audience audience) -> {
-                            if (audience instanceof Player clicker) {
-                                plugin.getServer().getScheduler().runTask(plugin,
-                                        () -> plugin.beerService().purchase(clicker,
-                                                plugin.beer().randomHouseBrand(), 1, houseCost, true));
-                            }
-                        },
-                        options()))
+                .action(purchaseButton(clicker -> plugin.beerService().purchase(clicker,
+                        plugin.beer().randomHouseBrand(), 1, houseCost, true)))
                 .build());
-        int milkCost = Math.max(0, plugin.getConfig().getInt("beer.milk.cost", 5));
-        actions.add(ActionButton.builder(Component.text("Milk · " + milkCost + " pt · Sober up",
-                        NamedTextColor.WHITE))
-                .tooltip(Component.text("Clears the drunk meter and all nausea/slowness effects."))
-                .width(180)
-                .action(DialogAction.customClick(
-                        (DialogResponseView response, Audience audience) -> {
-                            if (audience instanceof Player clicker) {
-                                plugin.getServer().getScheduler().runTask(plugin,
-                                        () -> plugin.beerService().buyMilk(clicker, true));
-                            }
-                        },
-                        options()))
-                .build());
+        if (plugin.getConfig().getBoolean("beer.milk.enabled", true)) {
+            int milkCost = Math.max(0, plugin.getConfig().getInt("beer.milk.cost", 5));
+            actions.add(ActionButton.builder(Component.text("Milk · " + milkCost + " pt · Sober up",
+                            NamedTextColor.WHITE))
+                    .tooltip(Component.text("Clears the drunk meter and all nausea/slowness effects."))
+                    .width(180)
+                    .action(purchaseButton(clicker -> plugin.beerService().buyMilk(clicker, true)))
+                    .build());
+        }
         for (BeerBrand brand : plugin.beer().allBrands()) {
             BeerStyle style = brand.style();
             actions.add(ActionButton.builder(Component.text(
@@ -92,15 +80,8 @@ public final class BeerMenuDialog {
                                     + String.format(Locale.ROOT, "%.1f", brand.abv()) + "% ABV"
                                     + (style.lethal() ? " · ☠ Kills you." : "")))
                     .width(180)
-                    .action(DialogAction.customClick(
-                            (DialogResponseView response, Audience audience) -> {
-                                if (audience instanceof Player clicker) {
-                                    plugin.getServer().getScheduler().runTask(plugin,
-                                            () -> plugin.beerService().purchase(clicker, brand, 1,
-                                                    style.price(), true));
-                                }
-                            },
-                            options()))
+                    .action(purchaseButton(clicker -> plugin.beerService().purchase(clicker, brand, 1,
+                            style.price(), true)))
                     .build());
         }
         actions.add(ActionButton.builder(Component.text("My drinking record", NamedTextColor.AQUA))
@@ -114,9 +95,48 @@ public final class BeerMenuDialog {
                         },
                         options()))
                 .build());
+        actions.add(backToHub());
 
         player.showDialog(build("The Wetherspoons Bar", body, actions,
-                Component.text("Back to the carpet", NamedTextColor.GRAY), 2));
+                Component.text("Close", NamedTextColor.GRAY), 2));
+    }
+
+    /**
+     * Buy buttons close the dialog as part of the click, so re-open the menu on
+     * the next tick. That keeps the bar open and refreshes the balance/units.
+     */
+    private DialogAction purchaseButton(java.util.function.Predicate<Player> purchase) {
+        return DialogAction.customClick(
+                (DialogResponseView response, Audience audience) -> {
+                    if (audience instanceof Player clicker) {
+                        plugin.getServer().getScheduler().runTask(plugin, () -> {
+                            boolean bought = purchase.test(clicker);
+                            if (bought && clicker.isOnline()
+                                    && plugin.getConfig().getBoolean("beer.menu.enabled", true)) {
+                                // One more tick lets the click close the old dialog
+                                // before the refreshed menu is shown.
+                                plugin.getServer().getScheduler().runTask(plugin,
+                                        () -> open(clicker));
+                            }
+                        });
+                    }
+                },
+                options());
+    }
+
+    private ActionButton backToHub() {
+        return ActionButton.builder(Component.text("Back to hub", NamedTextColor.YELLOW))
+                .tooltip(Component.text("Return to the main Guab menu."))
+                .width(180)
+                .action(DialogAction.customClick(
+                        (DialogResponseView response, Audience audience) -> {
+                            if (audience instanceof Player clicker) {
+                                plugin.getServer().getScheduler().runTask(plugin,
+                                        () -> plugin.menu().openHome(clicker));
+                            }
+                        },
+                        options()))
+                .build();
     }
 
     public void openStats(Player player) {
@@ -137,19 +157,21 @@ public final class BeerMenuDialog {
                         "The drunk meter burns off over time. Darts get harder before they get easier.",
                         NamedTextColor.GRAY), 300));
 
-        player.showDialog(build("Your Spoons record", body,
-                List.of(ActionButton.builder(Component.text("Back to the bar", NamedTextColor.YELLOW))
-                        .width(160)
-                        .action(DialogAction.customClick(
-                                (DialogResponseView response, Audience audience) -> {
-                                    if (audience instanceof Player clicker) {
-                                        plugin.getServer().getScheduler().runTask(plugin,
-                                                () -> open(clicker));
-                                    }
-                                },
-                                options()))
-                        .build()),
-                Component.text("Close", NamedTextColor.GRAY), 1));
+        List<ActionButton> actions = new ArrayList<>();
+        actions.add(ActionButton.builder(Component.text("Back to the bar", NamedTextColor.YELLOW))
+                .width(160)
+                .action(DialogAction.customClick(
+                        (DialogResponseView response, Audience audience) -> {
+                            if (audience instanceof Player clicker) {
+                                plugin.getServer().getScheduler().runTask(plugin,
+                                        () -> open(clicker));
+                            }
+                        },
+                        options()))
+                .build());
+        actions.add(backToHub());
+        player.showDialog(build("Your Spoons record", body, actions,
+                Component.text("Close", NamedTextColor.GRAY), 2));
     }
 
     private Dialog build(String title, List<DialogBody> body, List<ActionButton> actions,

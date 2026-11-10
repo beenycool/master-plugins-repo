@@ -10,7 +10,10 @@ import org.bukkit.SoundCategory;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * Shared pour/charge/give logic for the tap, the menu, /beer and /round.
@@ -18,6 +21,7 @@ import java.util.Locale;
 public final class BeerService {
 
     private final GuabItemsPlugin plugin;
+    private final Map<UUID, LastOrder> lastOrders = new HashMap<>();
 
     public BeerService(GuabItemsPlugin plugin) {
         this.plugin = plugin;
@@ -32,7 +36,7 @@ public final class BeerService {
             error(player, "That beer is off the menu.");
             return false;
         }
-        if (!player.hasPermission("guab.items.use")) {
+        if (!player.hasPermission("guab.pub.use")) {
             error(player, "You are not old enough to drink here.");
             return false;
         }
@@ -65,8 +69,8 @@ public final class BeerService {
         }
 
         give(player, brand, amount);
-        player.playSound(player.getLocation(), Sound.BLOCK_BARREL_OPEN,
-                SoundCategory.PLAYERS, 1.0f, 1.0f);
+        lastOrders.put(player.getUniqueId(), new LastOrder(brand.id(), amount));
+        GuabSounds.play(player, Sound.BLOCK_BARREL_OPEN, SoundCategory.PLAYERS, 1.0f, 1.0f);
         String priceText = total > 0
                 ? " for " + total + (total == 1 ? " point." : " points.")
                 : " for free.";
@@ -76,13 +80,40 @@ public final class BeerService {
         return true;
     }
 
+    /** Replays the last successful /beer order, optionally with a new amount. */
+    public boolean purchaseAgain(Player player, Integer amountOverride) {
+        LastOrder last = lastOrders.get(player.getUniqueId());
+        if (last == null) {
+            error(player, "You have not ordered yet. Try /beer list.");
+            return false;
+        }
+        BeerBrand brand = plugin.beer().findBrand(last.brandId());
+        if (brand == null) {
+            brand = plugin.beer().brandFor(last.brandId());
+        }
+        if (brand == null) {
+            error(player, "That beer is off the menu now. Try /beer list.");
+            return false;
+        }
+        int amount = amountOverride == null ? last.amount() : Math.clamp(amountOverride, 1, 64);
+        return purchase(player, brand, amount, brand.style().price(), true);
+    }
+
     public boolean buyMilk(Player player, boolean requirePub) {
         if (!plugin.getConfig().getBoolean("beer.milk.enabled", true)) {
             error(player, "The milk is off tonight.");
             return false;
         }
-        if (!player.hasPermission("guab.items.use")) {
+        if (!player.hasPermission("guab.pub.use")) {
             error(player, "You are not allowed to buy milk.");
+            return false;
+        }
+        if (player.getGameMode() == org.bukkit.GameMode.SPECTATOR) {
+            error(player, "A spectator cannot buy milk.");
+            return false;
+        }
+        if (plugin.pub() != null && plugin.pub().drunkUnits(player.getUniqueId()) <= 0.05) {
+            error(player, "You're already sober. Save your points.");
             return false;
         }
         if (requirePub && !inPub(player) && !player.hasPermission("guab.pub.menu.remote")) {
@@ -99,8 +130,7 @@ public final class BeerService {
         }
         player.getInventory().addItem(plugin.items().createMilk()).values()
                 .forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
-        player.playSound(player.getLocation(), Sound.ENTITY_COW_MILK,
-                SoundCategory.PLAYERS, 1.0f, 1.0f);
+        GuabSounds.play(player, Sound.ENTITY_COW_MILK, SoundCategory.PLAYERS, 1.0f, 1.0f);
         player.sendMessage(prefix().append(Component.text(
                 "Poured a pint of milk" + (cost > 0 ? " for " + cost + " points." : " for free.")
                         + " Drink it to sober up.", NamedTextColor.WHITE)));
@@ -147,5 +177,8 @@ public final class BeerService {
 
     private void error(Player player, String message) {
         player.sendMessage(prefix().append(Component.text(message, NamedTextColor.RED)));
+    }
+
+    private record LastOrder(String brandId, int amount) {
     }
 }

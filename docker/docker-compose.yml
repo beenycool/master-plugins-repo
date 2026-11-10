@@ -5,10 +5,16 @@ services:
     image: itzg/minecraft-server:2026.10.1-java25
     container_name: guab-mc
     restart: unless-stopped
+    # Paper needs time to save worlds/plugins on SIGTERM. deploy.sh uses the
+    # same 90s timeout for `docker compose down`.
+    stop_grace_period: 120s
     tty: true
     stdin_open: true
     ports:
       - "30565:25565"
+      # Web console is loopback-only; reach it with an SSH tunnel
+      # (see plugins/guab-webconsole/README.md). Never publish 0.0.0.0:39100.
+      - "127.0.0.1:39100:39100"
     environment:
       EULA: "TRUE"
       TYPE: "PAPER"

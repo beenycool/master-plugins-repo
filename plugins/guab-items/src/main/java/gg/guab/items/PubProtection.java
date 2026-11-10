@@ -1,5 +1,6 @@
 package gg.guab.items;
 
+import gg.guab.core.HudChannel;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
@@ -35,7 +36,13 @@ public final class PubProtection implements Listener {
             return;
         }
         event.setCancelled(true);
-        event.getPlayer().sendActionBar(LEGACY.deserialize(message()));
+        HudChannel channel = plugin.hudChannel();
+        if (channel != null) {
+            channel.send(event.getPlayer(), LEGACY.deserialize(message()),
+                    HudChannel.PRIORITY_POINTS, 40);
+        } else {
+            event.getPlayer().sendActionBar(LEGACY.deserialize(message()));
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGH)

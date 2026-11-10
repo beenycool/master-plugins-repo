@@ -45,26 +45,69 @@ public final class DartsStatsStore {
                 if (entry == null) {
                     continue;
                 }
-                Stats stats = new Stats();
-                stats.name = entry.getString("name", "unknown");
-                stats.legsPlayed = entry.getInt("legs-played", 0);
-                stats.legsWon = entry.getInt("legs-won", 0);
-                stats.dartsThrown = entry.getInt("darts-thrown", 0);
-                stats.bestLegDarts = entry.getInt("best-leg-darts", 0);
-                stats.oneEighties = entry.getInt("one-eighties", 0);
-                stats.highestCheckout = entry.getInt("highest-checkout", 0);
-                stats.checkouts = entry.getInt("checkouts", 0);
-                stats.bestVisit = entry.getInt("best-visit", 0);
-                stats.lastPlayed = entry.getLong("last-played", 0L);
-                players.put(id, stats);
+                players.put(id, read(entry));
             } catch (IllegalArgumentException ignored) {
                 // Skip malformed UUIDs instead of failing startup.
             }
         }
     }
 
+    private static Stats read(ConfigurationSection entry) {
+        Stats stats = new Stats();
+        stats.name = entry.getString("name", "unknown");
+        stats.legsPlayed = entry.getInt("legs-played", 0);
+        stats.legsWon = entry.getInt("legs-won", 0);
+        stats.dartsThrown = entry.getInt("darts-thrown", 0);
+        stats.bestLegDarts = entry.getInt("best-leg-darts", 0);
+        stats.oneEighties = entry.getInt("one-eighties", 0);
+        stats.highestCheckout = entry.getInt("highest-checkout", 0);
+        stats.checkouts = entry.getInt("checkouts", 0);
+        stats.bestVisit = entry.getInt("best-visit", 0);
+        stats.lastPlayed = entry.getLong("last-played", 0L);
+        return stats;
+    }
+
     public Stats stats(UUID player) {
         return players.computeIfAbsent(player, ignored -> new Stats());
+    }
+
+    /** A live career record, or null when the player has never thrown a dart. */
+    public Stats find(UUID player) {
+        return players.get(player);
+    }
+
+    /**
+     * Public stats lookup by name. Checks the live cache first, then reads
+     * darts.yml so offline players and console callers do not need a server
+     * session or an admin permission.
+     */
+    public Stats findByName(String name) {
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        for (Stats stats : players.values()) {
+            if (name.equalsIgnoreCase(stats.name)) {
+                return stats;
+            }
+        }
+        if (!file.isFile()) {
+            return null;
+        }
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+        ConfigurationSection section = yaml.getConfigurationSection("players");
+        if (section == null) {
+            return null;
+        }
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection entry = section.getConfigurationSection(key);
+            if (entry == null) {
+                continue;
+            }
+            if (name.equalsIgnoreCase(entry.getString("name", ""))) {
+                return read(entry);
+            }
+        }
+        return null;
     }
 
     public void recordLegStart(UUID player, String name) {
@@ -72,6 +115,19 @@ public final class DartsStatsStore {
         stats.name = name;
         stats.legsPlayed++;
         stats.lastPlayed = System.currentTimeMillis();
+        dirty = true;
+    }
+
+    /**
+     * Undo a leg start when the player never made it onto the oche (for example
+     * the darts room could not be created).
+     */
+    public void rollbackLegStart(UUID player) {
+        Stats stats = players.get(player);
+        if (stats == null) {
+            return;
+        }
+        stats.legsPlayed = Math.max(0, stats.legsPlayed - 1);
         dirty = true;
     }
 
@@ -102,6 +158,13 @@ public final class DartsStatsStore {
         if (stats.bestLegDarts == 0 || legDarts < stats.bestLegDarts) {
             stats.bestLegDarts = legDarts;
         }
+        stats.lastPlayed = System.currentTimeMillis();
+        dirty = true;
+    }
+
+    public void recordForfeitWin(UUID player) {
+        Stats stats = stats(player);
+        stats.legsWon++;
         stats.lastPlayed = System.currentTimeMillis();
         dirty = true;
     }

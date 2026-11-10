@@ -3,6 +3,9 @@ package gg.guab.items;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -37,6 +40,9 @@ public final class GuabItemsCommand implements CommandExecutor, TabCompleter {
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "give" -> give(sender, label, args);
             case "reload" -> reload(sender);
+            case "tapinfo", "tap" -> tapInfo(sender);
+            case "status", "where" -> status(sender);
+            case "shelf", "shelves" -> shelf(sender, label, args);
             default -> usage(sender, label);
         }
         return true;
@@ -139,11 +145,96 @@ public final class GuabItemsCommand implements CommandExecutor, TabCompleter {
                 + ", jump boost amplifier=" + plugin.config().jumpBoostAmplifier() + ".");
     }
 
+    private void tapInfo(CommandSender sender) {
+        Location tap = plugin.beerTap() == null ? null : plugin.beerTap().tapLocation();
+        if (tap == null) {
+            error(sender, "The tap world is not loaded (beer.tap.world).");
+            return;
+        }
+        Block block = tap.getBlock();
+        info(sender, "Tap: " + format(tap) + " · block " + block.getType()
+                + (block.getType() == Material.BARREL ? " (barrel)" : " (NOT a barrel)")
+                + " · radius " + plugin.getConfig().getDouble("beer.tap.radius", 12.0));
+    }
+
+    private void status(CommandSender sender) {
+        Location centre = plugin.pub() == null ? null : plugin.pub().centre();
+        Location tap = plugin.beerTap() == null ? null : plugin.beerTap().tapLocation();
+        DartsConfig darts = plugin.darts().config();
+        info(sender, "Pub centre: " + (centre == null ? "not loaded" : format(centre)
+                + " · radius " + plugin.getConfig().getDouble("pub.round.radius", 14.0)));
+        info(sender, "Tap: " + (tap == null ? "not loaded" : format(tap)));
+        info(sender, "Board: " + darts.world() + " " + darts.x() + " " + darts.y() + " "
+                + darts.z() + " facing " + darts.face() + " · enabled " + darts.enabled());
+        List<String> shelves = plugin.getConfig().getStringList("pub.menu.shelves");
+        info(sender, "Menu shelves: " + shelves.size());
+        for (String shelf : shelves) {
+            sender.sendMessage(Component.text("  · " + shelf, NamedTextColor.DARK_GRAY));
+        }
+        info(sender, "Worlds: pub=" + worldName(centre)
+                + " tap=" + worldName(tap)
+                + " board=" + darts.world()
+                + " darts-room=" + (Bukkit.getWorld("guab_darts") == null ? "not created" : "guab_darts")
+                + " leaderboard=" + plugin.getConfig().getString("pub.pints.leaderboard.world",
+                        "guab_casino"));
+        info(sender, "Beer menu enabled=" + plugin.getConfig().getBoolean("beer.menu.enabled", true)
+                + " · quiz enabled=" + plugin.getConfig().getBoolean("pub.quiz.enabled", true)
+                + " · " + plugin.pub().totalPints() + " pints served.");
+    }
+
+    private void shelf(CommandSender sender, String label, String[] args) {
+        if (!(sender instanceof Player player)) {
+            error(sender, "Only players can target a shelf block.");
+            return;
+        }
+        if (args.length < 2 || !(args[1].equalsIgnoreCase("add")
+                || args[1].equalsIgnoreCase("remove"))) {
+            error(sender, "Use /" + label + " shelf <add|remove> while looking at a block.");
+            return;
+        }
+        Block target = player.getTargetBlockExact(8);
+        if (target == null) {
+            error(sender, "Look at the shelf block within 8 blocks.");
+            return;
+        }
+        String key = target.getWorld().getName() + ";" + target.getX() + ";"
+                + target.getY() + ";" + target.getZ();
+        List<String> shelves = new ArrayList<>(plugin.getConfig().getStringList("pub.menu.shelves"));
+        boolean add = args[1].equalsIgnoreCase("add");
+        if (add && !shelves.contains(key)) {
+            shelves.add(key);
+        } else if (!add) {
+            shelves.remove(key);
+        } else {
+            info(sender, "That block is already a menu shelf.");
+            return;
+        }
+        plugin.getConfig().set("pub.menu.shelves", shelves);
+        plugin.saveConfig();
+        if (plugin.menuShelves() != null) {
+            plugin.menuShelves().reload();
+        }
+        info(sender, (add ? "Added" : "Removed") + " menu shelf " + key + " (now "
+                + shelves.size() + ").");
+    }
+
+    private static String format(Location location) {
+        return location.getWorld().getName() + " " + location.getX() + " "
+                + location.getY() + " " + location.getZ();
+    }
+
+    private static String worldName(Location location) {
+        return location == null || location.getWorld() == null
+                ? "not loaded" : location.getWorld().getName();
+    }
+
     private void usage(CommandSender sender, String label) {
         sender.sendMessage(Component.text(
                 "/" + label + " give <player> <wind_charge|jump_boost|beer[:brand|style]|milk> [amount]",
                 NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("/" + label + " reload", NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("/" + label + " reload | tapinfo | status", NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("/" + label + " shelf <add|remove> (at the targeted block)",
+                NamedTextColor.GRAY));
     }
 
     private Component prefix() {
@@ -164,7 +255,10 @@ public final class GuabItemsCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
         if (args.length == 1) {
-            return matching(List.of("give", "reload"), args[0]);
+            return matching(List.of("give", "reload", "tapinfo", "status", "shelf"), args[0]);
+        }
+        if (args[0].equalsIgnoreCase("shelf") && args.length == 2) {
+            return matching(List.of("add", "remove"), args[1]);
         }
         if (!args[0].equalsIgnoreCase("give")) {
             return List.of();

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -75,6 +76,33 @@ class DartsLogicTest {
         assertTrue(result.oneEighty());
         assertEquals(321, game.score());
         assertEquals(3, game.dartsLeft());
+    }
+
+    @Test
+    void aOneHundredAndEightyCheckoutCountsAsAOneEighty() {
+        // A 180 checkout is only possible when any dart can finish (beginner
+        // assist); the checkout branch must still flag it as a 180.
+        DartsGame game = new DartsGame(UUID.randomUUID(), "Tester", 180, 1, true);
+        game.throwDart(hit(60, 3, "T20", false));
+        game.throwDart(hit(60, 3, "T20", false));
+        DartsGame.Result checkout = game.throwDart(hit(60, 3, "T20", false));
+
+        assertEquals(DartsGame.Kind.CHECKOUT, checkout.kind());
+        // The visit totalled 180 even though the final arrow checked out 60.
+        assertEquals(60, checkout.checkout());
+        assertEquals(180, checkout.turnTotal());
+        assertTrue(checkout.oneEighty());
+
+        // A 180 checkout in a non-final leg must survive startNextLeg() resetting
+        // the live turn total.
+        DartsGame multiLeg = new DartsGame(UUID.randomUUID(), "Tester", 180, 3, true);
+        multiLeg.throwDart(hit(60, 3, "T20", false));
+        multiLeg.throwDart(hit(60, 3, "T20", false));
+        DartsGame.Result firstLeg = multiLeg.throwDart(hit(60, 3, "T20", false));
+        assertEquals(DartsGame.Kind.CHECKOUT, firstLeg.kind());
+        assertFalse(firstLeg.matchWon());
+        assertEquals(180, firstLeg.turnTotal());
+        assertTrue(firstLeg.oneEighty());
     }
 
     @Test

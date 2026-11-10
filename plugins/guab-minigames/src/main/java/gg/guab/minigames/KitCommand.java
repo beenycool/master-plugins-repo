@@ -2,18 +2,21 @@ package gg.guab.minigames;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
+import gg.guab.core.HudChannel;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 /** Gives the battle pit PvP kit, with a short cooldown. */
-public final class KitCommand implements CommandExecutor {
+public final class KitCommand implements CommandExecutor, Listener {
 
     private final GuabMinigamesPlugin plugin;
     private final BattlePit pit;
@@ -30,8 +33,16 @@ public final class KitCommand implements CommandExecutor {
             error(sender, "Only players can take a kit.");
             return true;
         }
+        if (!plugin.getConfig().getBoolean("kit.enabled", true)) {
+            error(sender, "The battle pit kit is disabled.");
+            return true;
+        }
         if (!player.hasPermission("guab.kit.use")) {
             error(sender, "You are not allowed to take a kit.");
+            return true;
+        }
+        if (player.isDead() || player.getHealth() <= 0.0) {
+            error(sender, "You cannot take a kit while dead.");
             return true;
         }
         if (plugin.getConfig().getBoolean("kit.require-battlepit", true) && !pit.inPit(player)) {
@@ -43,20 +54,39 @@ public final class KitCommand implements CommandExecutor {
         long now = System.currentTimeMillis();
         long remaining = cooldowns.getOrDefault(player.getUniqueId(), 0L) + cooldown - now;
         if (remaining > 0) {
-            error(sender, "Kit ready in " + ((remaining + 999) / 1000) + "s.");
+            long seconds = (remaining + 999) / 1000;
+            plugin.actionBar(player, Component.text("Kit ready in " + seconds + "s",
+                    NamedTextColor.RED), HudChannel.PRIORITY_HINT, 40);
+            error(sender, "Kit ready in " + seconds + "s.");
             return true;
         }
         cooldowns.put(player.getUniqueId(), now);
 
         if (plugin.getConfig().getBoolean("kit.clear-inventory", true)) {
-            player.getInventory().clear();
+            BattleKit.resetAndGive(plugin, player);
+        } else {
+            BattleKit.give(plugin, player);
         }
-        BattleKit.give(player);
+        plugin.actionBar(player, Component.text("Kit equipped", NamedTextColor.GREEN),
+                HudChannel.PRIORITY_HINT, 40);
         player.sendMessage(Component.text("[Kit] ", NamedTextColor.GOLD)
                 .append(Component.text("Battle pit PvP kit equipped.", NamedTextColor.WHITE)));
         return true;
     }
 
+    /** Called when a fighter joins or leaves so a fresh session starts ready. */
+    void resetCooldown(UUID id) {
+        cooldowns.remove(id);
+    }
+
+    void forget(UUID id) {
+        cooldowns.remove(id);
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        cooldowns.remove(event.getPlayer().getUniqueId());
+    }
 
     private void error(CommandSender sender, String message) {
         sender.sendMessage(Component.text("[Kit] ", NamedTextColor.GOLD)

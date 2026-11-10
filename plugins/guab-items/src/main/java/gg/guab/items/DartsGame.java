@@ -13,6 +13,7 @@ public final class DartsGame {
     private final int mode;
     private final int legsToWin;
     private final boolean beginner;
+    private final boolean practice;
 
     private int score;
     private int turnStartScore;
@@ -25,11 +26,17 @@ public final class DartsGame {
     private DartsGeometry.Hit lastHit;
 
     public DartsGame(UUID playerId, String playerName, int mode, int legsToWin, boolean beginner) {
+        this(playerId, playerName, mode, legsToWin, beginner, false);
+    }
+
+    public DartsGame(UUID playerId, String playerName, int mode, int legsToWin, boolean beginner,
+                     boolean practice) {
         this.playerId = playerId;
         this.playerName = playerName;
         this.mode = mode;
         this.legsToWin = legsToWin;
         this.beginner = beginner;
+        this.practice = practice;
         this.score = mode;
         this.turnStartScore = mode;
         this.dartsLeft = 3;
@@ -52,6 +59,10 @@ public final class DartsGame {
         if (after == 0 && (beginner || hit.doubleOut())) {
             int checkout = before;
             int legDarts = dartsThisLeg;
+            // Capture the visit total before startNextLeg() resets it. Without
+            // this a 180 checkout in a multi-leg match would not count as a 180.
+            int visitTotal = turnTotal;
+            boolean oneEighty = visitTotal == 180;
             legsWon++;
             boolean matchWon = legsWon >= legsToWin;
             if (matchWon) {
@@ -59,8 +70,10 @@ public final class DartsGame {
             } else {
                 startNextLeg();
             }
+            // A 180 checkout is still a 180, even though the visit ends on the
+            // winning arrow rather than a normal turn end.
             return new Result(Kind.CHECKOUT, hit, before, 0, checkout, legDarts,
-                    legsWon, matchWon, turnTotal, false, false);
+                    legsWon, matchWon, visitTotal, oneEighty, false);
         }
 
         if (after < 0 || after == 1 || after == 0) {
@@ -158,6 +171,11 @@ public final class DartsGame {
 
     public boolean matchOver() {
         return matchOver;
+    }
+
+    /** Practice legs never touch career records, rewards or announcements. */
+    public boolean practice() {
+        return practice;
     }
 
     public DartsGeometry.Hit lastHit() {

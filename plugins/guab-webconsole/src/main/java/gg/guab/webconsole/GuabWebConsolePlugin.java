@@ -30,13 +30,16 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * A tiny token-protected HTTP endpoint that executes Minecraft commands with
- * {@code curl}. Intended for hosts that expose an extra TCP port.
+ * {@code curl}. Bind it to loopback and use an SSH tunnel.
  *
- * <p>GET /command?token=...&amp;cmd=list
+ * <p>GET /command?cmd=list with {@code Authorization: Bearer ...} (or the
+ * legacy {@code token} query parameter).
  */
 public final class GuabWebConsolePlugin extends JavaPlugin {
 
     private static final String DEFAULT_TOKEN = "change-me-to-a-long-random-string";
+    private static final String DEFAULT_BIND = "127.0.0.1";
+    private static final int DEFAULT_MAX_BODY_BYTES = 16 * 1024;
 
     private HttpServer server;
     private ExecutorService executor;
@@ -45,6 +48,7 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
     private int port;
     private int timeoutSeconds;
     private int maxCommandLength;
+    private int maxBodyBytes;
     private int rateLimitPerMinute;
     private List<String> allowedIps;
     private List<String> blockedPrefixes;
@@ -63,15 +67,25 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
             getLogger().severe("Web console not started: set a long random web.token in config.yml.");
             return;
         }
-        this.bind = getConfig().getString("web.bind", "0.0.0.0");
+        this.bind = getConfig().getString("web.bind", DEFAULT_BIND);
+        if (bind == null || bind.isBlank()) {
+            bind = DEFAULT_BIND;
+        }
         this.port = getConfig().getInt("web.port", 39100);
         this.timeoutSeconds = Math.max(1, getConfig().getInt("web.request-timeout-seconds", 10));
         this.maxCommandLength = Math.max(32, getConfig().getInt("web.max-command-length", 1000));
+        this.maxBodyBytes = Math.max(1024, getConfig().getInt("web.max-body-bytes", DEFAULT_MAX_BODY_BYTES));
         this.rateLimitPerMinute = Math.max(1, getConfig().getInt("web.rate-limit-per-minute", 60));
         this.allowedIps = getConfig().getStringList("web.allowed-ips");
         this.blockedPrefixes = getConfig().getStringList("web.blocked-prefixes").stream()
                 .map(prefix -> prefix.toLowerCase(Locale.ROOT))
                 .toList();
+
+        if (!DEFAULT_BIND.equals(bind) && !"localhost".equalsIgnoreCase(bind)) {
+            getLogger().warning("Web console is bound to " + bind
+                    + " (not loopback). Use an SSH tunnel or a reverse proxy with TLS; "
+                    + "plain HTTP tokens are sniffable.");
+        }
 
         try {
             this.server = HttpServer.create(new InetSocketAddress(bind, port), 0);
@@ -88,7 +102,8 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
         server.createContext("/health", this::health);
         server.createContext("/command", this::command);
         server.start();
-        getLogger().info("Web console listening on " + bind + ":" + port + " (POST/GET /command?token=...&cmd=...).");
+        getLogger().info("Web console listening on " + bind + ":" + port
+                + " (Bearer token; loopback + SSH tunnel recommended).");
     }
 
     @Override
@@ -114,31 +129,32 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
                 respond(exchange, 405, "method not allowed\n");
                 return;
             }
-            Map<String, String> params = new LinkedHashMap<>(parseQuery(exchange.getRequestURI().getRawQuery()));
-            if (method.equals("POST")) {
-                params.putAll(parseBody(exchange));
-            }
 
             String remote = exchange.getRemoteAddress().getAddress().getHostAddress();
             if (!allowedIps.isEmpty() && !allowedIps.contains(remote)) {
                 respond(exchange, 403, "forbidden\n");
                 return;
             }
-            String provided = params.get("token");
+            // Count unauthenticated attempts too, so a token-guessing loop is throttled before any body is read.
+            if (rateLimited(remote)) {
+                respond(exchange, 429, "rate limited\n");
+                return;
+            }
+
+            Map<String, String> params = new LinkedHashMap<>(parseQuery(exchange.getRequestURI().getRawQuery()));
+            String provided = headerToken(exchange);
             if (provided == null) {
-                String authorization = exchange.getRequestHeaders().getFirst("Authorization");
-                if (authorization != null && authorization.toLowerCase(Locale.ROOT).startsWith("bearer ")) {
-                    provided = authorization.substring(7).trim();
-                }
+                provided = params.remove("token");
             }
             if (!matches(provided)) {
                 getLogger().warning("Rejected web command from " + remote + ": bad token.");
                 respond(exchange, 401, "bad token\n");
                 return;
             }
-            if (rateLimited(remote)) {
-                respond(exchange, 429, "rate limited\n");
-                return;
+
+            if (method.equals("POST")) {
+                // Only read the body after authentication and the IP/rate checks pass.
+                params.putAll(parseBody(exchange));
             }
 
             String command = params.get("cmd");
@@ -165,12 +181,33 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
             List<String> output = run(command);
             getLogger().info("[" + remote + "] /" + command);
             respond(exchange, 200, output.isEmpty() ? "OK\n" : String.join("\n", output) + "\n");
+        } catch (BodyTooLargeException exception) {
+            respond(exchange, 413, "body too large\n");
         } catch (Exception exception) {
             getLogger().warning("Web command failed: " + exception);
             respond(exchange, 500, "error: " + exception.getMessage() + "\n");
         } finally {
             exchange.close();
         }
+    }
+
+    private String headerToken(HttpExchange exchange) {
+        String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+        if (authorization != null && authorization.toLowerCase(Locale.ROOT).startsWith("bearer ")) {
+            String value = authorization.substring(7).trim();
+            if (!value.isEmpty()) {
+                return value;
+            }
+        }
+        String direct = exchange.getRequestHeaders().getFirst("X-Guab-Token");
+        if (direct != null && !direct.isBlank()) {
+            return direct.trim();
+        }
+        String alternate = exchange.getRequestHeaders().getFirst("X-Auth-Token");
+        if (alternate != null && !alternate.isBlank()) {
+            return alternate.trim();
+        }
+        return null;
     }
 
     private List<String> run(String command) throws Exception {
@@ -234,12 +271,18 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
 
     private Map<String, String> parseBody(HttpExchange exchange) throws IOException {
         String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+        long declared = parseContentLength(exchange);
+        if (declared > maxBodyBytes) {
+            throw new BodyTooLargeException();
+        }
         try (InputStream stream = exchange.getRequestBody()) {
-            String body = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            byte[] data = readLimited(stream);
+            String body = new String(data, StandardCharsets.UTF_8);
             if (body.isBlank()) {
                 return Map.of();
             }
-            if (contentType != null && contentType.toLowerCase(Locale.ROOT).contains("application/x-www-form-urlencoded")) {
+            if (contentType != null
+                    && contentType.toLowerCase(Locale.ROOT).contains("application/x-www-form-urlencoded")) {
                 Map<String, String> form = parseQuery(body);
                 if (form.containsKey("cmd")) {
                     return form;
@@ -250,6 +293,33 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
         }
     }
 
+    private long parseContentLength(HttpExchange exchange) {
+        String raw = exchange.getRequestHeaders().getFirst("Content-Length");
+        if (raw == null || raw.isBlank()) {
+            return -1L;
+        }
+        try {
+            return Long.parseLong(raw.trim());
+        } catch (NumberFormatException exception) {
+            return -1L;
+        }
+    }
+
+    private byte[] readLimited(InputStream stream) throws IOException {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        byte[] buffer = new byte[2048];
+        int total = 0;
+        int read;
+        while ((read = stream.read(buffer)) != -1) {
+            total += read;
+            if (total > maxBodyBytes) {
+                throw new BodyTooLargeException();
+            }
+            out.write(buffer, 0, read);
+        }
+        return out.toByteArray();
+    }
+
     private String decode(String value) {
         return URLDecoder.decode(value, StandardCharsets.UTF_8);
     }
@@ -258,12 +328,19 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
         try {
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
+            exchange.getResponseHeaders().set("Cache-Control", "no-store");
             exchange.sendResponseHeaders(status, bytes.length);
             try (OutputStream stream = exchange.getResponseBody()) {
                 stream.write(bytes);
             }
         } catch (IOException ignored) {
             // The client disconnected; nothing left to do.
+        }
+    }
+
+    private static final class BodyTooLargeException extends IOException {
+        private BodyTooLargeException() {
+            super("body too large");
         }
     }
 }

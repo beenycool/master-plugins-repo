@@ -1,5 +1,6 @@
 package gg.guab.blocks;
 
+import gg.guab.core.HudChannel;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -10,12 +11,14 @@ import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +26,9 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class PrankManager {
+
+    /** Soft convention shared with GuabMinigames; no compile-time dependency. */
+    static final String PIT_METADATA = "guab.battlepit";
 
     private final GuabBlocksPlugin plugin;
     private final Map<UUID, Long> playerCooldowns = new HashMap<>();
@@ -35,6 +41,9 @@ public final class PrankManager {
     }
 
     public void trigger(Player player, Block block, PrankBlock entry) {
+        if (isExcluded(player)) {
+            return;
+        }
         BlocksConfig config = plugin.config();
         long now = System.currentTimeMillis();
 
@@ -52,14 +61,42 @@ public final class PrankManager {
             return;
         }
 
-        playerCooldowns.put(player.getUniqueId(), now);
-        blockCooldowns.put(entry.key(), now);
-
-        switch (entry.type()) {
-            case FAKE -> fake(block, entry, config);
+        // Do not burn a player/block cooldown unless the prank actually happened.
+        boolean applied = switch (entry.type()) {
+            case FAKE -> fake(block, entry, config, false);
             case POTION -> potion(player, entry, config);
             case SWAP -> swap(player, config);
+        };
+        if (!applied) {
+            return;
         }
+        playerCooldowns.put(player.getUniqueId(), now);
+        blockCooldowns.put(entry.key(), now);
+    }
+
+    /** Admin test path: ignores chance and every cooldown. */
+    public boolean triggerForced(Player player, Block block, PrankBlock entry) {
+        if (isExcluded(player)) {
+            return false;
+        }
+        BlocksConfig config = plugin.config();
+        return switch (entry.type()) {
+            case FAKE -> fake(block, entry, config, true);
+            case POTION -> potion(player, entry, config);
+            case SWAP -> swap(player, config);
+        };
+    }
+
+    /** Creative, spectator, dead players and battle-pit fighters are off limits. */
+    public boolean isExcluded(Player player) {
+        if (player.isDead() || player.getHealth() <= 0.0) {
+            return true;
+        }
+        GameMode mode = player.getGameMode();
+        if (mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR) {
+            return true;
+        }
+        return player.hasMetadata(PIT_METADATA) || player.hasMetadata("battlepit");
     }
 
     public void forget(Player player) {
@@ -72,6 +109,31 @@ public final class PrankManager {
         for (String key : List.copyOf(pendingRestores.keySet())) {
             restore(key);
         }
+    }
+
+    public PendingRestoreInfo pending(Block block) {
+        return pending(BlockStore.key(block));
+    }
+
+    public PendingRestoreInfo pending(String world, int x, int y, int z) {
+        return pending(BlockStore.normalizeWorld(world) + ";" + x + ";" + y + ";" + z);
+    }
+
+    private PendingRestoreInfo pending(String key) {
+        PendingRestore pending = pendingRestores.get(key);
+        if (pending == null) {
+            return null;
+        }
+        return new PendingRestoreInfo(pending.world, pending.x, pending.y, pending.z,
+                pending.data.getAsString());
+    }
+
+    public int pendingCount() {
+        return pendingRestores.size();
+    }
+
+    public boolean restoreAt(String world, int x, int y, int z) {
+        return restore(BlockStore.normalizeWorld(world) + ";" + x + ";" + y + ";" + z);
     }
 
     public void shutdown() {
@@ -91,14 +153,19 @@ public final class PrankManager {
         }
     }
 
-    private void fake(Block block, PrankBlock entry, BlocksConfig config) {
+    private boolean fake(Block block, PrankBlock entry, BlocksConfig config, boolean force) {
         String key = entry.key();
         if (pendingRestores.containsKey(key)) {
-            return;
+            return false;
+        }
+        if (!BlockStore.isSimpleSolid(block)) {
+            plugin.getLogger().warning("Skipped fake block at " + key
+                    + " because it is no longer a simple solid block.");
+            return false;
         }
         double chance = entry.chance() != null ? entry.chance() : config.fakeChance();
-        if (chance <= 0.0 || ThreadLocalRandom.current().nextDouble() >= chance) {
-            return;
+        if (!force && (chance <= 0.0 || ThreadLocalRandom.current().nextDouble() >= chance)) {
+            return false;
         }
 
         BlockData original = block.getBlockData().clone();
@@ -106,7 +173,7 @@ public final class PrankManager {
                 ? entry.restoreDelayTicks()
                 : config.fakeRestoreDelayTicks();
         Sound sound = entry.breakSound() != null
-                ? BlocksConfig.resolveSound(entry.breakSound(), config.fakeBreakSound())
+                ? BlocksConfig.resolveSound(entry.breakSound(), config.fakeBreakSound(), plugin.getLogger())
                 : config.fakeBreakSound();
 
         PendingRestore pending = new PendingRestore(
@@ -117,23 +184,25 @@ public final class PrankManager {
         block.getWorld().playSound(block.getLocation(), sound, SoundCategory.BLOCKS, 1.0f, 0.9f);
 
         pending.task = Bukkit.getScheduler().runTaskLater(plugin, () -> restore(key), delay);
+        return true;
     }
 
-    private void potion(Player player, PrankBlock entry, BlocksConfig config) {
+    private boolean potion(Player player, PrankBlock entry, BlocksConfig config) {
         PotionSpec spec = potionFor(entry, config);
         if (spec == null) {
-            return;
+            return false;
         }
         player.addPotionEffect(new PotionEffect(spec.type(), spec.durationTicks(), spec.amplifier(),
                 false, true, true));
-        player.sendActionBar(Component.text("Pranked: ", NamedTextColor.GRAY)
-                .append(Component.text(title(spec.name()), NamedTextColor.RED)));
+        actionBar(player, Component.text("Pranked: ", NamedTextColor.GRAY)
+                .append(Component.text(spec.name(), NamedTextColor.RED)), HudChannel.PRIORITY_POINTS);
         player.playSound(player.getLocation(), Sound.ENTITY_WITCH_DRINK, SoundCategory.PLAYERS, 0.8f, 1.0f);
+        return true;
     }
 
     private PotionSpec potionFor(PrankBlock entry, BlocksConfig config) {
         if (entry.effect() != null) {
-            PotionEffectType type = BlocksConfig.resolveEffect(entry.effect());
+            PotionEffectType type = BlocksConfig.resolveEffect(entry.effect(), plugin.getLogger());
             if (type != null) {
                 int duration = entry.durationSeconds() != null ? entry.durationSeconds() * 20 : 5 * 20;
                 int amplifier = entry.amplifier() != null ? entry.amplifier() : 0;
@@ -149,38 +218,99 @@ public final class PrankManager {
         return effects.get(ThreadLocalRandom.current().nextInt(effects.size()));
     }
 
-    private void swap(Player victim, BlocksConfig config) {
-        swapCooldowns.put(victim.getUniqueId(), System.currentTimeMillis());
-
+    private boolean swap(Player victim, BlocksConfig config) {
         Location origin = victim.getLocation();
         double radius = config.swapExcludeRadius();
         double radiusSquared = radius * radius;
-        List<Player> online = List.copyOf(Bukkit.getOnlinePlayers());
-        List<Player> candidates = online.stream()
-                .filter(other -> !other.getUniqueId().equals(victim.getUniqueId()))
-                .filter(other -> other.getWorld().equals(victim.getWorld()))
-                .filter(other -> other.getGameMode() != GameMode.SPECTATOR)
-                .filter(other -> other.getLocation().distanceSquared(origin) > radiusSquared)
-                .toList();
+        List<Player> candidates = new ArrayList<>();
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (other.getUniqueId().equals(victim.getUniqueId())) {
+                continue;
+            }
+            if (!other.getWorld().equals(victim.getWorld())) {
+                continue;
+            }
+            if (isExcluded(other)) {
+                continue;
+            }
+            if (other.getLocation().distanceSquared(origin) <= radiusSquared) {
+                continue;
+            }
+            if (!isSafeLanding(other.getLocation())) {
+                continue;
+            }
+            candidates.add(other);
+        }
 
         if (candidates.isEmpty()) {
-            victim.sendActionBar(Component.text("Swap block: no one to swap with.", NamedTextColor.GRAY));
-            return;
+            actionBar(victim, Component.text("Swap block: no safe player to swap with.",
+                    NamedTextColor.GRAY), HudChannel.PRIORITY_CRITICAL);
+            return false;
         }
 
         Player target = candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
         victim.teleport(target.getLocation());
         victim.setFallDistance(0.0f);
-        victim.playSound(victim.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 1.0f, 1.0f);
-        target.playSound(target.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 0.7f, 1.2f);
-        victim.sendActionBar(Component.text("Swap block: hello, " + target.getName() + "!",
-                NamedTextColor.LIGHT_PURPLE));
+        swapCooldowns.put(victim.getUniqueId(), System.currentTimeMillis());
+        victim.playSound(victim.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT,
+                SoundCategory.PLAYERS, 1.0f, 1.0f);
+        target.playSound(target.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT,
+                SoundCategory.PLAYERS, 0.7f, 1.2f);
+        actionBar(victim, Component.text("Swap block: hello, " + target.getName() + "!",
+                NamedTextColor.LIGHT_PURPLE), HudChannel.PRIORITY_CRITICAL);
+        actionBar(target, Component.text("You were swapped with " + victim.getName() + "!",
+                NamedTextColor.LIGHT_PURPLE), HudChannel.PRIORITY_CRITICAL);
+        return true;
     }
 
-    private void restore(String key) {
+    /** Prank feedback shares the action bar with points/darts instead of stomping it. */
+    private void actionBar(Player player, Component message, int priority) {
+        HudChannel channel = Bukkit.getServicesManager().load(HudChannel.class);
+        if (channel != null) {
+            channel.send(player, message, priority, 40);
+            return;
+        }
+        player.sendActionBar(message);
+    }
+
+    /** Rejects targets standing in lava, fire, the void, or inside a block. */
+    static boolean isSafeLanding(Location location) {
+        if (location == null || location.getWorld() == null) {
+            return false;
+        }
+        World world = location.getWorld();
+        if (!Double.isFinite(location.getY())
+                || location.getY() < world.getMinHeight() + 1.0
+                || location.getY() >= world.getMaxHeight()) {
+            return false;
+        }
+        Block feet = location.getBlock();
+        Block below = feet.getRelative(BlockFace.DOWN);
+        Block head = feet.getRelative(BlockFace.UP);
+        if (feet.isLiquid() || head.isLiquid() || below.isLiquid()) {
+            return false;
+        }
+        if (!below.getType().isSolid()) {
+            return false;
+        }
+        if (feet.getType().isSolid() || head.getType().isSolid()) {
+            return false;
+        }
+        return !hazard(below.getType()) && !hazard(feet.getType()) && !hazard(head.getType());
+    }
+
+    private static boolean hazard(Material type) {
+        return switch (type) {
+            case LAVA, MAGMA_BLOCK, FIRE, SOUL_FIRE, CAMPFIRE, SOUL_CAMPFIRE,
+                 CACTUS, SWEET_BERRY_BUSH, POWDER_SNOW -> true;
+            default -> false;
+        };
+    }
+
+    private boolean restore(String key) {
         PendingRestore pending = pendingRestores.remove(key);
         if (pending == null) {
-            return;
+            return false;
         }
         if (pending.task != null) {
             pending.task.cancel();
@@ -188,16 +318,19 @@ public final class PrankManager {
         World world = Bukkit.getWorld(pending.world);
         if (world == null) {
             plugin.getLogger().warning("Could not restore fake block at " + key + ": world is not loaded.");
-            return;
+            return false;
         }
-        world.getBlockAt(pending.x, pending.y, pending.z).setBlockData(pending.data, false);
+        Block block = world.getBlockAt(pending.x, pending.y, pending.z);
+        if (block.getType() != Material.AIR) {
+            plugin.getLogger().warning("Skipped restoring fake block at " + key
+                    + ": the block was replaced by " + block.getType() + ".");
+            return false;
+        }
+        block.setBlockData(pending.data, false);
+        return true;
     }
 
-    private String title(String value) {
-        if (value.isEmpty()) {
-            return value;
-        }
-        return Character.toUpperCase(value.charAt(0)) + value.substring(1);
+    public record PendingRestoreInfo(String world, int x, int y, int z, String original) {
     }
 
     private static final class PendingRestore {

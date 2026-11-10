@@ -34,22 +34,24 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The physical blackjack dealer in the pub. Right-click opens a 26.3 dialog
- * where the player types a bet; an existing hand is re-printed with its action
- * buttons instead of starting a second hand.
+ * The physical blackjack dealer in the pub. Right-click opens the chest table, or
+ * the old 26.3 dialog when {@code blackjack.gui.enabled} is false. An existing hand
+ * reopens the table instead of starting a second hand.
  */
 public final class BlackjackDealer implements Listener {
 
     private final GuabGamblingPlugin plugin;
     private final Blackjack blackjack;
+    private final BlackjackGui gui;
     private final NamespacedKey dealerKey;
     private final NamespacedKey hologramKey;
     private Villager dealer;
     private TextDisplay hologram;
 
-    public BlackjackDealer(GuabGamblingPlugin plugin, Blackjack blackjack) {
+    public BlackjackDealer(GuabGamblingPlugin plugin, Blackjack blackjack, BlackjackGui gui) {
         this.plugin = plugin;
         this.blackjack = blackjack;
+        this.gui = gui;
         this.dealerKey = new NamespacedKey(plugin, "blackjack_dealer");
         this.hologramKey = new NamespacedKey(plugin, "blackjack_dealer_holo");
     }
@@ -117,9 +119,9 @@ public final class BlackjackDealer implements Listener {
         hologram = world.spawn(holoLocation, TextDisplay.class, display -> {
             display.text(Component.text("BLACKJACK", NamedTextColor.GOLD)
                     .append(Component.newline())
-                    .append(Component.text("Right-click to play", NamedTextColor.WHITE))
+                    .append(Component.text("Right-click for the table", NamedTextColor.WHITE))
                     .append(Component.newline())
-                    .append(Component.text("Dealer stands on 17", NamedTextColor.GRAY)));
+                    .append(Component.text("Dealer stands on 17 — pays 3:2", NamedTextColor.GRAY)));
             display.setBillboard(Display.Billboard.CENTER);
             display.setSeeThrough(false);
             display.setShadowed(true);
@@ -165,8 +167,27 @@ public final class BlackjackDealer implements Listener {
         open(event.getPlayer());
     }
 
-    /** Open the dealer's bet dialog, or reprint the current hand. */
+    /** Open the chest table, or the legacy dialog when the GUI is disabled. */
     public void open(Player player) {
+        if (!player.hasPermission("guab.casino.use")) {
+            player.sendMessage(Component.text("[Blackjack] ", NamedTextColor.RED)
+                    .append(Component.text("You need guab.casino.use to play blackjack.", NamedTextColor.GRAY)));
+            return;
+        }
+        if (!plugin.config().enabled()) {
+            player.sendMessage(Component.text("[Blackjack] ", NamedTextColor.RED)
+                    .append(Component.text("The casino is closed.", NamedTextColor.GRAY)));
+            return;
+        }
+        if (!plugin.getConfig().getBoolean("blackjack.enabled", true)) {
+            player.sendMessage(Component.text("[Blackjack] ", NamedTextColor.RED)
+                    .append(Component.text("Blackjack is closed.", NamedTextColor.GRAY)));
+            return;
+        }
+        if (gui != null && plugin.getConfig().getBoolean("blackjack.gui.enabled", true)) {
+            gui.open(player);
+            return;
+        }
         if (blackjack.hasHand(player)) {
             blackjack.showHand(player);
             return;

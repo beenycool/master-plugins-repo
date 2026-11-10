@@ -35,14 +35,22 @@ public final class BlockStore {
         }
     }
 
-    public void remove(Block block) {
-        if (keys.remove(key(block))) {
+    public boolean remove(Block block) {
+        boolean removed = keys.remove(key(block));
+        if (removed) {
             save();
         }
+        return removed;
     }
 
     public int size() {
         return keys.size();
+    }
+
+    /** Re-reads blocks.yml so {@code /rickroll reload} picks up hand edits. */
+    public void reload() {
+        keys.clear();
+        load();
     }
 
     private void load() {

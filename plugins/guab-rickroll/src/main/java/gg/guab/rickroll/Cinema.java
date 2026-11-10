@@ -130,6 +130,13 @@ public final class Cinema {
     }
 
     private void buildRoom() {
+        for (int x = MIN_X + 1; x <= MAX_X - 1; x++) {
+            for (int y = FLOOR_Y + 1; y <= CEILING_Y - 1; y++) {
+                for (int z = MIN_Z + 1; z <= MAX_Z - 1; z++) {
+                    set(x, y, z, Material.AIR);
+                }
+            }
+        }
         for (int x = MIN_X; x <= MAX_X; x++) {
             for (int z = MIN_Z; z <= MAX_Z; z++) {
                 set(x, FLOOR_Y, z, Material.RED_CONCRETE);

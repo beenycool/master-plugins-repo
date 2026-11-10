@@ -1,5 +1,6 @@
 package gg.guab.items;
 
+import gg.guab.core.HudChannel;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -11,6 +12,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
@@ -24,7 +26,10 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Right-click behaviour and the guards that keep renamed/crafted lookalikes inert.
@@ -32,6 +37,7 @@ import java.util.Locale;
 public final class ItemListener implements Listener {
 
     private final GuabItemsPlugin plugin;
+    private final Set<UUID> lethalDeaths = new HashSet<>();
 
     public ItemListener(GuabItemsPlugin plugin) {
         this.plugin = plugin;
@@ -75,7 +81,7 @@ public final class ItemListener implements Listener {
             if (player.getGameMode() == GameMode.SPECTATOR) {
                 return;
             }
-            if (!player.hasPermission("guab.items.use")) {
+            if (!player.hasPermission("guab.pub.use")) {
                 actionBar(player, Component.text("You cannot use Guab items.", NamedTextColor.RED));
                 return;
             }
@@ -135,15 +141,25 @@ public final class ItemListener implements Listener {
         BeerStyle style = brand.style();
         plugin.cooldowns().start(player.getUniqueId(), ItemType.BEER,
                 plugin.config().beerCooldownMillis());
-
+        if (style.lethal()) {
+            player.sendMessage(Component.text("You drink the " + brand.displayName()
+                    + ". It is instantly, catastrophically fatal.", NamedTextColor.RED));
+            consumeOne(player, hand);
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (player.isOnline() && !player.isDead()) {
+                    plugin.pub().recordLethalDrink(player);
+                    lethalDeaths.add(player.getUniqueId());
+                    player.setHealth(0.0);
+                }
+            });
+            return;
+        }
         for (ItemsConfig.BeerEffect effect : style.effects()) {
             player.addPotionEffect(new PotionEffect(effect.type(), effect.durationTicks(),
                     effect.amplifier(), false, true, true));
         }
-        player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK,
-                SoundCategory.PLAYERS, 1.0f, 0.9f);
-        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_BURP,
-                SoundCategory.PLAYERS, 0.6f, 1.1f);
+        GuabSounds.play(player, Sound.ENTITY_GENERIC_DRINK, SoundCategory.PLAYERS, 1.0f, 0.9f);
+        GuabSounds.play(player, Sound.ENTITY_PLAYER_BURP, SoundCategory.PLAYERS, 0.6f, 1.1f);
         GuabSounds.play(player, GuabSounds.BEER_POUR, 1.0f, 1.0f);
         plugin.pub().recordDrink(player, brand);
         player.sendMessage(Component.text("You crack open a cold " + brand.displayName() + ".",
@@ -219,6 +235,15 @@ public final class ItemListener implements Listener {
     }
 
     private void actionBar(Player player, Component message) {
+        HudChannel channel = plugin.hudChannel();
+        if (channel != null) {
+            channel.send(player, message, HudChannel.PRIORITY_POINTS, 30);
+            return;
+        }
+        if (plugin.preferences() != null
+                && !plugin.preferences().actionbar(player.getUniqueId())) {
+            return;
+        }
         player.sendActionBar(message);
     }
 
@@ -236,9 +261,18 @@ public final class ItemListener implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onDeath(PlayerDeathEvent event) {
+        if (lethalDeaths.remove(event.getEntity().getUniqueId())) {
+            event.deathMessage(Component.text(event.getEntity().getName()
+                    + " drank a Baileys and Lime. It was fatal.", NamedTextColor.RED));
+        }
+    }
+
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         plugin.cooldowns().clear(event.getPlayer().getUniqueId());
+        lethalDeaths.remove(event.getPlayer().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.HIGH)

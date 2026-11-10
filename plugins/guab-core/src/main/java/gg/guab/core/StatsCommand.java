@@ -18,19 +18,29 @@ import java.util.UUID;
 public final class StatsCommand implements CommandExecutor, TabCompleter {
 
     private final GuabCorePlugin plugin;
+    private final PlayerResolver resolver;
 
     public StatsCommand(GuabCorePlugin plugin) {
         this.plugin = plugin;
+        this.resolver = new PlayerResolver(plugin.points(), plugin.stats());
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length > 0 && args[0].equalsIgnoreCase("top")) {
+            if (!sender.hasPermission("guab.stats.others")) {
+                error(sender, "You need guab.stats.others to view leaderboards.");
+                return true;
+            }
             return top(sender, args);
         }
         if (args.length == 0) {
             if (!(sender instanceof Player player)) {
                 error(sender, "Run this in game, or use /stats <player>.");
+                return true;
+            }
+            if (!player.hasPermission("guab.stats.use")) {
+                error(sender, "You need guab.stats.use to view your stats.");
                 return true;
             }
             show(sender, player.getUniqueId(), player.getName());
@@ -41,20 +51,12 @@ public final class StatsCommand implements CommandExecutor, TabCompleter {
             error(sender, "You need guab.stats.others to check another player.");
             return true;
         }
-        UUID id = plugin.stats().find(args[0]);
-        String name = args[0];
-        if (id == null) {
-            Player online = Bukkit.getPlayerExact(args[0]);
-            if (online != null) {
-                id = online.getUniqueId();
-                name = online.getName();
-            }
-        }
-        if (id == null) {
+        PlayerResolver.Match target = resolver.resolve(args[0]);
+        if (target == null) {
             error(sender, "Unknown player: " + args[0]);
             return true;
         }
-        show(sender, id, name);
+        show(sender, target.id(), target.displayName());
         return true;
     }
 
@@ -122,17 +124,26 @@ public final class StatsCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            List<String> options = new ArrayList<>(List.of("top"));
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                options.add(player.getName());
+            List<String> options = new ArrayList<>();
+            if (sender.hasPermission("guab.stats.others")) {
+                options.add("top");
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    options.add(player.getName());
+                }
             }
             return options.stream()
-                    .filter(option -> option.toLowerCase(Locale.ROOT).startsWith(args[0].toLowerCase(Locale.ROOT)))
+                    .filter(option -> option.toLowerCase(Locale.ROOT)
+                            .startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .toList();
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("top")) {
             return StatsService.METRICS.stream()
                     .filter(metric -> metric.startsWith(args[1].toLowerCase(Locale.ROOT)))
+                    .toList();
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("top")) {
+            return List.of("5", "10", "20", "50").stream()
+                    .filter(value -> value.startsWith(args[2]))
                     .toList();
         }
         return List.of();

@@ -1,5 +1,6 @@
 package gg.guab.items;
 
+import gg.guab.core.HudChannel;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -64,6 +65,7 @@ public final class DartsRoom implements Listener {
     private final NamespacedKey boardKey;
     private final NamespacedKey liveKey;
     private final Map<UUID, ReturnState> returns = new HashMap<>();
+    private final Map<UUID, Integer> slots = new HashMap<>();
     private World world;
     private ItemDisplay boardDisplay;
     private TextDisplay liveBoard;
@@ -88,7 +90,8 @@ public final class DartsRoom implements Listener {
         if (returns.containsKey(player.getUniqueId()) && isInRoom(player)) {
             return true;
         }
-        int slot = returns.size() % OCHES.length;
+        int slot = nextSlot();
+        slots.put(player.getUniqueId(), slot);
         returns.put(player.getUniqueId(), new ReturnState(player.getLocation().clone(), player.getGameMode()));
         player.teleport(oche(roomWorld, slot));
         player.setGameMode(GameMode.ADVENTURE);
@@ -110,6 +113,7 @@ public final class DartsRoom implements Listener {
 
     public void exit(Player player) {
         ReturnState state = returns.remove(player.getUniqueId());
+        slots.remove(player.getUniqueId());
         removeKit(player);
         if (state != null) {
             player.teleport(state.location());
@@ -126,6 +130,7 @@ public final class DartsRoom implements Listener {
 
     /** Called on disconnect: keep the return point for the next login. */
     public void handleQuit(Player player) {
+        slots.remove(player.getUniqueId());
         removeKit(player);
     }
 
@@ -193,11 +198,18 @@ public final class DartsRoom implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        if (!isInRoom(player) || plugin.darts().isPlaying(player.getUniqueId())) {
+        // Never leave a stale darts bow/arrow stack in an inventory after a
+        // restart or a reconnect. A live game gets a fresh kit below.
+        removeKit(player);
+        if (!isInRoom(player)) {
+            return;
+        }
+        if (plugin.darts().isPlaying(player.getUniqueId())) {
+            giveKit(player);
             return;
         }
         ReturnState state = returns.remove(player.getUniqueId());
-        removeKit(player);
+        slots.remove(player.getUniqueId());
         Location destination = state == null ? fallback() : state.location();
         if (destination != null) {
             Bukkit.getScheduler().runTask(plugin, () -> {
@@ -207,7 +219,37 @@ public final class DartsRoom implements Listener {
         }
     }
 
-    private World world() {
+    /**
+     * Remove every player from the room and strip the kit. Used on plugin
+     * disable so visitors are not stranded in guab_darts.
+     */
+    public void ejectVisitors() {
+        World roomWorld = Bukkit.getWorld(WORLD_NAME);
+        if (roomWorld != null) {
+            for (Player player : new java.util.ArrayList<>(roomWorld.getPlayers())) {
+                removeKit(player);
+                ReturnState state = returns.remove(player.getUniqueId());
+                Location destination = state == null ? fallback() : state.location();
+                if (destination != null) {
+                    player.teleport(destination);
+                    if (state != null) {
+                        player.setGameMode(state.gameMode());
+                    }
+                }
+                HudChannel channel = plugin.hudChannel();
+                if (channel != null) {
+                    channel.send(player, Component.empty(),
+                            HudChannel.PRIORITY_HINT, 2);
+                } else {
+                    player.sendActionBar(Component.empty());
+                }
+            }
+        }
+        returns.clear();
+        slots.clear();
+    }
+
+    public World world() {
         if (world != null) {
             return world;
         }
@@ -243,6 +285,10 @@ public final class DartsRoom implements Listener {
 
     private Location spawn(World roomWorld) {
         return oche(roomWorld, 0);
+    }
+
+    private int nextSlot() {
+        return DartsSlots.nextFreeSlot(slots.values(), OCHES.length);
     }
 
     private Location oche(World roomWorld, int slot) {
@@ -374,6 +420,14 @@ public final class DartsRoom implements Listener {
         });
     }
 
+    /** Remove the shared live board display, e.g. on shutdown, so it does not leak. */
+    public void removeLiveBoard() {
+        if (liveBoard != null) {
+            liveBoard.remove();
+            liveBoard = null;
+        }
+    }
+
     /** Redraw the shared hit board between the oches and the target. */
     public void updateLiveBoard(Collection<DartsGame> games) {
         World roomWorld = world();
@@ -432,11 +486,17 @@ public final class DartsRoom implements Listener {
             if (item == null) {
                 continue;
             }
-            if (item.getItemMeta().getPersistentDataContainer().has(bowKey, PersistentDataType.BYTE)
+            if (isDartsBow(item)
                     || item.getItemMeta().getPersistentDataContainer().has(arrowKey, PersistentDataType.BYTE)) {
                 inventory.setItem(slot, null);
             }
         }
+    }
+
+    /** True when the stack is the darts-room bow handed out at the oche. */
+    public boolean isDartsBow(ItemStack stack) {
+        return stack != null
+                && stack.getItemMeta().getPersistentDataContainer().has(bowKey, PersistentDataType.BYTE);
     }
 
     private record ReturnState(Location location, GameMode gameMode) {

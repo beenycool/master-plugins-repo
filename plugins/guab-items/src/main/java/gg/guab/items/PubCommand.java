@@ -2,8 +2,11 @@ package gg.guab.items;
 
 import gg.guab.core.PointsService;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
@@ -18,12 +21,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public final class PubCommand implements CommandExecutor, TabCompleter {
 
+    private static final String PERMISSION = "guab.pub.use";
+    private static final String QUIZ_ADMIN = "guab.pub.quiz.admin";
+
     private final GuabItemsPlugin plugin;
     private final Map<UUID, Long> roundCooldowns = new HashMap<>();
+    private final Map<UUID, PendingRound> pendingRounds = new HashMap<>();
 
     public PubCommand(GuabItemsPlugin plugin) {
         this.plugin = plugin;
@@ -34,7 +42,7 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
         switch (command.getName().toLowerCase(Locale.ROOT)) {
             case "round" -> round(sender, args);
             case "pints" -> pints(sender, args);
-            case "quiz" -> quiz(sender);
+            case "quiz" -> quiz(sender, args);
             case "beer" -> beer(sender, args);
             default -> {
                 return false;
@@ -43,11 +51,26 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    // ------------------------------------------------------------------
+    // /round
+    // ------------------------------------------------------------------
+
     private void round(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
             error(sender, "Only players can buy a round.");
             return;
         }
+        String sub = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
+        if (sub.equals("confirm")) {
+            confirmRound(player);
+            return;
+        }
+        if (sub.equals("cancel")) {
+            cancelRound(player);
+            return;
+        }
+        purgeExpiredRounds();
+
         PubManager pub = plugin.pub();
         Location centre = pub.centre();
         if (centre == null) {
@@ -60,10 +83,10 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
             error(sender, "Stand in the pub to buy a round.");
             return;
         }
-        long now = System.currentTimeMillis();
-        long cooldown = Math.max(0, plugin.getConfig().getInt("pub.round.cooldown-seconds", 30)) * 1000L;
-        if (now - roundCooldowns.getOrDefault(player.getUniqueId(), 0L) < cooldown) {
-            error(sender, "The bar is still pouring your last round.");
+        long remaining = roundCooldownRemaining(player);
+        if (remaining > 0L) {
+            error(sender, "The bar is still pouring your last round. "
+                    + seconds(remaining) + "s to go.");
             return;
         }
 
@@ -73,15 +96,7 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
             return;
         }
         BeerStyle style = brand.style();
-        List<Player> drinkers = new ArrayList<>();
-        for (Player nearby : centre.getWorld().getPlayers()) {
-            if (nearby.getGameMode() == org.bukkit.GameMode.SPECTATOR) {
-                continue;
-            }
-            if (nearby.getLocation().distanceSquared(centre) <= radius * radius) {
-                drinkers.add(nearby);
-            }
-        }
+        List<Player> drinkers = nearbyDrinkers(centre, radius);
         if (drinkers.size() < 2) {
             error(sender, "You need at least one other person in the pub to buy a round.");
             return;
@@ -91,26 +106,127 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
                 ? Math.max(0, style.price())
                 : Math.max(0, plugin.getConfig().getInt("pub.round.cost-per-pint", 1));
         long total = (long) costEach * drinkers.size();
+        long expiresAt = System.currentTimeMillis() + confirmSeconds() * 1000L;
+        pendingRounds.put(player.getUniqueId(), new PendingRound(
+                brand.id(), drinkers.stream().map(Player::getUniqueId).toList(), costEach, expiresAt));
+
+        Component preview = prefix()
+                .append(Component.text("Round of " + brand.displayName() + " for "
+                        + drinkers.size() + " drinkers: " + total
+                        + (total == 1 ? " point. " : " points. "), NamedTextColor.GOLD))
+                .append(Component.text("[Confirm]", NamedTextColor.GREEN)
+                        .clickEvent(ClickEvent.runCommand("/round confirm"))
+                        .hoverEvent(HoverEvent.showText(Component.text("Charge the till and pour."))))
+                .append(Component.text("  "))
+                .append(Component.text("[Cancel]", NamedTextColor.RED)
+                        .clickEvent(ClickEvent.runCommand("/round cancel"))
+                        .hoverEvent(HoverEvent.showText(Component.text("Do not buy this round."))))
+                .append(Component.text("  (" + confirmSeconds() + "s)", NamedTextColor.DARK_GRAY));
+        player.sendMessage(preview);
+    }
+
+    private void confirmRound(Player player) {
+        PendingRound pending = pendingRounds.get(player.getUniqueId());
+        if (pending == null) {
+            error(player, "No round is waiting. Start one with /round.");
+            return;
+        }
+        if (pending.expiresAt() < System.currentTimeMillis()) {
+            pendingRounds.remove(player.getUniqueId());
+            error(player, "That round preview expired. Run /round again.");
+            return;
+        }
+        long remaining = roundCooldownRemaining(player);
+        if (remaining > 0L) {
+            error(player, "The bar is still pouring your last round. "
+                    + seconds(remaining) + "s to go.");
+            return;
+        }
+        pendingRounds.remove(player.getUniqueId());
+
+        BeerBrand brand = plugin.beer().findBrand(pending.brandId());
+        if (brand == null) {
+            brand = plugin.beer().brandFor(pending.brandId());
+        }
+        if (brand == null) {
+            error(player, "That beer is off the menu now.");
+            return;
+        }
+        List<Player> drinkers = pending.drinkers().stream()
+                .map(Bukkit::getPlayer)
+                .filter(Objects::nonNull)
+                .filter(Player::isOnline)
+                .filter(drinker -> drinker.hasPermission(PERMISSION))
+                .filter(drinker -> drinker.getGameMode() != GameMode.SPECTATOR)
+                .toList();
+        if (drinkers.isEmpty()) {
+            error(player, "Everyone has left the pub. The round was not charged.");
+            return;
+        }
+
+        long total = (long) pending.costEach() * drinkers.size();
         PointsService points = points();
         if (total > 0) {
             if (points == null || total > Integer.MAX_VALUE
                     || !points.take(player.getUniqueId(), (int) total)) {
-                error(sender, "A round costs " + total + " points and you cannot cover it.");
+                error(player, "A round costs " + total + " points and you cannot cover it.");
                 return;
             }
         }
-        roundCooldowns.put(player.getUniqueId(), now);
+        roundCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
 
         for (Player drinker : drinkers) {
             plugin.beerService().give(drinker, brand, 1);
-            drinker.playSound(drinker.getLocation(), Sound.ENTITY_PLAYER_LEVELUP,
-                    SoundCategory.PLAYERS, 0.8f, 1.1f);
+            GuabSounds.play(drinker, Sound.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.8f, 1.1f);
             drinker.sendMessage(Component.text("[Spoons] ", NamedTextColor.GOLD)
                     .append(Component.text(player.getName() + " bought the round — "
                             + brand.displayName() + " for everyone. Get it down you.",
                             NamedTextColor.YELLOW)));
         }
     }
+
+    private void cancelRound(Player player) {
+        if (pendingRounds.remove(player.getUniqueId()) == null) {
+            info(player, "No round is waiting.");
+            return;
+        }
+        info(player, "Round cancelled. No points were charged.");
+    }
+
+    private List<Player> nearbyDrinkers(Location centre, double radius) {
+        List<Player> drinkers = new ArrayList<>();
+        for (Player nearby : centre.getWorld().getPlayers()) {
+            if (!nearby.hasPermission(PERMISSION)) {
+                continue;
+            }
+            if (nearby.getGameMode() == GameMode.SPECTATOR) {
+                continue;
+            }
+            if (nearby.getLocation().distanceSquared(centre) <= radius * radius) {
+                drinkers.add(nearby);
+            }
+        }
+        return drinkers;
+    }
+
+    private long roundCooldownRemaining(Player player) {
+        long cooldown = Math.max(0, plugin.getConfig().getInt("pub.round.cooldown-seconds", 30)) * 1000L;
+        return cooldown - (System.currentTimeMillis()
+                - roundCooldowns.getOrDefault(player.getUniqueId(), 0L));
+    }
+
+    private long confirmSeconds() {
+        return Math.max(5, plugin.getConfig().getInt("pub.round.confirm-seconds", 30));
+    }
+
+    private void purgeExpiredRounds() {
+        long now = System.currentTimeMillis();
+        pendingRounds.values().removeIf(pending -> pending.expiresAt() < now);
+    }
+
+    // ------------------------------------------------------------------
+    // /pints
+    // ------------------------------------------------------------------
 
     private void pints(CommandSender sender, String[] args) {
         PubManager pub = plugin.pub();
@@ -119,6 +235,7 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
             info(sender, "You have drunk " + pub.pints(player.getUniqueId()) + " pints ("
                     + String.format(Locale.ROOT, "%.1f", units) + " units right now, "
                     + pub.tierLabel(units) + ").");
+            topButtons(player);
         }
         String metric = args.length > 0 ? args[0].toLowerCase(Locale.ROOT) : "top";
         List<Map.Entry<String, Integer>> top = metric.equals("units")
@@ -136,6 +253,20 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private void topButtons(Player player) {
+        player.sendMessage(Component.text("[Top pints]", NamedTextColor.AQUA)
+                .clickEvent(ClickEvent.runCommand("/pints top"))
+                .hoverEvent(HoverEvent.showText(Component.text("Show the pint leaderboard.")))
+                .append(Component.text("   "))
+                .append(Component.text("[Top units]", NamedTextColor.AQUA)
+                        .clickEvent(ClickEvent.runCommand("/pints units"))
+                        .hoverEvent(HoverEvent.showText(Component.text("Sort by lifetime units.")))));
+    }
+
+    // ------------------------------------------------------------------
+    // /beer
+    // ------------------------------------------------------------------
+
     private void beer(CommandSender sender, String[] args) {
         if (args.length == 0 || args[0].equalsIgnoreCase("menu")) {
             if (!(sender instanceof Player player)) {
@@ -146,23 +277,7 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
             return;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
-            case "list" -> {
-                info(sender, "The Wetherspoons menu:");
-                for (BeerBrand brand : plugin.beer().allBrands()) {
-                    BeerStyle style = brand.style();
-                    sender.sendMessage(Component.text("  " + brand.displayName(), style.colour())
-                            .append(Component.text("  ·  " + style.displayName() + "  ·  "
-                                            + String.format(Locale.ROOT, "%.1f", brand.abv()) + "%  ·  "
-                                            + brand.unitsLabel() + " units  ·  " + style.price() + " pt",
-                                    NamedTextColor.GRAY))
-                            .append(style.lethal()
-                                    ? Component.text("  ☠", NamedTextColor.RED) : Component.empty()));
-                }
-                int milkCost = Math.max(0, plugin.getConfig().getInt("beer.milk.cost", 5));
-                sender.sendMessage(Component.text("  Milk", NamedTextColor.WHITE)
-                        .append(Component.text("  ·  sobers you up  ·  " + milkCost + " pt",
-                                NamedTextColor.GRAY)));
-            }
+            case "list" -> list(sender);
             case "stats", "record" -> {
                 if (!(sender instanceof Player player)) {
                     error(sender, "Only players have a drinking record.");
@@ -177,10 +292,61 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
                 }
                 plugin.beerService().buyMilk(player, true);
             }
+            case "again", "repeat" -> again(sender, args);
             case "buy", "pour" -> buy(sender, args);
-            default -> {
-                error(sender, "Use /beer [menu|list|stats|milk|buy <beer> [amount]].");
+            default -> error(sender, "Use /beer [menu|list|stats|milk|again [amount]|buy <beer> [amount]].");
+        }
+    }
+
+    private void again(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            error(sender, "Only players can order another pint.");
+            return;
+        }
+        Integer amount = null;
+        if (args.length >= 2) {
+            try {
+                amount = Integer.parseInt(args[1]);
+            } catch (NumberFormatException exception) {
+                error(sender, "Amount must be a number from 1 to 64.");
+                return;
             }
+            if (amount < 1 || amount > 64) {
+                error(sender, "Amount must be a number from 1 to 64.");
+                return;
+            }
+        }
+        plugin.beerService().purchaseAgain(player, amount);
+    }
+
+    private void list(CommandSender sender) {
+        info(sender, "The Wetherspoons menu:");
+        for (BeerBrand brand : plugin.beer().allBrands()) {
+            BeerStyle style = brand.style();
+            Component line = Component.text("  " + brand.displayName(), style.colour())
+                    .append(Component.text("  ·  " + style.displayName() + "  ·  "
+                                    + String.format(Locale.ROOT, "%.1f", brand.abv()) + "%  ·  "
+                                    + brand.unitsLabel() + " units  ·  " + style.price() + " pt",
+                            NamedTextColor.GRAY))
+                    .append(style.lethal()
+                            ? Component.text("  ☠", NamedTextColor.RED) : Component.empty());
+            if (sender instanceof Player) {
+                line = line.clickEvent(ClickEvent.runCommand("/beer buy " + brand.id()))
+                        .hoverEvent(HoverEvent.showText(Component.text(
+                                "Buy " + brand.displayName() + " for " + style.price() + " points.")));
+            }
+            sender.sendMessage(line);
+        }
+        if (plugin.getConfig().getBoolean("beer.milk.enabled", true)) {
+            int milkCost = Math.max(0, plugin.getConfig().getInt("beer.milk.cost", 5));
+            Component milk = Component.text("  Milk", NamedTextColor.WHITE)
+                    .append(Component.text("  ·  sobers you up  ·  " + milkCost + " pt",
+                            NamedTextColor.GRAY));
+            if (sender instanceof Player) {
+                milk = milk.clickEvent(ClickEvent.runCommand("/beer milk"))
+                        .hoverEvent(HoverEvent.showText(Component.text("Buy a pint of milk.")));
+            }
+            sender.sendMessage(milk);
         }
     }
 
@@ -210,17 +376,65 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
         plugin.beerService().purchase(player, brand, amount, brand.style().price(), true);
     }
 
-    private void quiz(CommandSender sender) {
-        if (!sender.hasPermission("guab.pub.quiz.start")) {
-            error(sender, "You need guab.pub.quiz.start to start the quiz.");
-            return;
+    // ------------------------------------------------------------------
+    // /quiz
+    // ------------------------------------------------------------------
+
+    private void quiz(CommandSender sender, String[] args) {
+        String sub = args.length == 0 ? "start" : args[0].toLowerCase(Locale.ROOT);
+        switch (sub) {
+            case "start" -> {
+                if (!sender.hasPermission("guab.pub.quiz.start")) {
+                    error(sender, "You need guab.pub.quiz.start to start the quiz.");
+                    return;
+                }
+                plugin.quiz().begin(sender);
+            }
+            case "stop" -> {
+                if (!requireQuizAdmin(sender)) {
+                    return;
+                }
+                plugin.quiz().stopBy(sender, senderName(sender));
+            }
+            case "skip" -> {
+                if (!requireQuizAdmin(sender)) {
+                    return;
+                }
+                plugin.quiz().skip(sender);
+            }
+            case "status" -> {
+                if (!requireQuizAdmin(sender)) {
+                    return;
+                }
+                plugin.quiz().status(sender);
+            }
+            default -> error(sender, "Use /quiz [start|stop|skip|status].");
         }
-        plugin.quiz().begin(sender);
     }
+
+    private boolean requireQuizAdmin(CommandSender sender) {
+        if (!sender.hasPermission(QUIZ_ADMIN)) {
+            error(sender, "You need " + QUIZ_ADMIN + " to manage the quiz.");
+            return false;
+        }
+        return true;
+    }
+
+    private String senderName(CommandSender sender) {
+        return sender instanceof Player player ? player.getName() : "Console";
+    }
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
 
     private PointsService points() {
         var registration = Bukkit.getServicesManager().getRegistration(PointsService.class);
         return registration == null ? null : registration.getProvider();
+    }
+
+    private Component prefix() {
+        return Component.text("[Spoons] ", NamedTextColor.GOLD);
     }
 
     private void info(CommandSender sender, String message) {
@@ -233,6 +447,10 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
                 .append(Component.text(message, NamedTextColor.GRAY)));
     }
 
+    private static long seconds(long millis) {
+        return Math.max(1L, (millis + 999L) / 1000L);
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         String name = command.getName().toLowerCase(Locale.ROOT);
@@ -240,16 +458,29 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
             return matching(List.of("top", "units"), args[0]);
         }
         if (name.equals("round") && args.length == 1) {
-            return matching(styleIds(), args[0]);
+            List<String> options = new ArrayList<>(styleIds());
+            options.add("confirm");
+            options.add("cancel");
+            return matching(options, args[0]);
+        }
+        if (name.equals("quiz") && args.length == 1) {
+            return matching(List.of("start", "stop", "skip", "status"), args[0]);
         }
         if (!name.equals("beer")) {
             return List.of();
         }
         if (args.length == 1) {
-            return matching(List.of("menu", "list", "stats", "milk", "buy"), args[0]);
+            List<String> options = new ArrayList<>(List.of("menu", "list", "stats", "again", "buy"));
+            if (plugin.getConfig().getBoolean("beer.milk.enabled", true)) {
+                options.add("milk");
+            }
+            return matching(options, args[0]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("buy")) {
             return matching(styleIds(), args[1]);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("again")) {
+            return matching(List.of("1", "2", "4", "8", "16"), args[1]);
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("buy")) {
             return matching(List.of("1", "2", "4", "8", "16"), args[2]);
@@ -273,5 +504,8 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
         return options.stream()
                 .filter(option -> option.toLowerCase(Locale.ROOT).startsWith(lower))
                 .toList();
+    }
+
+    private record PendingRound(String brandId, List<UUID> drinkers, int costEach, long expiresAt) {
     }
 }

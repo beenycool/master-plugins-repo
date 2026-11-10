@@ -2,9 +2,13 @@
 event:
   enabled: false
 
-# Chat-driven blackjack table, settled against the Guab points ledger.
+# Blackjack table, settled against the Guab points ledger.
+# The dealer opens a 54-slot chest; /bj and /new remain available as a fallback.
 blackjack:
   enabled: true
+  gui:
+    # When false, right-clicking the dealer falls back to the old 26.3 bet dialog.
+    enabled: true
   min-bet: 10
   # -1 means no upper limit.
   max-bet: -1
@@ -12,7 +16,7 @@ blackjack:
   blackjack-payout: 1.5
   timeout-seconds: 120
   decks: 6
-  # Physical dealer in the pub. Right-click opens the 26.3 bet dialog.
+  # Physical dealer in the pub. Right-click opens the chest table.
   # Staff can move it with /blackjack setdealer.
   dealer:
     enabled: true
@@ -31,3 +35,11 @@ venue:
   spawn-x: 0
   spawn-y: 65
   spawn-z: 15
+  # Optional /casino leave|exit destination. Leave exit-world blank to use the
+  # server's default world spawn instead.
+  exit-world: ""
+  exit-x: 0.5
+  exit-y: 64.0
+  exit-z: 0.5
+  exit-yaw: 0.0
+  exit-pitch: 0.0

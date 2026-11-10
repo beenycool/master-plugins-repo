@@ -27,12 +27,13 @@ public final class GuabBlocksPlugin extends JavaPlugin {
         getLogger().info("GuabBlocks ready (" + blocks.size() + " blocks).");
     }
 
-    public void reload() {
+    public boolean reload() {
         reloadConfig();
         this.config = BlocksConfig.load(this);
         if (blocks != null) {
-            blocks.reload();
+            return blocks.reload();
         }
+        return true;
     }
 
     @Override

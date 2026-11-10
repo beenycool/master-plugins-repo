@@ -1,7 +1,10 @@
 package gg.guab.items;
 
+import gg.guab.core.PlayerPreferencesStore;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
+import org.bukkit.Bukkit;
+import org.bukkit.SoundCategory;
 import org.bukkit.entity.Player;
 
 /**
@@ -20,6 +23,31 @@ final class GuabSounds {
     }
 
     static void play(Player player, Key key, float volume, float pitch) {
+        if (!enabled(player)) {
+            return;
+        }
         player.playSound(Sound.sound(key, Sound.Source.PLAYER, volume, pitch));
+    }
+
+    /** Bukkit sound overload that respects the player's sound preference. */
+    static void play(Player player, org.bukkit.Sound sound, SoundCategory category,
+                     float volume, float pitch) {
+        if (!enabled(player)) {
+            return;
+        }
+        player.playSound(player.getLocation(), sound, category, volume, pitch);
+    }
+
+    static void play(Player player, org.bukkit.Sound sound, float volume, float pitch) {
+        if (!enabled(player)) {
+            return;
+        }
+        player.playSound(player.getLocation(), sound, volume, pitch);
+    }
+
+    private static boolean enabled(Player player) {
+        var registration = Bukkit.getServicesManager()
+                .getRegistration(PlayerPreferencesStore.class);
+        return registration == null || registration.getProvider().sounds(player.getUniqueId());
     }
 }

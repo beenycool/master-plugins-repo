@@ -15,7 +15,7 @@ public record PrankBlock(
         String breakSound) {
 
     public String key() {
-        return world + ";" + x + ";" + y + ";" + z;
+        return BlockStore.normalizeWorld(world) + ";" + x + ";" + y + ";" + z;
     }
 
     public PrankBlock withType(PrankType newType) {

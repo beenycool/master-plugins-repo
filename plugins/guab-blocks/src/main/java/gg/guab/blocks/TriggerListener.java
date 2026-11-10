@@ -1,6 +1,5 @@
 package gg.guab.blocks;
 
-import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -24,7 +23,10 @@ public final class TriggerListener implements Listener {
             return;
         }
         Player player = event.getPlayer();
-        if (player.getGameMode() == GameMode.SPECTATOR) {
+        if (player.hasPermission("guab.blocks.bypass")) {
+            return;
+        }
+        if (plugin.pranks().isExcluded(player)) {
             return;
         }
 

@@ -176,7 +176,6 @@ public final class BeerRegistry {
         double abv = Math.clamp(section.getDouble("abv", fallback.abv()), 0.0, 20.0);
         int volume = Math.clamp(section.getInt("volume-ml", fallback.volumeMl()), 1, 2000);
         int price = Math.clamp(section.getInt("price", fallback.price()), 0, 1_000_000);
-        String model = section.getString("model", fallback.itemModel());
         List<String> names = section.isList("names") ? section.getStringList("names") : fallback.names();
         List<String> messages = section.isList("messages")
                 ? section.getStringList("messages") : fallback.messages();
@@ -192,7 +191,7 @@ public final class BeerRegistry {
         if (effects.isEmpty()) {
             effects = fallback.effects();
         }
-        return new BeerStyle(fallback.id(), displayName, abv, volume, price, model,
+        return new BeerStyle(fallback.id(), displayName, abv, volume, price,
                 fallback.colour(), List.copyOf(names), List.copyOf(messages), List.copyOf(effects),
                 section.getBoolean("lethal", fallback.lethal()));
     }
@@ -214,11 +213,11 @@ public final class BeerRegistry {
         }
 
         map.put("lager", new BeerStyle(
-                "lager", "Lager", 4.2, 568, 1, "guab:beer", NamedTextColor.GOLD,
+                "lager", "Lager", 4.2, 568, 1, NamedTextColor.GOLD,
                 houseNames, houseMessages, houseEffects, false));
 
         map.put("stout", new BeerStyle(
-                "stout", "Stout", 4.1, 568, 2, "guab:beer", NamedTextColor.DARK_RED,
+                "stout", "Stout", 4.1, 568, 2, NamedTextColor.DARK_RED,
                 List.of("Guinness", "Murphy's", "Beamish"),
                 sharedMessages("The black stuff. Smooth as a receipt.",
                         "You feel a sudden urge to talk about rugby.",
@@ -226,7 +225,7 @@ public final class BeerRegistry {
                 houseEffects, false));
 
         map.put("ale", new BeerStyle(
-                "ale", "Ale", 4.5, 568, 2, "guab:beer", NamedTextColor.GREEN,
+                "ale", "Ale", 4.5, 568, 2, NamedTextColor.GREEN,
                 List.of("London Pride", "Doom Bar", "Timothy Taylor Landlord", "Greene King IPA"),
                 sharedMessages("Warm, flat and proud of it.",
                         "You develop strong opinions about hops.",
@@ -234,7 +233,7 @@ public final class BeerRegistry {
                 houseEffects, false));
 
         map.put("cider", new BeerStyle(
-                "cider", "Cider", 4.5, 568, 2, "guab:beer", NamedTextColor.YELLOW,
+                "cider", "Cider", 4.5, 568, 2, NamedTextColor.YELLOW,
                 List.of("Strongbow", "Thatchers Gold", "Aspall", "Old Mout"),
                 sharedMessages("Dangerously easy to drink.",
                         "You can hear the orchard from here.",
@@ -242,7 +241,7 @@ public final class BeerRegistry {
                 houseEffects, false));
 
         map.put("alcohol_free", new BeerStyle(
-                "alcohol_free", "Alcohol-Free", 0.0, 568, 1, "guab:beer", NamedTextColor.AQUA,
+                "alcohol_free", "Alcohol-Free", 0.0, 568, 1, NamedTextColor.AQUA,
                 List.of("Beck's Blue", "Heineken 0.0", "Guinness 0.0"),
                 sharedMessages("All of the pub, none of the hangover.",
                         "Designated driver energy.",
@@ -250,7 +249,7 @@ public final class BeerRegistry {
                 List.of(fx(PotionEffectType.REGENERATION, 4, 0)), false));
 
         map.put("baileys_lime", new BeerStyle(
-                "baileys_lime", "Baileys and Lime", 17.0, 284, 3, "guab:beer_baileys_lime",
+                "baileys_lime", "Baileys and Lime", 17.0, 284, 3,
                 NamedTextColor.LIGHT_PURPLE,
                 List.of("Baileys and Lime"),
                 List.of("The lime curdles the Baileys instantly.",

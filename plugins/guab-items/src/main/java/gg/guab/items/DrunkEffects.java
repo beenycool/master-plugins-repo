@@ -31,18 +31,18 @@ final class DrunkEffects {
 
     /** The drunk ladder, ordered from sober to absolutely Wetherspoons. */
     enum Tier {
-        SOBER(0, 0.0, "Sober", NamedTextColor.GRAY, List.of()),
-        TIPSY(1, 3.0, "Tipsy", NamedTextColor.YELLOW, List.of()),
-        MERRY(2, 5.0, "Merry", NamedTextColor.GOLD, List.of(
+        SOBER(0, DrunkTiers.SOBER, "Sober", NamedTextColor.GRAY, List.of()),
+        TIPSY(1, DrunkTiers.TIPSY, "Tipsy", NamedTextColor.YELLOW, List.of()),
+        MERRY(2, DrunkTiers.MERRY, "Merry", NamedTextColor.GOLD, List.of(
                 new EffectSpec(PotionEffectType.SLOWNESS, 30, 0))),
-        DRUNK(3, 7.0, "Drunk", NamedTextColor.RED, List.of(
+        DRUNK(3, DrunkTiers.DRUNK, "Drunk", NamedTextColor.RED, List.of(
                 new EffectSpec(PotionEffectType.SLOWNESS, 30, 0),
                 new EffectSpec(PotionEffectType.NAUSEA, 30, 0))),
-        WRECKED(4, 9.5, "Wrecked", NamedTextColor.DARK_RED, List.of(
+        WRECKED(4, DrunkTiers.WRECKED, "Wrecked", NamedTextColor.DARK_RED, List.of(
                 new EffectSpec(PotionEffectType.SLOWNESS, 30, 0),
                 new EffectSpec(PotionEffectType.NAUSEA, 30, 0),
                 new EffectSpec(PotionEffectType.BLINDNESS, 30, 0))),
-        ABSOLUTELY_WETHERSPOONS(5, 13.0, "Absolutely Wetherspoons", NamedTextColor.DARK_PURPLE, List.of(
+        ABSOLUTELY_WETHERSPOONS(5, DrunkTiers.ABSOLUTELY_WETHERSPOONS, "Absolutely Wetherspoons", NamedTextColor.DARK_PURPLE, List.of(
                 new EffectSpec(PotionEffectType.SLOWNESS, 30, 1),
                 new EffectSpec(PotionEffectType.NAUSEA, 30, 1),
                 new EffectSpec(PotionEffectType.BLINDNESS, 30, 0),
@@ -103,13 +103,8 @@ final class DrunkEffects {
     private static final Map<UUID, Set<PotionEffectType>> APPLIED = new HashMap<>();
 
     static Tier forUnits(double units) {
-        Tier result = Tier.SOBER;
-        for (Tier tier : Tier.values()) {
-            if (units >= tier.minimumUnits()) {
-                result = tier;
-            }
-        }
-        return result;
+        Tier[] tiers = Tier.values();
+        return tiers[DrunkTiers.levelFor(units)];
     }
 
     /**

@@ -88,42 +88,38 @@ beer:
     # Any barrel within this radius of the pub centre works as a tap.
     radius: 12.0
   # The full menu. Unknown style IDs in this section are ignored. Set
-  # enabled: false on a style to take it off the bar.
+  # enabled: false on a style to take it off the bar. Item models are set per
+  # brand in BeerRegistry, not per style (beer.styles.*.model was never applied).
   styles:
     lager:
       display-name: Lager
       abv: 4.2
       volume-ml: 568
       price: 1
-      model: "guab:beer"
       effects: []
     stout:
       display-name: Stout
       abv: 4.1
       volume-ml: 568
       price: 2
-      model: "guab:beer"
       effects: []
     ale:
       display-name: Ale
       abv: 4.5
       volume-ml: 568
       price: 2
-      model: "guab:beer"
       effects: []
     cider:
       display-name: Cider
       abv: 4.5
       volume-ml: 568
       price: 2
-      model: "guab:beer"
       effects: []
     alcohol_free:
       display-name: Alcohol-Free
       abv: 0.0
       volume-ml: 568
       price: 1
-      model: "guab:beer"
       effects:
         - type: regeneration
           duration-seconds: 4
@@ -134,7 +130,6 @@ beer:
       abv: 17.0
       volume-ml: 284
       price: 3
-      model: "guab:beer_baileys_lime"
       lethal: true
       effects: []
 
@@ -192,6 +187,8 @@ pub:
     radius: 14.0
     cost-per-pint: 1
     cooldown-seconds: 30
+    # How long a /round price preview stays valid before /round confirm expires.
+    confirm-seconds: 30
   darts:
     enabled: true
     board:
