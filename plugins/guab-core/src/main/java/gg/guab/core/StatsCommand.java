@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-/** Shows the shared deaths/kills/rickrolls/parkour tracker. */
+/** Shows the shared deaths/kills/rickrolls tracker. */
 public final class StatsCommand implements CommandExecutor, TabCompleter {
 
     private final GuabCorePlugin plugin;
@@ -70,7 +70,6 @@ public final class StatsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(line("Void deaths", plugin.stats().get(id, StatsService.VOID_DEATHS), NamedTextColor.DARK_RED));
         sender.sendMessage(line("Kills", plugin.stats().get(id, StatsService.KILLS), NamedTextColor.GREEN));
         sender.sendMessage(line("Rickrolls", plugin.stats().get(id, StatsService.RICKROLLS), NamedTextColor.LIGHT_PURPLE));
-        sender.sendMessage(line("Parkour", plugin.stats().get(id, StatsService.PARKOUR), NamedTextColor.AQUA));
     }
 
     private boolean top(CommandSender sender, String[] args) {

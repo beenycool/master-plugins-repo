@@ -11,10 +11,6 @@ commands:
     description: Join, leave or manage the battle pit.
     usage: /battlepit join|leave|quit|status|stats [player]|top [kills|deaths|streak]|kick <player>|purge|setspawn|setexit|reload
     aliases: [pit, bp]
-  parkour:
-    description: Teleport to the parkour start.
-    usage: /parkour [restart|quit|status] or /parkour [set|reload]
-    aliases: [pk]
   kit:
     description: Take the battle pit PvP kit.
     usage: /kit
@@ -28,12 +24,6 @@ permissions:
     default: true
   guab.battlepit.admin:
     description: Set the pit spawn and exit, kick, purge, and reload its config.
-    default: op
-  guab.parkour.use:
-    description: Teleport to the parkour start, restart and quit.
-    default: true
-  guab.parkour.admin:
-    description: Set or reload the parkour start.
     default: op
   guab.kit.use:
     description: Take the battle pit PvP kit.

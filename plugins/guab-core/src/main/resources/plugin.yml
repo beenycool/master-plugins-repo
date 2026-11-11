@@ -2,7 +2,7 @@ name: GuabCore
 version: '${version}'
 main: gg.guab.core.GuabCorePlugin
 api-version: '26.3'
-description: Shared helpers and points ledger for the Guab parkour plugins.
+description: Shared helpers and points ledger for the Guab server plugins.
 authors: [Guab]
 softdepend: [Vault]
 loadbefore: [MineGames]
@@ -25,7 +25,7 @@ commands:
     usage: /settings
     aliases: [prefs, preferences]
   stats:
-    description: Show deaths, kills, rickrolls and parkour stats.
+    description: Show deaths, void deaths, kills and rickroll stats.
     usage: /stats [player|top [metric] [count]]
     aliases: [tracker, records]
   spawn:

@@ -1,4 +1,4 @@
-# Free-for-all pit outside the parkour. Kills pay points, deaths cost points.
+# Free-for-all pit. Kills pay points, deaths cost points.
 battlepit:
   enabled: true
   kill-reward: 50
@@ -18,7 +18,7 @@ battlepit:
   # Where /battlepit leave sends you:
   #   configured - battlepit.exit (legacy behaviour)
   #   join       - the exact spot you were standing when you joined
-  # Auto-leave never teleports anyone: if another plugin (for example /parkour)
+  # Auto-leave never teleports anyone: if another plugin (for example /spawn)
   # moved the player out, only the saved inventory is restored.
   exit-mode: configured
 
@@ -55,15 +55,6 @@ battlepit:
     z: 0.5
     yaw: 0.0
     pitch: 0.0
-
-# Parkour start, used by /parkour.
-parkour:
-  world: world
-  x: -8.0
-  y: -59.0
-  z: 9.0
-  yaw: 90.0
-  pitch: 0.0
 
 # Kill players who fall below this Y. The playable floor sits around Y -61,
 # the pit floor is -62 and the world bottom is -64, so -66 catches falls fast.

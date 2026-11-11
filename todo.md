@@ -19,9 +19,9 @@ The loop: **minigames earn points → gambling risks them → items and blocks a
 
 ## guab-core — `████████░░` 86% (12/14)
 
-**What it does:** the shared foundation. Holds the player points ledger (the parkour currency), the shared stats tracker and common helpers. Every other plugin depends on it.
+**What it does:** the shared foundation. Holds the player points ledger, the shared stats tracker and common helpers. Every other plugin depends on it.
 
-Status: live. `PointsService` is registered, `/points` and `/points top` work, the ledger backs the Vault economy, and the sidebar carries a top-3 leaderboard. Balances flush every 60 seconds. The shared stats tracker persists deaths, kills, rickrolls and parkour uses in `stats.yml`. `/settings` and `/hud` now persist per-player HUD, sound, title, rickroll and reduced-motion preferences; `/points` shows rank and session delta, and staff mutations are audit-logged. `/guabcore save|status|reload` gives operators a manual flush, state summary and safe config reload.
+Status: live. `PointsService` is registered, `/points` and `/points top` work, the ledger backs the Vault economy, and the sidebar carries a top-3 leaderboard. Balances flush every 60 seconds. The shared stats tracker persists deaths, kills, rickrolls and void deaths in `stats.yml`. `/settings` and `/hud` now persist per-player HUD, sound, title, rickroll and reduced-motion preferences; `/points` shows rank and session delta, and staff mutations are audit-logged. `/guabcore save|status|reload` gives operators a manual flush, state summary and safe config reload.
 
 - [x] `PointsService` interface: `get`, `set`, `add`, `take`, `top`
 - [x] YAML-backed store (`points.yml`), clamp at zero
@@ -30,17 +30,16 @@ Status: live. `PointsService` is registered, `/points` and `/points top` work, t
 - [x] `/points` command (self balance, staff can inspect others, `/points top` leaderboard)
 - [x] Vault `Economy` bridge over the ledger (offline refunds, integer points)
 - [x] Sidebar balance, top-3 leaderboard, online count and tab-list header
-- [x] Shared stats tracker (`stats.yml`, `/stats`, `/stats top`) for deaths, kills, rickrolls and parkour
+- [x] Shared stats tracker (`stats.yml`, `/stats`, `/stats top`) for deaths, kills, rickrolls and void deaths
 - [x] `/settings` clickable summary and `/hud` per-feature toggles (sidebar, tab, nametag, sounds, actionbar, titles, rickroll-motion, rickroll)
 - [x] `/points history|pay|reset`, rank/session delta and `[audit]` logging
 - [x] `/top`, `/spawn` and `/hub` shortcuts
 - [x] `/guabcore save|status|reload` (alias `/gcore`, `guab.core.admin`)
 - [ ] Shared cooldown helper and message helpers
-- [ ] Decide if core also owns the parkour scoreboard
 
 ## guab-blocks — `██████████` 100% (10/10)
 
-**What it does:** the parkour's prank blocks. Staff tag blocks; stepping on one can drop the player through the floor, hit them with a random bad potion effect, or swap them with another player.
+**What it does:** prank blocks. Staff tag blocks; stepping on one can drop the player through the floor, hit them with a random bad potion effect, or swap them with another player.
 
 Status: implemented and built. `/guabblocks add|remove|info|test|set|list|tp|reload`, `blocks.yml`, fake/potion/swap effects, per-player and per-block cooldowns, and fake-block restore on disable. Not yet exercised in-game.
 
@@ -59,7 +58,7 @@ Status: implemented and built. `/guabblocks add|remove|info|test|set|list|tp|rel
 
 **What it does:** the prank items, Wetherspoons pub, beer, milk and darts room.
 
-Status: live. PDC-tagged items, wind charge, jump feather, `/guabitems give`, main/off-hand handling, cooldowns and anvil/craft guards. The pub has 16 branded pints, milk, lethal Baileys and Lime, a 71-question quiz, a bartender and a dedicated darts room. `/guab` is the native hub with Pub, Casino, Darts, Parkour, Battle Pit, Stats and Help pages; the old quest page is gone. Darts defaults to 101 with beginner assist (no busts, any dart can finish) and now has quick replay, practice, status, offline records, a contextual resume/quit dialog and four-oche capacity with forfeits.
+Status: live. PDC-tagged items, wind charge, jump feather, `/guabitems give`, main/off-hand handling, cooldowns and anvil/craft guards. The pub has 16 branded pints, milk, lethal Baileys and Lime, a 71-question quiz, a bartender and a dedicated darts room. `/guab` is the native hub with Pub, Casino, Darts, Battle Pit, Stats and Help pages; the old quest page is gone. Darts defaults to 101 with beginner assist (no busts, any dart can finish) and now has quick replay, practice, status, offline records, a contextual resume/quit dialog and four-oche capacity with forfeits.
 
 - [x] PDC-tagged items so names cannot be faked
 - [x] Wind charge item: boost self forward, knock nearby players away
@@ -71,8 +70,7 @@ Status: live. PDC-tagged items, wind charge, jump feather, `/guabitems give`, ma
 - [x] Wetherspoons menu with 16 branded pints, milk, lethal Baileys and constant drunken effects
 - [x] Darts room with bow, 3x3 board, oche lock and shared live-hit hologram
 - [x] Beginner darts: 101 default, no busts, any dart can finish, wider rings
-- [x] Native `/guab` dialog hub with Pub, Casino, Darts, Parkour, Battle Pit, Stats and Help
-- [x] Parkour hub button and `/guab parkour` teleport to the configured start
+- [x] Native `/guab` dialog hub with Pub, Casino, Darts, Battle Pit, Stats and Help
 - [x] Bartender moved behind the bar in the expanded pub
 - [x] Pub quiz expanded to 71 general and beer questions
 - [x] Pub QoL: `/beer again [amount]`, `/round` cost preview + confirm/cancel, clickable `/beer list` and `/pints`, milk rules, and admin `/guabitems tapinfo|status|shelf`
@@ -136,9 +134,9 @@ Event-night ops: pause auto-deploy with `.deploy-paused`, snapshot `points.yml`,
 
 ## guab-minigames — `█████████░` 94% (17/18)
 
-**What it does:** the point faucet. Battle pit and other small games outside the main parkour award points for kills and wins, which then feed gambling and item rewards.
+**What it does:** the point faucet. Battle pit and other small games award points for kills and wins, which then feed gambling and item rewards.
 
-Status: live. Battle pit built in the overworld at `100, -61, 100` with join/leave/quit, kill rewards, death penalties, pit respawn, a streak action bar, a tagged PvP kit, saved inventories, session stats/top/kick/purge, a configurable exit mode and a coordinate kill feed. `/parkour` teleports to the parkour start and supports quit/restart/status.
+Status: live. Battle pit built in the overworld at `100, -61, 100` with join/leave/quit, kill rewards, death penalties, pit respawn, a streak action bar, a tagged PvP kit, saved inventories, session stats/top/kick/purge, a configurable exit mode and a coordinate kill feed.
 
 - [x] Battle pit arena spawn (`/battlepit setspawn`)
 - [x] `/battlepit join` / `leave`, teleport in and out
@@ -149,15 +147,13 @@ Status: live. Battle pit built in the overworld at `100, -61, 100` with join/lea
 - [x] Build the battle pit arena platform, walls and barrier lip at `100, -61, 100`
 - [x] `/kit` PvP loadout with iron gear, bow, arrows, shield, food, blocks and pickaxe
 - [x] Smart inventory save/restore on battle pit join, leave, disconnect and graceful stop
-- [x] `/parkour` teleport command with configurable start
 - [x] Respawn bell sound for every player respawn
 - [x] Kill plane below the play area (`/killplane`, default Y -66)
 - [x] Cobblestone placed in the arena decays after 15 seconds
 - [x] Spawn protection after joining or respawning in the pit
 - [x] Arrow hits show the victim's remaining HP
 - [x] Battle pit QoL: `/battlepit stats|top|kick|purge|quit`, kit tagging/reset, saved inventories, `exit-mode`, coordinate kill feed
-- [x] Parkour QoL: `/parkour quit|restart|status`
-- [ ] Additional point-earning minigames outside the main parkour
+- [ ] Additional point-earning minigames
 
 ## QoL pass (2026-11-10)
 
@@ -168,14 +164,14 @@ Done in this pass:
 - **Points and core ops:** `/top`, `/spawn`, `/hub`, `/points history|pay|reset`, rank/session delta, confirm/cancel resets and audit logging; `/guabcore save|status|reload` flushes stores and inspects/reloads core config.
 - **Snapshots:** `/casino snapshot [list]` flushes GuabCore before zipping and lists existing snapshots.
 - **Pub and darts:** `/beer again`, round preview/confirm, clickable menus, milk rules, admin tap/status/shelf, darts replay/practice/status, offline stats, resume dialog, capacity and forfeits.
-- **Battle pit and admin:** stats/top/kick/purge/quit, tagged kit reset, saved inventories, `exit-mode`, coordinate kill feed, parkour quit/restart/status.
+- **Battle pit and admin:** stats/top/kick/purge/quit, tagged kit reset, saved inventories, `exit-mode`, coordinate kill feed.
 - **Rickroll:** `status/pack/pause/resume`, self-stop, opt-out/reduced motion, UUID-scoped pack handshake, 5% default and full verify.
 - **Deploy safety:** `stop_grace_period: 120s`, health-gated deploy with automatic restore, `.deploy-paused` guard, daily backups with plugin data and `server.properties`, `tools/verify.sh`.
 - **Tests and CI:** 69 unit tests across 16 test classes; PR CI and deploy path filters; `tools/check-docs.py` docs check.
 
 Remaining:
 
-- Live server verification of the whole QoL pass (deploy, HUD, points, pub, darts, battle pit, parkour).
+- Live server verification of the whole QoL pass (deploy, HUD, points, pub, darts, battle pit).
 - Roulette was intentionally untouched; confirm the live station still behaves during the event rehearsal.
 - Blackjack chest GUI in-game test with two accounts, including a disconnect mid-hand.
 - Rebuild the rickroll pack from the current media and deploy the new SHA-1/hash.

@@ -78,14 +78,6 @@ public final class GuabMinigamesPlugin extends JavaPlugin {
             command.setExecutor(executor);
             command.setTabCompleter(executor);
         }
-
-        PluginCommand parkour = getCommand("parkour");
-        if (parkour != null) {
-            ParkourCommand executor = new ParkourCommand(this);
-            parkour.setExecutor(executor);
-            parkour.setTabCompleter(executor);
-            getServer().getPluginManager().registerEvents(executor, this);
-        }
         getServer().getPluginManager().registerEvents(new RespawnBellListener(this), this);
 
         this.kit = new KitCommand(this, pit);

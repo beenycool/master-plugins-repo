@@ -49,7 +49,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * A free-for-all pit outside the parkour. Kills pay points, deaths cost points, and
+ * A free-for-all pit. Kills pay points, deaths cost points, and
  * the pit respawns you at its own spawn instead of the world spawn.
  */
 public final class BattlePit implements Listener {
@@ -662,7 +662,7 @@ public final class BattlePit implements Listener {
             if (plugin.getConfig().getBoolean("battlepit.auto-leave-outside", true)
                     && !player.isDead() && player.getHealth() > 0.0
                     && !inArena(player.getLocation())) {
-                // The player may have been moved by another plugin (e.g. /parkour).
+                // The player may have been moved by another plugin (e.g. /spawn).
                 // Restore their gear but never yank them back to the pit exit.
                 leave(player, LeaveReason.AUTO_OUTSIDE);
                 continue;

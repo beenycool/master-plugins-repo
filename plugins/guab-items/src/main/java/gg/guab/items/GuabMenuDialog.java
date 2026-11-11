@@ -41,7 +41,7 @@ public final class GuabMenuDialog {
                         NamedTextColor.GRAY),
                 plain("Balance: " + balance + " points", NamedTextColor.GOLD),
                 plain(pubLine, NamedTextColor.WHITE),
-                plain("Pub · Casino · Darts · Parkour · Battle Pit · Stats · Help", NamedTextColor.AQUA));
+                plain("Pub · Casino · Darts · Battle Pit · Stats · Help", NamedTextColor.AQUA));
 
         List<ActionButton> actions = List.of(
                 page("Pub", NamedTextColor.GOLD, "Beer, milk and the drunk meter.", 160,
@@ -50,14 +50,11 @@ public final class GuabMenuDialog {
                         "Enter the casino or read the blackjack rules.", 160, this::openCasino),
                 page("Darts", NamedTextColor.YELLOW,
                         "Beginner-friendly 101 and 1v1 challenges.", 160, this::openDarts),
-                page("Parkour", NamedTextColor.GREEN,
-                        "Teleport to the parkour start.", 160,
-                        clicker -> clicker.performCommand("parkour")),
                 page("Battle Pit", NamedTextColor.RED,
                         "Join, leave, check the pit or see the top streak.", 160,
                         this::openBattlePit),
                 page("Stats", NamedTextColor.AQUA,
-                        "Points, kills, deaths, rickrolls, parkour and darts.", 160, this::openStats),
+                        "Points, kills, deaths, rickrolls and darts.", 160, this::openStats),
                 page("Help", NamedTextColor.WHITE,
                         "Every hub command, clickable.", 160, this::openHelp));
 
@@ -238,8 +235,7 @@ public final class GuabMenuDialog {
                 plain("Points: " + balance(player), NamedTextColor.GOLD),
                 plain("Deaths: " + stat(id, StatsService.DEATHS)
                         + "   ·   Kills: " + stat(id, StatsService.KILLS), NamedTextColor.WHITE),
-                plain("Rickrolls: " + stat(id, StatsService.RICKROLLS)
-                        + "   ·   Parkour: " + stat(id, StatsService.PARKOUR), NamedTextColor.AQUA),
+                plain("Rickrolls: " + stat(id, StatsService.RICKROLLS), NamedTextColor.AQUA),
                 plain("Darts legs: " + darts.legsWon() + " won / " + darts.legsPlayed() + " played"
                         + "   ·   180s: " + darts.oneEighties(), NamedTextColor.YELLOW),
                 plain("Checkouts: " + darts.checkouts()
@@ -265,9 +261,9 @@ public final class GuabMenuDialog {
                         NamedTextColor.GRAY),
                 plain("Pub · /guab pub        Beer · /beer menu        Darts · /darts menu",
                         NamedTextColor.WHITE),
-                plain("Parkour · /parkour     Battle Pit · /guab battlepit     Stats · /guab stats",
+                plain("Battle Pit · /guab battlepit     Stats · /guab stats     Points · /points",
                         NamedTextColor.WHITE),
-                plain("Points · /points       Casino · /guab casino", NamedTextColor.WHITE),
+                plain("Casino · /guab casino", NamedTextColor.WHITE),
                 plain("Balance: " + balance(player) + " points", NamedTextColor.GOLD));
 
         List<ActionButton> actions = List.of(
@@ -280,14 +276,11 @@ public final class GuabMenuDialog {
                 page("Darts · /darts menu", NamedTextColor.AQUA,
                         "Open the dartboard menu.", 220,
                         clicker -> clicker.performCommand("darts menu")),
-                page("Parkour · /parkour", NamedTextColor.GREEN,
-                        "Teleport to the parkour start.", 220,
-                        clicker -> clicker.performCommand("parkour")),
                 page("Battle Pit · /guab battlepit", NamedTextColor.RED,
                         "Join, leave or inspect the battle pit.", 220,
                         clicker -> clicker.performCommand("guab battlepit")),
                 page("Stats · /guab stats", NamedTextColor.LIGHT_PURPLE,
-                        "Points, kills, parkour, rickrolls and darts.", 220,
+                        "Points, kills, rickrolls and darts.", 220,
                         clicker -> clicker.performCommand("guab stats")),
                 page("Points · /points", NamedTextColor.GOLD,
                         "Check your point balance.", 220,

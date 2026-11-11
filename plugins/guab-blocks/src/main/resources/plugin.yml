@@ -2,7 +2,7 @@ name: GuabBlocks
 version: '${version}'
 main: gg.guab.blocks.GuabBlocksPlugin
 api-version: '26.3'
-description: Fake, potion and swap prank blocks for the Guab parkour.
+description: Fake, potion and swap prank blocks.
 authors: [Guab]
 depend: [GuabCore]
 commands:

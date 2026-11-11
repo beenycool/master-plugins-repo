@@ -48,7 +48,7 @@ final class WorldArrivalListener implements Listener {
             case "guab_cinema" -> GuabFx.arrival(player, "CINEMA", NamedTextColor.LIGHT_PURPLE,
                     Sound.BLOCK_NOTE_BLOCK_CHIME, 0.8f, titles, sounds);
             default -> {
-                // Other worlds are ordinary parkour/pit travel; no title.
+                // Other worlds are ordinary world/pit travel; no title.
             }
         }
     }

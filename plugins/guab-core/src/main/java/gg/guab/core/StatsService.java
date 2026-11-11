@@ -6,16 +6,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Shared counters such as deaths, kills, rickrolls and parkour uses. */
+/** Shared counters such as deaths, kills and rickrolls. */
 public interface StatsService {
 
     String DEATHS = "deaths";
     String KILLS = "kills";
     String RICKROLLS = "rickrolls";
-    String PARKOUR = "parkour";
     String VOID_DEATHS = "void_deaths";
 
-    List<String> METRICS = List.of(DEATHS, KILLS, RICKROLLS, PARKOUR, VOID_DEATHS);
+    List<String> METRICS = List.of(DEATHS, KILLS, RICKROLLS, VOID_DEATHS);
 
     void increment(Player player, String metric, int amount);
 

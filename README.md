@@ -2,7 +2,7 @@
 
 > Top secret. Signed by mommy pgqn.
 
-Small Paper plugins for the Guab Christmas parkour. Built for Paper `26.3` on Java 25, with one plugin per feature.
+Small Paper plugins for the Guab Christmas server. Built for Paper `26.3` on Java 25, with one plugin per feature.
 
 ## Modules
 
@@ -163,7 +163,7 @@ Tune the output with `COLORS` and `DITHER`. `DITHER=none` gives a smaller, sharp
 
 ## Prank blocks
 
-`GuabBlocks` provides the parkour's fake, potion and swap blocks. Staff stand on
+`GuabBlocks` provides fake, potion and swap blocks. Staff stand on
 or look at a block and tag it with `/guabblocks add <fake|potion|swap>`; the
 other subcommands are `remove [world] <x> <y> <z>`, `info`, `test [player]`,
 `set <chance|delay|cooldown|effect|duration|amplifier|sound> <value>`,
@@ -188,7 +188,7 @@ makes a player immune to triggers.
 - `/guabcore save|status|reload` (alias `/gcore`) needs `guab.core.admin`. `save` flushes points, stats and player preferences immediately; `status` reports the ledger, stat player count, save interval, HUD state and Vault; `reload` reapplies dynamic config and restarts the save timer. HUD `enabled` and `update-ticks` changes still need a restart; sidebar lines, tab text and welcome messages apply on reload.
 - `/hud` (alias `/sidebar`) with no arguments still flips the sidebar. `/hud [sidebar|tab|nametag|sounds|actionbar|titles|rickroll-motion|rickroll] [on|off|toggle]` toggles one HUD or feedback channel; `/settings` (aliases `/prefs`, `/preferences`) opens the clickable summary. Preferences are stored per player and survive relogs.
 - Hiding the sidebar leaves the nametag balance in place. `rickroll` opts out of natural rickrolls and `rickroll-motion` enables reduced motion; both default to off.
-- `/stats [player]` (aliases `/tracker`, `/records`) shows deaths, void deaths, kills, rickrolls and parkour uses, and `/stats top [metric] [count]` shows a leaderboard. Your own stats need `guab.stats.use`; other players and leaderboards need `guab.stats.others`.
+- `/stats [player]` (aliases `/tracker`, `/records`) shows deaths, void deaths, kills and rickrolls, and `/stats top [metric] [count]` shows a leaderboard. Your own stats need `guab.stats.use`; other players and leaderboards need `guab.stats.others`.
 - `/spawn` (alias `/sp`) and `/hub` (aliases `/lobby`) teleport to the configured spawn; `/hub` is currently the same point. Both need `guab.spawn.use`.
 - Joining prints your balance and clickable `[Open menu]` and `[Settings]` buttons. There is no `[Enter casino]` button any more.
 - Balances are stored in `plugins/GuabCore/points.yml`, flushed every minute and on shutdown.
@@ -362,8 +362,6 @@ Jars are pinned in `docker/install-casino.sh` with SHA-256 checks and installed 
 - `/battlepit setspawn [x y z world]`, `setexit`, `kick <player>`, `purge` and `reload` need `guab.battlepit.admin`.
 - Spawn protection, arrow-hit HP, cobblestone decay and the respawn bell are configurable under `battlepit`, `kit` and `respawn-bell` in `GuabMinigames/config.yml`.
 
-**Parkour.** `/parkour` (alias `/pk`) teleports to the configured start and remembers your return point. `/parkour quit` returns there, `/parkour restart` starts again from the configured start without losing the saved return point, and `/parkour status` prints the world, start and your return point. `/parkour set` and `/parkour reload` need `guab.parkour.admin`.
-
 ## Permissions
 
 The gameplay permissions are enforced in code as well as on the commands, so a player without a permission gets a clear message rather than a silent no-op.
@@ -394,8 +392,6 @@ The gameplay permissions are enforced in code as well as on the commands, so a p
 | `guab.casino.build` | op | Changing blocks inside `guab_casino` |
 | `guab.battlepit.use` | true | Join/leave, status and session stats for the battle pit |
 | `guab.battlepit.admin` | op | `setspawn`, `setexit`, `kick`, `purge` and `reload` |
-| `guab.parkour.use` | true | `/parkour`, `quit`, `restart` and `status` |
-| `guab.parkour.admin` | op | `/parkour set` and `/parkour reload` |
 | `guab.kit.use` | true | `/kit` |
 | `guab.killplane.admin` | op | `/killplane on\|off\|set\|world\|reload` |
 | `guab.killplane.status` | true | `/killplane status` without admin rights |

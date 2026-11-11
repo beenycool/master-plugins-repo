@@ -31,8 +31,8 @@ commands:
     permission: guab.pub.darts.use
     aliases: [dart]
   guab:
-    description: "Open the Guab hub: pub, casino, darts, parkour, battle pit, stats and help."
-    usage: /guab [help|pub|casino|darts|parkour|battlepit|stats|points]
+    description: "Open the Guab hub: pub, casino, darts, battle pit, stats and help."
+    usage: /guab [help|pub|casino|darts|battlepit|stats|points]
     permission: guab.menu.use
     aliases: [menu]
   quiz:
@@ -42,7 +42,7 @@ commands:
 
 permissions:
   guab.menu.use:
-    description: Open the Guab hub and its pub, casino, darts, parkour, battle pit, stats and help pages.
+    description: Open the Guab hub and its pub, casino, darts, battle pit, stats and help pages.
     default: true
   guab.items.admin:
     description: Give Guab items and reload their configuration.
