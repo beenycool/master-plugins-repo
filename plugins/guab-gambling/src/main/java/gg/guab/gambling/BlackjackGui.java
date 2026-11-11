@@ -2,6 +2,7 @@ package gg.guab.gambling;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -34,10 +35,35 @@ import java.util.UUID;
 public final class BlackjackGui implements Listener {
 
     private static final int SIZE = 54;
-    private static final int CLOSE_SLOT = 49;
-    private static final int DEAL_SLOT = 30;
-    private static final int RESULT_SLOT = 31;
+    private static final int STATUS_SLOT = 4;
+    private static final int CLOSE_SLOT = 53;
+    private static final int DEAL_SLOT = 49;
+    private static final int RESULT_SLOT = 22;
     private static final int MAX_CARD_SLOTS = 7;
+
+    private static final int MIN_SLOT = 20;
+    private static final int CURRENT_BET_SLOT = 22;
+    private static final int REPEAT_SLOT = 24;
+
+    private static final int[] CHIP_SLOTS = {37, 38, 39, 40, 41};
+    private static final int[] CHIP_AMOUNTS = {100, 500, 1_000, 5_000, 10_000};
+    private static final Material[] CHIP_MATERIALS = {
+            Material.GOLD_NUGGET, Material.GOLD_INGOT, Material.GOLD_BLOCK,
+            Material.EMERALD, Material.DIAMOND
+    };
+
+    private static final int ALL_IN_SLOT = 43;
+    private static final int RESET_SLOT = 47;
+    private static final int BET_HISTORY_SLOT = 51;
+
+    private static final int HIT_SLOT = 37;
+    private static final int STAND_SLOT = 39;
+    private static final int DOUBLE_SLOT = 41;
+    private static final int TABLE_HISTORY_SLOT = 43;
+
+    private static final int DEAL_AGAIN_SLOT = 38;
+    private static final int CHANGE_BET_SLOT = 40;
+    private static final int RESULT_HISTORY_SLOT = 42;
 
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
 
@@ -172,7 +198,6 @@ public final class BlackjackGui implements Listener {
     private void render(Player player, Session session) {
         Inventory inventory = session.holder.getInventory();
         inventory.clear();
-        border(inventory);
 
         if (session.screen == Screen.TABLE && blackjack.view(player) == null) {
             session.screen = blackjack.result(player) == null ? Screen.BET : Screen.RESULT;
@@ -181,9 +206,18 @@ public final class BlackjackGui implements Listener {
         }
 
         switch (session.screen) {
-            case BET -> renderBet(player, session, inventory);
-            case TABLE -> renderTable(player, session, inventory);
-            case RESULT -> renderResult(player, session, inventory);
+            case BET -> {
+                background(inventory, 1, 3);
+                renderBet(player, session, inventory);
+            }
+            case TABLE -> {
+                background(inventory, 2);
+                renderTable(player, session, inventory);
+            }
+            case RESULT -> {
+                background(inventory, 2);
+                renderResult(player, session, inventory);
+            }
         }
     }
 
@@ -192,33 +226,49 @@ public final class BlackjackGui implements Listener {
         int max = maxBet();
         int balance = blackjack.balance(player);
         String limit = max > 0 ? min + "–" + max : min + "+";
+        Blackjack.Result last = blackjack.result(player);
 
-        inventory.setItem(4, display(Material.PAPER, "&6Blackjack",
-                "&7Place your bet, then press &aDeal&7.",
-                "&7Right-click a chip to subtract."));
-        inventory.setItem(10, chip(Material.GOLD_NUGGET, "&e+1", 1));
-        inventory.setItem(11, chip(Material.GOLD_INGOT, "&e+10", 10));
-        inventory.setItem(12, chip(Material.GOLD_BLOCK, "&6+100", 100));
-        inventory.setItem(13, chip(Material.DIAMOND, "&b+1,000", 1_000));
-        inventory.setItem(14, display(Material.BLAZE_POWDER, "&6All in",
-                "&7Bet your whole balance: &6" + balance + " &7points."));
-        inventory.setItem(15, display(Material.BARRIER, "&cReset",
-                "&7Back to the table minimum: &6" + min + "&7."));
-        inventory.setItem(16, display(Material.CLOCK, "&bRepeat last bet",
+        List<Component> status = new ArrayList<>();
+        status.add(line("Balance: " + balance + " points", NamedTextColor.GOLD));
+        status.add(line("Your bet: " + session.bet + " points", NamedTextColor.WHITE));
+        status.add(line("Table limits: " + limit, NamedTextColor.GRAY));
+        status.add(line("Blackjack pays " + payoutMultiplier() + ".", NamedTextColor.GRAY));
+        if (last != null) {
+            int net = last.payout() - last.bet();
+            status.add(line("Last hand: " + last.outcome() + " (" + signed(net) + ")", net > 0
+                    ? NamedTextColor.GREEN : net < 0 ? NamedTextColor.RED : NamedTextColor.GRAY));
+        }
+        status.add(Component.empty());
+        status.add(line("Pick a chip to add. Right-click removes.", NamedTextColor.DARK_GRAY));
+        inventory.setItem(STATUS_SLOT, display(Material.PAPER, Component.text("Blackjack", NamedTextColor.GOLD), status));
+
+        inventory.setItem(MIN_SLOT, display(Material.GOLD_NUGGET, "&eMinimum bet",
+                "&7Set the bet to &6" + min + " &7points."));
+        inventory.setItem(CURRENT_BET_SLOT, display(Material.GOLD_BLOCK,
+                Component.text("Bet: " + session.bet + " points", NamedTextColor.GOLD),
+                List.of(line("Click a chip to add to this bet.", NamedTextColor.GRAY),
+                        line("Table limits: " + limit, NamedTextColor.GRAY)), true));
+        inventory.setItem(REPEAT_SLOT, display(Material.CLOCK, "&bRepeat last bet",
                 "&7Your last stake: &6" + blackjack.lastBet(player) + "&7."));
 
-        inventory.setItem(20, display(Material.SUNFLOWER, "&6Balance: &f" + balance + " &7points",
-                "&7Settled through the Guab ledger."));
-        inventory.setItem(22, display(Material.GOLD_NUGGET, "&eBet: &6" + session.bet + " &7points",
-                "&7Table limits: &6" + limit + "&7 points."));
-        inventory.setItem(24, display(Material.BOOK, "&7Table limits",
-                "&7Minimum: &6" + min,
-                "&7Maximum: &6" + (max > 0 ? String.valueOf(max) : "no limit"),
-                "&7Blackjack pays &6" + payoutMultiplier() + "&7."));
+        for (int index = 0; index < CHIP_SLOTS.length; index++) {
+            inventory.setItem(CHIP_SLOTS[index], display(CHIP_MATERIALS[index],
+                    Component.text("+" + CHIP_AMOUNTS[index], NamedTextColor.GOLD),
+                    List.of(line("Left-click: add " + CHIP_AMOUNTS[index], NamedTextColor.GREEN),
+                            line("Right-click: remove " + CHIP_AMOUNTS[index], NamedTextColor.RED),
+                            line("Bet: " + session.bet, NamedTextColor.GRAY))));
+        }
 
-        inventory.setItem(DEAL_SLOT, display(Material.LIME_DYE, "&aDeal",
-                "&7Start a hand with &6" + session.bet + " &7points."));
-        inventory.setItem(32, display(Material.RED_DYE, "&cClose",
+        inventory.setItem(ALL_IN_SLOT, display(Material.NETHER_STAR, "&6All in",
+                "&7Bet your whole balance: &6" + balance + " &7points."));
+        inventory.setItem(RESET_SLOT, display(Material.BARRIER, "&cReset bet",
+                "&7Back to the table minimum: &6" + min + "&7."));
+        inventory.setItem(DEAL_SLOT, display(Material.LIME_CONCRETE, Component.text("Deal", NamedTextColor.GREEN),
+                List.of(line("Start a hand with " + session.bet + " points.", NamedTextColor.GRAY),
+                        line("Blackjack pays " + payoutMultiplier() + ".", NamedTextColor.GRAY)), true));
+        inventory.setItem(BET_HISTORY_SLOT, display(Material.BOOK, "&fHistory",
+                "&7Your last five hands."));
+        inventory.setItem(CLOSE_SLOT, display(Material.ARROW, "&fClose",
                 "&7Leave the table without betting."));
     }
 
@@ -228,29 +278,37 @@ public final class BlackjackGui implements Listener {
             return;
         }
         int balance = blackjack.balance(player);
+
+        List<Component> status = new ArrayList<>();
+        status.add(line("Balance: " + balance + " points", NamedTextColor.GOLD));
+        status.add(line("Bet: " + view.bet() + " points", NamedTextColor.WHITE));
+        status.add(line("Dealer: " + view.dealerTotal()
+                + (view.dealer().size() > 1 && view.dealer().get(1).hidden() ? " + ?" : ""), NamedTextColor.WHITE));
+        status.add(line("You: " + view.playerTotal(), NamedTextColor.WHITE));
+        status.add(Component.empty());
+        status.add(line("Hit, stand or double to finish.", NamedTextColor.DARK_GRAY));
+        inventory.setItem(STATUS_SLOT, display(Material.PAPER, Component.text("Blackjack", NamedTextColor.GOLD), status));
+
+        inventory.setItem(9, display(Material.PAPER, "&7Dealer"));
         cards(inventory, 10, view.dealer());
-        cards(inventory, 19, view.player());
+        inventory.setItem(27, display(Material.PAPER, "&7You"));
+        cards(inventory, 28, view.player());
 
-        inventory.setItem(28, display(Material.GOLD_NUGGET, "&eBet: &6" + view.bet() + " &7points"));
-        inventory.setItem(30, display(Material.BOOK, "&7Dealer: &f" + view.dealerTotal()
-                + (view.dealer().size() > 1 && view.dealer().get(1).hidden() ? " &8+ ?" : "")));
-        inventory.setItem(RESULT_SLOT, display(Material.LIGHT_GRAY_STAINED_GLASS_PANE, "&7Hand in play",
-                "&7Hit, stand or double to finish."));
-        inventory.setItem(32, display(Material.BOOK, "&7You: &f" + view.playerTotal()));
-        inventory.setItem(34, display(Material.SUNFLOWER, "&6Balance: &f" + balance + " &7points"));
-
-        inventory.setItem(37, display(Material.LIME_DYE, "&aHit", "&7Draw another card."));
-        inventory.setItem(39, display(Material.YELLOW_DYE, "&eStand", "&7Hold your total."));
+        inventory.setItem(HIT_SLOT, display(Material.LIME_DYE, "&aHit",
+                "&7Draw another card."));
+        inventory.setItem(STAND_SLOT, display(Material.YELLOW_DYE, "&eStand",
+                "&7Hold your total."));
         if (view.canDouble()) {
-            inventory.setItem(41, display(Material.LIGHT_BLUE_DYE, "&bDouble",
+            inventory.setItem(DOUBLE_SLOT, display(Material.LIGHT_BLUE_DYE, "&bDouble",
                     "&7Double to &6" + BetMath.winPayout(view.bet()) + " &7points for one card."));
         } else {
-            inventory.setItem(41, display(Material.GRAY_STAINED_GLASS_PANE, "&8Double",
+            inventory.setItem(DOUBLE_SLOT, display(Material.GRAY_STAINED_GLASS_PANE, "&8Double",
                     "&7Only available on your first two cards."));
         }
-        inventory.setItem(43, display(Material.BOOK, "&fHistory", "&7Your last five hands."));
-        inventory.setItem(CLOSE_SLOT, display(Material.RED_DYE, "&cClose table",
-                "&7You can reopen the table without losing the hand."));
+        inventory.setItem(TABLE_HISTORY_SLOT, display(Material.BOOK, "&fHistory",
+                "&7Your last five hands."));
+        inventory.setItem(CLOSE_SLOT, display(Material.ARROW, "&fClose table",
+                "&7Reopen the table without losing the hand."));
     }
 
     private void renderResult(Player player, Session session, Inventory inventory) {
@@ -259,22 +317,31 @@ public final class BlackjackGui implements Listener {
             return;
         }
         session.bet = clampBet(player, result.bet());
+        int balance = blackjack.balance(player);
+        int net = result.payout() - result.bet();
+
+        List<Component> status = new ArrayList<>();
+        status.add(line("Balance: " + balance + " points", NamedTextColor.GOLD));
+        status.add(line("Bet: " + result.bet() + " points", NamedTextColor.WHITE));
+        status.add(line("Payout: " + result.payout() + " points", NamedTextColor.GRAY));
+        status.add(line("Net: " + signed(net) + " points", net > 0
+                ? NamedTextColor.GREEN : net < 0 ? NamedTextColor.RED : NamedTextColor.GRAY));
+        inventory.setItem(STATUS_SLOT, display(Material.PAPER, Component.text("Blackjack", NamedTextColor.GOLD), status));
+
+        inventory.setItem(9, display(Material.PAPER, "&7Dealer"));
         cards(inventory, 10, result.dealerCards());
-        cards(inventory, 19, result.playerCards());
-
-        inventory.setItem(28, display(Material.GOLD_NUGGET, "&eBet: &6" + result.bet() + " &7points"));
-        inventory.setItem(30, display(Material.BOOK, "&7Dealer: &f" + result.dealerTotal()));
+        inventory.setItem(27, display(Material.PAPER, "&7You"));
+        cards(inventory, 28, result.playerCards());
         inventory.setItem(RESULT_SLOT, resultIcon(result));
-        inventory.setItem(32, display(Material.BOOK, "&7You: &f" + result.playerTotal()));
-        inventory.setItem(34, display(Material.SUNFLOWER, "&6Balance: &f"
-                + blackjack.balance(player) + " &7points"));
 
-        inventory.setItem(38, display(Material.LIME_DYE, "&aDeal again",
+        inventory.setItem(DEAL_AGAIN_SLOT, display(Material.LIME_CONCRETE, "&aDeal again",
                 "&7Another hand at &6" + result.bet() + " &7points."));
-        inventory.setItem(40, display(Material.GOLD_NUGGET, "&6Change bet",
+        inventory.setItem(CHANGE_BET_SLOT, display(Material.GOLD_INGOT, "&6Change bet",
                 "&7Go back to the bet builder."));
-        inventory.setItem(42, display(Material.BOOK, "&fHistory", "&7Your last five hands."));
-        inventory.setItem(CLOSE_SLOT, display(Material.RED_DYE, "&cClose", "&7Leave the table."));
+        inventory.setItem(RESULT_HISTORY_SLOT, display(Material.BOOK, "&fHistory",
+                "&7Your last five hands."));
+        inventory.setItem(CLOSE_SLOT, display(Material.ARROW, "&fClose",
+                "&7Leave the table."));
     }
 
     private ItemStack resultIcon(Blackjack.Result result) {
@@ -299,13 +366,13 @@ public final class BlackjackGui implements Listener {
             }
         }
         int net = result.payout() - result.bet();
-        String sign = net > 0 ? "+" : "";
         return display(material, Component.text(result.outcome(), colour),
                 List.of(
                         LEGACY.deserialize(result.message()),
-                        Component.text("Payout: " + result.payout() + " points", NamedTextColor.GRAY),
-                        Component.text("Net: " + sign + net + " points",
-                                net > 0 ? NamedTextColor.GREEN : net < 0 ? NamedTextColor.RED : NamedTextColor.GRAY)));
+                        line("Payout: " + result.payout() + " points", NamedTextColor.GRAY),
+                        line("Net: " + signed(net) + " points",
+                                net > 0 ? NamedTextColor.GREEN : net < 0 ? NamedTextColor.RED : NamedTextColor.GRAY)),
+                true);
     }
 
     private void cards(Inventory inventory, int startSlot, List<Blackjack.CardView> cards) {
@@ -324,27 +391,36 @@ public final class BlackjackGui implements Listener {
     private ItemStack card(Blackjack.CardView card) {
         if (card.hidden()) {
             return display(Material.GRAY_CONCRETE, Component.text("??", NamedTextColor.DARK_GRAY),
-                    List.of(Component.text("Dealer's hole card", NamedTextColor.GRAY)));
+                    List.of(line("Dealer's hole card", NamedTextColor.GRAY)));
         }
         NamedTextColor colour = card.red() ? NamedTextColor.RED : NamedTextColor.WHITE;
         return display(Material.PAPER, Component.text(card.label(), colour), List.of());
     }
 
-    private ItemStack chip(Material material, String name, int amount) {
-        return display(material, name,
-                "&7Left-click: &aadd " + amount,
-                "&7Right-click: &csubtract " + amount);
-    }
-
-    private void border(Inventory inventory) {
-        ItemStack pane = display(Material.BLACK_STAINED_GLASS_PANE, Component.text(" "), List.of());
+    private void background(Inventory inventory, int... dividerRows) {
+        ItemStack edge = display(Material.BLACK_STAINED_GLASS_PANE, Component.text(" "), List.of());
+        ItemStack filler = display(Material.GRAY_STAINED_GLASS_PANE, Component.text(" "), List.of());
         for (int slot = 0; slot < SIZE; slot++) {
             int row = slot / 9;
-            int column = slot % 9;
-            if (row == 0 || row == 5 || column == 0 || column == 8) {
-                inventory.setItem(slot, pane);
+            inventory.setItem(slot, contains(dividerRows, row) ? edge : filler);
+        }
+    }
+
+    private static boolean contains(int[] values, int value) {
+        for (int candidate : values) {
+            if (candidate == value) {
+                return true;
             }
         }
+        return false;
+    }
+
+    private static Component line(String text, NamedTextColor colour) {
+        return Component.text(text, colour).decoration(TextDecoration.ITALIC, false);
+    }
+
+    private static String signed(int amount) {
+        return amount > 0 ? "+" + amount : String.valueOf(amount);
     }
 
     private void handleClick(Player player, Session session, InventoryClickEvent event) {
@@ -361,14 +437,19 @@ public final class BlackjackGui implements Listener {
     }
 
     private void handleBetClick(Player player, Session session, int slot, boolean right) {
+        for (int index = 0; index < CHIP_SLOTS.length; index++) {
+            if (slot == CHIP_SLOTS[index]) {
+                click(player);
+                adjustBet(player, session, right ? -CHIP_AMOUNTS[index] : CHIP_AMOUNTS[index]);
+                render(player, session);
+                return;
+            }
+        }
         switch (slot) {
-            case 10 -> adjustBet(player, session, right ? -1 : 1);
-            case 11 -> adjustBet(player, session, right ? -10 : 10);
-            case 12 -> adjustBet(player, session, right ? -100 : 100);
-            case 13 -> adjustBet(player, session, right ? -1_000 : 1_000);
-            case 14 -> session.bet = clampBet(player, Math.max(minBet(), blackjack.balance(player)));
-            case 15 -> session.bet = minBet();
-            case 16 -> session.bet = clampBet(player, blackjack.lastBet(player));
+            case MIN_SLOT -> session.bet = minBet();
+            case REPEAT_SLOT -> session.bet = clampBet(player, blackjack.lastBet(player));
+            case ALL_IN_SLOT -> session.bet = clampBet(player, Math.max(minBet(), blackjack.balance(player)));
+            case RESET_SLOT -> session.bet = minBet();
             case DEAL_SLOT -> {
                 click(player);
                 blackjack.start(player, session.bet);
@@ -379,7 +460,12 @@ public final class BlackjackGui implements Listener {
                 render(player, session);
                 return;
             }
-            case 32, CLOSE_SLOT -> {
+            case BET_HISTORY_SLOT -> {
+                click(player);
+                history(player);
+                return;
+            }
+            case CLOSE_SLOT -> {
                 click(player);
                 player.closeInventory();
                 return;
@@ -394,22 +480,22 @@ public final class BlackjackGui implements Listener {
 
     private void handleTableClick(Player player, int slot) {
         switch (slot) {
-            case 37 -> {
+            case HIT_SLOT -> {
                 click(player);
                 blackjack.hit(player);
             }
-            case 39 -> {
+            case STAND_SLOT -> {
                 click(player);
                 blackjack.stand(player);
             }
-            case 41 -> {
+            case DOUBLE_SLOT -> {
                 Blackjack.View view = blackjack.view(player);
                 if (view != null && view.canDouble()) {
                     click(player);
                     blackjack.doubleDown(player);
                 }
             }
-            case 43 -> {
+            case TABLE_HISTORY_SLOT -> {
                 click(player);
                 history(player);
             }
@@ -425,7 +511,7 @@ public final class BlackjackGui implements Listener {
     private void handleResultClick(Player player, Session session, int slot) {
         Blackjack.Result result = blackjack.result(player);
         switch (slot) {
-            case 38 -> {
+            case DEAL_AGAIN_SLOT -> {
                 if (result == null) {
                     return;
                 }
@@ -443,7 +529,7 @@ public final class BlackjackGui implements Listener {
                     render(player, session);
                 }
             }
-            case 40 -> {
+            case CHANGE_BET_SLOT -> {
                 click(player);
                 if (result != null) {
                     session.bet = clampBet(player, result.bet());
@@ -452,7 +538,7 @@ public final class BlackjackGui implements Listener {
                 session.screen = Screen.BET;
                 render(player, session);
             }
-            case 42 -> {
+            case RESULT_HISTORY_SLOT -> {
                 click(player);
                 history(player);
             }
@@ -539,23 +625,42 @@ public final class BlackjackGui implements Listener {
     }
 
     private ItemStack display(Material material, String name, String... lore) {
+        return display(material, name, false, lore);
+    }
+
+    private ItemStack display(Material material, String name, boolean glow, String... lore) {
         List<Component> lines = new ArrayList<>(lore.length);
         for (String line : lore) {
             lines.add(LEGACY.deserialize(line));
         }
-        return display(material, LEGACY.deserialize(name), lines);
+        return display(material, LEGACY.deserialize(name), lines, glow);
     }
 
     private ItemStack display(Material material, Component name, List<Component> lore) {
+        return display(material, name, lore, false);
+    }
+
+    private ItemStack display(Material material, Component name, List<Component> lore, boolean glow) {
         ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
-        meta.displayName(name);
+        meta.displayName(plain(name));
         if (!lore.isEmpty()) {
-            meta.lore(lore);
+            List<Component> lines = new ArrayList<>(lore.size());
+            for (Component line : lore) {
+                lines.add(plain(line));
+            }
+            meta.lore(lines);
         }
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        if (glow) {
+            meta.setEnchantmentGlintOverride(true);
+        }
         stack.setItemMeta(meta);
         return stack;
+    }
+
+    private static Component plain(Component component) {
+        return component.decoration(TextDecoration.ITALIC, false);
     }
 
     private enum Screen {
