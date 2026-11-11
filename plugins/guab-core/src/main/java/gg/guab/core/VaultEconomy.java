@@ -16,13 +16,32 @@ import java.util.UUID;
 final class VaultEconomy implements Economy {
 
     private final PointsService points;
+    private final int maxWithdraw;
 
-    VaultEconomy(PointsService points) {
+    VaultEconomy(PointsService points, int maxWithdraw) {
         this.points = points;
+        this.maxWithdraw = Math.max(1, maxWithdraw);
     }
 
-    private static int toPoints(double amount) {
+    /**
+     * Convert a Vault amount to the integer ledger without wrapping. Values above
+     * {@link Integer#MAX_VALUE} saturate; non-finite and negative values become zero.
+     * The old {@code (int) Math.round(amount)} cast wrapped large payouts negative,
+     * which made winning bets silently fail to deposit.
+     */
+    static int toPoints(double amount) {
+        if (!Double.isFinite(amount) || amount <= 0.0) {
+            return 0;
+        }
+        if (amount >= Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
         return (int) Math.round(amount);
+    }
+
+    private boolean canWithdraw(UUID id, double amount) {
+        int value = toPoints(amount);
+        return value <= maxWithdraw && points.get(id) >= value;
     }
 
     private static UUID id(String playerName) {
@@ -114,12 +133,12 @@ final class VaultEconomy implements Economy {
 
     @Override
     public boolean has(String playerName, double amount) {
-        return points.get(id(playerName)) >= toPoints(amount);
+        return canWithdraw(id(playerName), amount);
     }
 
     @Override
     public boolean has(OfflinePlayer player, double amount) {
-        return points.get(player.getUniqueId()) >= toPoints(amount);
+        return canWithdraw(player.getUniqueId(), amount);
     }
 
     @Override
@@ -157,6 +176,10 @@ final class VaultEconomy implements Economy {
         int balance = points.get(id);
         if (value <= 0) {
             return fail(balance, "Amount must be at least 1 point");
+        }
+        if (value > maxWithdraw) {
+            return fail(balance, "Amount exceeds the maximum withdrawal limit of "
+                    + maxWithdraw + " points");
         }
         if (!points.take(id, value)) {
             return fail(balance, "Insufficient points");

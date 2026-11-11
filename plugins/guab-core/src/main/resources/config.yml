@@ -1,6 +1,12 @@
 # How often balances are flushed to points.yml (seconds).
 save-interval-seconds: 60
 
+# Largest single withdrawal a Vault-based plugin may request. This stops
+# third-party games from asking the int ledger for amounts it cannot represent.
+# 100M is safe for payouts up to roughly 21x.
+economy:
+  max-withdraw: 100000000
+
 # Used by /spawn and /hub. Leave world empty to use the first loaded world.
 # Leave x/y/z unset to use that world's configured spawn point.
 spawn:

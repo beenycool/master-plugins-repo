@@ -162,6 +162,7 @@ Done in this pass:
 - **Blackjack:** 54-slot double-chest dealer UI with bet, table and result screens; chips, Deal, Hit/Stand/Double, Deal again/Change bet; `/bj gui|menu`.
 - **HUD and settings:** `/settings` clickable summary and `/hud` toggles for sidebar, tab, nametag, sounds, actionbar, titles, rickroll reduced motion and rickroll opt-out.
 - **Points and core ops:** `/top`, `/spawn`, `/hub`, `/points history|pay|reset`, rank/session delta, confirm/cancel resets and audit logging; `/guabcore save|status|reload` flushes stores and inspects/reloads core config.
+- **Economy safety:** the Vault bridge saturates oversized amounts instead of wrapping, and rejects withdrawals above `economy.max-withdraw` (default 100M) so SpleensUtils, Baccarat and MineGames cannot overflow the int ledger.
 - **Snapshots:** `/casino snapshot [list]` flushes GuabCore before zipping and lists existing snapshots.
 - **Pub and darts:** `/beer again`, round preview/confirm, clickable menus, milk rules, admin tap/status/shelf, darts replay/practice/status, offline stats, resume dialog, capacity and forfeits.
 - **Battle pit and admin:** stats/top/kick/purge/quit, tagged kit reset, saved inventories, `exit-mode`, coordinate kill feed.

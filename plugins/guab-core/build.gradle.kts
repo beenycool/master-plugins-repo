@@ -7,6 +7,10 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.0")
     testImplementation("io.papermc.paper:paper-api:26.3.build.240-stable")
+    testImplementation("com.github.MilkBowl:VaultAPI:1.7") {
+        exclude(group = "org.bukkit")
+        exclude(group = "org.spigotmc")
+    }
 }
 
 tasks.test {
