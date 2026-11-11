@@ -14,10 +14,10 @@ public final class GuabPointsChangeEvent extends Event {
     private static final HandlerList HANDLERS = new HandlerList();
 
     private final UUID player;
-    private final int before;
-    private final int after;
+    private final long before;
+    private final long after;
 
-    public GuabPointsChangeEvent(UUID player, int before, int after) {
+    public GuabPointsChangeEvent(UUID player, long before, long after) {
         this.player = player;
         this.before = before;
         this.after = after;
@@ -27,15 +27,15 @@ public final class GuabPointsChangeEvent extends Event {
         return player;
     }
 
-    public int before() {
+    public long before() {
         return before;
     }
 
-    public int after() {
+    public long after() {
         return after;
     }
 
-    public int delta() {
+    public long delta() {
         return after - before;
     }
 

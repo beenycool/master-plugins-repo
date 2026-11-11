@@ -14,8 +14,7 @@ final class VaultHook {
 
     static boolean install(GuabCorePlugin plugin, PointsService points) {
         try {
-            int maxWithdraw = plugin.getConfig().getInt("economy.max-withdraw", 100_000_000);
-            Economy economy = new VaultEconomy(points, maxWithdraw);
+            Economy economy = new VaultEconomy(points);
             plugin.getServer().getServicesManager()
                     .register(Economy.class, economy, plugin, ServicePriority.Highest);
             return true;

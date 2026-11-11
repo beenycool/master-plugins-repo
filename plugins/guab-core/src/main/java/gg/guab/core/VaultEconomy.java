@@ -16,32 +16,24 @@ import java.util.UUID;
 final class VaultEconomy implements Economy {
 
     private final PointsService points;
-    private final int maxWithdraw;
 
-    VaultEconomy(PointsService points, int maxWithdraw) {
+    VaultEconomy(PointsService points) {
         this.points = points;
-        this.maxWithdraw = Math.max(1, maxWithdraw);
     }
 
     /**
-     * Convert a Vault amount to the integer ledger without wrapping. Values above
-     * {@link Integer#MAX_VALUE} saturate; non-finite and negative values become zero.
-     * The old {@code (int) Math.round(amount)} cast wrapped large payouts negative,
-     * which made winning bets silently fail to deposit.
+     * Convert a Vault amount to the 64-bit ledger. Vault itself speaks {@code double},
+     * so integers are exact up to 2^53. Negative and non-finite values become zero.
      */
-    static int toPoints(double amount) {
+    static long toPoints(double amount) {
         if (!Double.isFinite(amount) || amount <= 0.0) {
-            return 0;
+            return 0L;
         }
-        if (amount >= Integer.MAX_VALUE) {
-            return Integer.MAX_VALUE;
-        }
-        return (int) Math.round(amount);
+        return Math.round(amount);
     }
 
     private boolean canWithdraw(UUID id, double amount) {
-        int value = toPoints(amount);
-        return value <= maxWithdraw && points.get(id) >= value;
+        return points.get(id) >= toPoints(amount);
     }
 
     private static UUID id(String playerName) {
@@ -113,12 +105,12 @@ final class VaultEconomy implements Economy {
 
     @Override
     public double getBalance(String playerName) {
-        return points.get(id(playerName));
+        return (double) points.get(id(playerName));
     }
 
     @Override
     public double getBalance(OfflinePlayer player) {
-        return points.get(player.getUniqueId());
+        return (double) points.get(player.getUniqueId());
     }
 
     @Override
@@ -172,19 +164,16 @@ final class VaultEconomy implements Economy {
     }
 
     private EconomyResponse withdraw(UUID id, double amount) {
-        int value = toPoints(amount);
-        int balance = points.get(id);
-        if (value <= 0) {
+        long value = toPoints(amount);
+        long balance = points.get(id);
+        if (value <= 0L) {
             return fail(balance, "Amount must be at least 1 point");
-        }
-        if (value > maxWithdraw) {
-            return fail(balance, "Amount exceeds the maximum withdrawal limit of "
-                    + maxWithdraw + " points");
         }
         if (!points.take(id, value)) {
             return fail(balance, "Insufficient points");
         }
-        return new EconomyResponse(value, points.get(id), EconomyResponse.ResponseType.SUCCESS, null);
+        return new EconomyResponse((double) value, (double) points.get(id),
+                EconomyResponse.ResponseType.SUCCESS, null);
     }
 
     @Override
@@ -208,11 +197,12 @@ final class VaultEconomy implements Economy {
     }
 
     private EconomyResponse deposit(UUID id, double amount) {
-        int value = toPoints(amount);
-        if (value <= 0) {
+        long value = toPoints(amount);
+        if (value <= 0L) {
             return fail(points.get(id), "Amount must be at least 1 point");
         }
-        return new EconomyResponse(value, points.add(id, value), EconomyResponse.ResponseType.SUCCESS, null);
+        return new EconomyResponse((double) value, (double) points.add(id, value),
+                EconomyResponse.ResponseType.SUCCESS, null);
     }
 
     @Override

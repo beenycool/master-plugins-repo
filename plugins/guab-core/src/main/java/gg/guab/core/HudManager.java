@@ -180,14 +180,14 @@ public final class HudManager implements Listener {
                         String.valueOf(stats.get(player.getUniqueId(), StatsService.VOID_DEATHS)))
                 .put("%online%", String.valueOf(Bukkit.getOnlinePlayers().size()))
                 .put("%area%", areaName(player));
-        List<Map.Entry<UUID, Integer>> ranking = points.top(3);
+        List<Map.Entry<UUID, Long>> ranking = points.top(3);
         for (int i = 0; i < 3; i++) {
             tokens.put("%top" + (i + 1) + "%", topLine(ranking, i));
         }
         return tokens;
     }
 
-    private static String formatNumber(int value) {
+    private static String formatNumber(long value) {
         return String.format(Locale.ROOT, "%,d", value);
     }
 
@@ -252,11 +252,11 @@ public final class HudManager implements Listener {
         }
     }
 
-    private String topLine(List<Map.Entry<UUID, Integer>> ranking, int index) {
+    private String topLine(List<Map.Entry<UUID, Long>> ranking, int index) {
         if (index >= ranking.size()) {
             return "";
         }
-        Map.Entry<UUID, Integer> entry = ranking.get(index);
+        Map.Entry<UUID, Long> entry = ranking.get(index);
         String name = Bukkit.getOfflinePlayer(entry.getKey()).getName();
         if (name == null) {
             name = entry.getKey().toString().substring(0, 8);
@@ -357,13 +357,14 @@ public final class HudManager implements Listener {
                 }
             }
             for (Player online : Bukkit.getOnlinePlayers()) {
-                int value = points.get(online.getUniqueId());
-                if (lastScores.getOrDefault(online.getName(), Integer.MIN_VALUE) == value) {
+                long value = points.get(online.getUniqueId());
+                int display = (int) Math.min(Integer.MAX_VALUE, Math.max(0L, value));
+                if (lastScores.getOrDefault(online.getName(), Integer.MIN_VALUE) == display) {
                     continue;
                 }
                 Score score = belowName.getScore(online.getName());
-                score.setScore(Math.max(0, value));
-                lastScores.put(online.getName(), value);
+                score.setScore(display);
+                lastScores.put(online.getName(), display);
             }
         }
 

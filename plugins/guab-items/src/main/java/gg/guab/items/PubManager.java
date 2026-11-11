@@ -193,9 +193,9 @@ public final class PubManager {
         return rank;
     }
 
-    public int balance(UUID player) {
+    public long balance(UUID player) {
         PointsService points = points();
-        return points == null ? 0 : points.get(player);
+        return points == null ? 0L : points.get(player);
     }
 
     public void recordDrink(Player player, BeerBrand brand) {

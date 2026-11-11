@@ -17,7 +17,7 @@ final class PointsHistoryLog {
 
     static final int DEFAULT_LIMIT = 12;
 
-    record Change(int delta, int before, int after, Instant at) {
+    record Change(long delta, long before, long after, Instant at) {
     }
 
     private final int limit;
@@ -31,7 +31,7 @@ final class PointsHistoryLog {
         this.limit = Math.max(1, limit);
     }
 
-    void record(UUID player, int before, int after, Instant at) {
+    void record(UUID player, long before, long after, Instant at) {
         if (player == null || before == after) {
             return;
         }

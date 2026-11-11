@@ -361,9 +361,9 @@ public final class BattlePit implements Listener {
 
         PointsService points = points();
         int penalty = Math.max(0, plugin.getConfig().getInt("battlepit.death-penalty", 25));
-        int lost = 0;
+        long lost = 0L;
         if (points != null && penalty > 0) {
-            int before = points.get(victimId);
+            long before = points.get(victimId);
             points.take(victimId, penalty);
             lost = before - points.get(victimId);
             if (lost > 0) {
@@ -373,7 +373,7 @@ public final class BattlePit implements Listener {
             }
         }
         victimStats.addDeaths(1);
-        victimStats.addPoints(-lost);
+        victimStats.addPoints((int) -lost);
 
         int lostStreak = streaks.getOrDefault(victimId, 0);
         victimStats.recordStreak(lostStreak);
@@ -392,7 +392,7 @@ public final class BattlePit implements Listener {
             killerStats.addPoints(reward);
             killerStats.recordStreak(streak);
 
-            int balance = points == null ? 0 : points.get(killer.getUniqueId());
+            long balance = points == null ? 0L : points.get(killer.getUniqueId());
             String weapon = weaponName(killer, victim);
             broadcast("&6" + killer.getName() + " &7[" + weapon + "&7] &7eliminated &f"
                     + victim.getName() + " &7at &f" + coords

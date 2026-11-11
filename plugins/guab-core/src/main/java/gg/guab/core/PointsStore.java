@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class PointsStore implements PointsService {
 
     private final Path file;
-    private final Map<UUID, Integer> balances = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> balances = new ConcurrentHashMap<>();
     private final Object writeLock = new Object();
     private volatile boolean loadFailed;
     private volatile String loadError;
@@ -45,7 +45,7 @@ public final class PointsStore implements PointsService {
             balances.clear();
             return;
         }
-        Map<UUID, Integer> parsed = new HashMap<>();
+        Map<UUID, Long> parsed = new HashMap<>();
         try {
             if (Files.size(file) == 0) {
                 balances.clear();
@@ -59,7 +59,7 @@ public final class PointsStore implements PointsService {
             }
             for (String key : section.getKeys(false)) {
                 try {
-                    parsed.put(UUID.fromString(key), Math.max(0, section.getInt(key, 0)));
+                    parsed.put(UUID.fromString(key), Math.max(0L, section.getLong(key, 0L)));
                 } catch (IllegalArgumentException ignored) {
                     // Skip malformed keys instead of failing the whole ledger.
                 }
@@ -92,45 +92,48 @@ public final class PointsStore implements PointsService {
     }
 
     @Override
-    public int get(UUID player) {
-        return balances.getOrDefault(player, 0);
+    public long get(UUID player) {
+        return balances.getOrDefault(player, 0L);
     }
 
     @Override
-    public void set(UUID player, int amount) {
-        int before = get(player);
-        int after = Math.max(0, amount);
+    public void set(UUID player, long amount) {
+        long before = get(player);
+        long after = Math.max(0L, amount);
         balances.put(player, after);
         fireChange(player, before, after);
     }
 
     @Override
-    public int add(UUID player, int amount) {
+    public long add(UUID player, long amount) {
         if (amount == 0) {
             return get(player);
         }
-        int[] before = new int[1];
-        int after = balances.compute(player, (key, current) -> {
-            before[0] = current == null ? 0 : current;
-            long next = (long) before[0] + amount;
-            if (next <= 0) {
-                return 0;
+        long[] before = new long[1];
+        long after = balances.compute(player, (key, current) -> {
+            before[0] = current == null ? 0L : current;
+            long next = before[0] + amount;
+            if (amount > 0L && next < before[0]) {
+                return Long.MAX_VALUE;
             }
-            return next > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) next;
+            if (next <= 0L) {
+                return 0L;
+            }
+            return next;
         });
         fireChange(player, before[0], after);
         return after;
     }
 
     @Override
-    public boolean take(UUID player, int amount) {
+    public boolean take(UUID player, long amount) {
         if (amount <= 0) {
             return false;
         }
         boolean[] taken = { false };
-        int[] before = new int[1];
+        long[] before = new long[1];
         balances.compute(player, (key, current) -> {
-            int balance = current == null ? 0 : current;
+            long balance = current == null ? 0L : current;
             before[0] = balance;
             if (balance < amount) {
                 return balance;
@@ -145,14 +148,14 @@ public final class PointsStore implements PointsService {
     }
 
     @Override
-    public boolean transfer(UUID from, UUID to, int amount) {
+    public boolean transfer(UUID from, UUID to, long amount) {
         if (from == null || to == null || from.equals(to) || amount <= 0) {
             return false;
         }
         boolean[] moved = { false };
-        int[] fromBefore = new int[1];
-        int fromAfter = balances.compute(from, (key, current) -> {
-            int balance = current == null ? 0 : current;
+        long[] fromBefore = new long[1];
+        long fromAfter = balances.compute(from, (key, current) -> {
+            long balance = current == null ? 0L : current;
             fromBefore[0] = balance;
             if (balance < amount) {
                 return balance;
@@ -163,12 +166,12 @@ public final class PointsStore implements PointsService {
         if (!moved[0]) {
             return false;
         }
-        int[] toBefore = new int[1];
-        int toAfter = balances.compute(to, (key, current) -> {
-            int balance = current == null ? 0 : current;
+        long[] toBefore = new long[1];
+        long toAfter = balances.compute(to, (key, current) -> {
+            long balance = current == null ? 0L : current;
             toBefore[0] = balance;
-            long next = (long) balance + amount;
-            return next > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) next;
+            long next = balance + amount;
+            return next < balance ? Long.MAX_VALUE : next;
         });
         fireChange(from, fromBefore[0], fromAfter);
         fireChange(to, toBefore[0], toAfter);
@@ -180,7 +183,7 @@ public final class PointsStore implements PointsService {
         return Set.copyOf(balances.keySet());
     }
 
-    private static void fireChange(UUID player, int before, int after) {
+    private static void fireChange(UUID player, long before, long after) {
         if (before == after || Bukkit.getServer() == null) {
             return;
         }
@@ -192,11 +195,11 @@ public final class PointsStore implements PointsService {
     }
 
     @Override
-    public List<Map.Entry<UUID, Integer>> top(int limit) {
+    public List<Map.Entry<UUID, Long>> top(int limit) {
         int wanted = Math.max(1, limit);
         return balances.entrySet().stream()
                 .filter(entry -> entry.getValue() > 0)
-                .sorted(Map.Entry.<UUID, Integer>comparingByValue().reversed()
+                .sorted(Map.Entry.<UUID, Long>comparingByValue().reversed()
                         .thenComparing(entry -> entry.getKey().toString()))
                 .limit(wanted)
                 .map(entry -> Map.entry(entry.getKey(), entry.getValue()))
@@ -209,7 +212,7 @@ public final class PointsStore implements PointsService {
 
     /** Write a snapshot to disk. Safe to call from an async task. */
     public void save() {
-        Map<UUID, Integer> snapshot = new HashMap<>(balances);
+        Map<UUID, Long> snapshot = new HashMap<>(balances);
         if (loadFailed && snapshot.isEmpty()) {
             throw new IllegalStateException("Refusing to overwrite unreadable "
                     + file.getFileName() + ": " + loadError);
@@ -218,7 +221,7 @@ public final class PointsStore implements PointsService {
         if (snapshot.isEmpty()) {
             yaml.createSection("players");
         } else {
-            for (Map.Entry<UUID, Integer> entry : snapshot.entrySet()) {
+            for (Map.Entry<UUID, Long> entry : snapshot.entrySet()) {
                 yaml.set("players." + entry.getKey(), entry.getValue());
             }
         }

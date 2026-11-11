@@ -34,7 +34,7 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
 
     private final GuabCorePlugin plugin;
     private final PlayerResolver resolver;
-    private final Map<UUID, Integer> sessionDeltas = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> sessionDeltas = new ConcurrentHashMap<>();
     private final PointsHistoryLog history = new PointsHistoryLog();
     private final Map<String, Confirmation> confirmations = new ConcurrentHashMap<>();
 
@@ -73,9 +73,9 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
 
     private void sendOwnBalance(Player player) {
         UUID id = player.getUniqueId();
-        int balance = plugin.points().get(id);
+        long balance = plugin.points().get(id);
         int rank = plugin.points().rank(id);
-        int session = sessionDeltas.getOrDefault(id, 0);
+        long session = sessionDeltas.getOrDefault(id, 0L);
         Component message = Component.text("[Points] ", NamedTextColor.GOLD)
                 .append(Component.text("Your balance: ", NamedTextColor.GRAY))
                 .append(Component.text(formatNumber(balance), NamedTextColor.GOLD));
@@ -100,7 +100,7 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
             error(sender, "Unknown player: " + name + " (only online or known accounts work).");
             return true;
         }
-        int balance = plugin.points().get(target.id());
+        long balance = plugin.points().get(target.id());
         int rank = plugin.points().rank(target.id());
         String suffix = rank > 0 ? " (rank #" + rank + ")" : "";
         info(sender, target.displayName() + " has " + formatNumber(balance) + " points" + suffix + ".");
@@ -121,12 +121,12 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
             error(sender, "Unknown player: " + args[1]);
             return true;
         }
-        Integer requested = parseAmount(args[2]);
+        Long requested = parseAmount(args[2]);
         if (requested == null) {
             error(sender, "Amount must be a whole number.");
             return true;
         }
-        int amount = requested;
+        long amount = requested;
         if (amount < 0) {
             error(sender, "Amount must be zero or more.");
             return true;
@@ -136,8 +136,8 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
             return true;
         }
 
-        int before = plugin.points().get(target.id());
-        int after;
+        long before = plugin.points().get(target.id());
+        long after;
         switch (action) {
             case "set" -> {
                 plugin.points().set(target.id(), amount);
@@ -156,7 +156,7 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
                 return true;
             }
         }
-        int delta = after - before;
+        long delta = after - before;
         audit(sender, action + " " + target.displayName() + " " + formatNumber(amount)
                 + " (" + formatNumber(before) + " -> " + formatNumber(after) + ")");
         info(sender, target.displayName() + ": " + formatNumber(before) + " -> "
@@ -188,17 +188,17 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
             error(sender, "You cannot pay yourself.");
             return true;
         }
-        Integer requested = parseAmount(args[2]);
+        Long requested = parseAmount(args[2]);
         if (requested == null || requested <= 0) {
             error(sender, "Amount must be at least 1 point.");
             return true;
         }
-        int before = plugin.points().get(player.getUniqueId());
+        long before = plugin.points().get(player.getUniqueId());
         if (!plugin.points().transfer(player.getUniqueId(), target.id(), requested)) {
             error(sender, "You only have " + formatNumber(before) + " points.");
             return true;
         }
-        int after = plugin.points().get(player.getUniqueId());
+        long after = plugin.points().get(player.getUniqueId());
         audit(sender, "pay " + target.displayName() + " " + formatNumber(requested)
                 + " (" + formatNumber(before) + " -> " + formatNumber(after) + ")");
         info(sender, "Paid " + target.displayName() + " " + formatNumber(requested)
@@ -315,7 +315,7 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
             audit(sender, "reset-all " + count + " account(s)");
             info(sender, "Reset " + count + " known balance(s) to zero.");
         } else {
-            int before = plugin.points().get(target.id());
+            long before = plugin.points().get(target.id());
             plugin.points().set(target.id(), 0);
             audit(sender, "reset " + target.displayName() + " ("
                     + formatNumber(before) + " -> 0)");
@@ -328,22 +328,22 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
     private boolean top(CommandSender sender, String[] args) {
         int limit = 5;
         if (args.length >= 2) {
-            Integer parsed = parseAmount(args[1]);
+            Long parsed = parseAmount(args[1]);
             if (parsed == null) {
                 error(sender, "Usage: /points top [count]");
                 return true;
             }
-            limit = parsed;
+            limit = (int) Math.max(1L, Math.min(20L, parsed));
         }
         limit = Math.max(1, Math.min(20, limit));
-        List<Map.Entry<UUID, Integer>> ranking = plugin.points().top(limit);
+        List<Map.Entry<UUID, Long>> ranking = plugin.points().top(limit);
         if (ranking.isEmpty()) {
             info(sender, "No points have been earned yet.");
             return true;
         }
         info(sender, "Top " + ranking.size() + " balances:");
         int rank = 1;
-        for (Map.Entry<UUID, Integer> entry : ranking) {
+        for (Map.Entry<UUID, Long> entry : ranking) {
             String name = Bukkit.getOfflinePlayer(entry.getKey()).getName();
             if (name == null) {
                 name = entry.getKey().toString().substring(0, 8);
@@ -371,19 +371,19 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
         plugin.getLogger().info("[audit] points " + sender.getName() + ": " + detail);
     }
 
-    private static Integer parseAmount(String raw) {
+    private static Long parseAmount(String raw) {
         try {
-            return Integer.parseInt(raw);
+            return Long.parseLong(raw);
         } catch (NumberFormatException exception) {
             return null;
         }
     }
 
-    private static String formatNumber(int value) {
+    private static String formatNumber(long value) {
         return String.format(Locale.ROOT, "%,d", value);
     }
 
-    private static String signed(int value) {
+    private static String signed(long value) {
         if (value > 0) {
             return "+" + formatNumber(value);
         }
@@ -399,7 +399,7 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChange(GuabPointsChangeEvent event) {
         UUID id = event.player();
-        sessionDeltas.merge(id, event.delta(), Integer::sum);
+        sessionDeltas.merge(id, event.delta(), Long::sum);
         history.record(id, event.before(), event.after(), Instant.now());
     }
 

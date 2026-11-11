@@ -159,9 +159,9 @@ public final class Blackjack implements Listener {
     }
 
     /** Current balance for the UI, or zero when the points ledger is unavailable. */
-    public int balance(Player player) {
+    public long balance(Player player) {
         PointsService points = points();
-        return points == null ? 0 : points.get(player.getUniqueId());
+        return points == null ? 0L : points.get(player.getUniqueId());
     }
 
     /**

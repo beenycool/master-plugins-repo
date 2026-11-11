@@ -30,8 +30,8 @@ class PointsStoreTest {
         PointsStore store = store();
         UUID player = UUID.randomUUID();
 
-        assertEquals(0, store.add(player, -5));
-        assertEquals(0, store.get(player));
+        assertEquals(0L, store.add(player, -5));
+        assertEquals(0L, store.get(player));
     }
 
     @Test
@@ -39,8 +39,8 @@ class PointsStoreTest {
         PointsStore store = store();
         UUID player = UUID.randomUUID();
 
-        assertEquals(25, store.add(player, 25));
-        assertEquals(25, store.get(player));
+        assertEquals(25L, store.add(player, 25));
+        assertEquals(25L, store.get(player));
     }
 
     @Test
@@ -49,8 +49,8 @@ class PointsStoreTest {
         UUID player = UUID.randomUUID();
         store.set(player, 10);
 
-        assertEquals(0, store.add(player, -15));
-        assertEquals(0, store.get(player));
+        assertEquals(0L, store.add(player, -15));
+        assertEquals(0L, store.get(player));
     }
 
     @Test
@@ -59,7 +59,7 @@ class PointsStoreTest {
         UUID player = UUID.randomUUID();
 
         store.set(player, -1);
-        assertEquals(0, store.get(player));
+        assertEquals(0L, store.get(player));
     }
 
     @Test
@@ -69,7 +69,7 @@ class PointsStoreTest {
         store.set(player, 5);
 
         assertFalse(store.take(player, 6));
-        assertEquals(5, store.get(player));
+        assertEquals(5L, store.get(player));
     }
 
     @Test
@@ -104,7 +104,33 @@ class PointsStoreTest {
         pool.shutdownNow();
 
         assertEquals(10, successes.get());
-        assertEquals(0, store.get(player));
+        assertEquals(0L, store.get(player));
+    }
+
+    @Test
+    void keepsBalancesBeyondTheIntegerRange(@TempDir Path temp) {
+        PointsStore store = new PointsStore(temp.resolve("points.yml"));
+        UUID player = UUID.randomUUID();
+
+        store.set(player, 4_294_967_297L);
+        assertEquals(4_294_967_297L, store.get(player));
+        assertTrue(store.take(player, 3_000_000_000L));
+        assertEquals(1_294_967_297L, store.get(player));
+
+        store.save();
+        PointsStore reloaded = new PointsStore(temp.resolve("points.yml"));
+        reloaded.load();
+        assertEquals(1_294_967_297L, reloaded.get(player));
+    }
+
+    @Test
+    void maxBalanceDoesNotWrap() {
+        PointsStore store = store();
+        UUID player = UUID.randomUUID();
+
+        store.set(player, Long.MAX_VALUE);
+        assertEquals(Long.MAX_VALUE, store.add(player, 1));
+        assertEquals(Long.MAX_VALUE, store.get(player));
     }
 
     @Test
@@ -121,8 +147,8 @@ class PointsStoreTest {
         reloaded.load();
 
         assertFalse(reloaded.loadFailed());
-        assertEquals(1_234, reloaded.get(alice));
-        assertEquals(56, reloaded.get(bob));
+        assertEquals(1_234L, reloaded.get(alice));
+        assertEquals(56L, reloaded.get(bob));
     }
 
     @Test
@@ -137,10 +163,10 @@ class PointsStoreTest {
         store.set(middle, 20);
         store.set(empty, 0);
 
-        List<Map.Entry<UUID, Integer>> top = store.top(10);
+        List<Map.Entry<UUID, Long>> top = store.top(10);
 
         assertEquals(3, top.size());
-        assertEquals(List.of(50, 20, 5), top.stream().map(Map.Entry::getValue).toList());
+        assertEquals(List.of(50L, 20L, 5L), top.stream().map(Map.Entry::getValue).toList());
         assertEquals(high, top.getFirst().getKey());
         assertTrue(top.stream().noneMatch(entry -> entry.getKey().equals(empty)));
         assertEquals(1, store.rank(high));
@@ -156,15 +182,15 @@ class PointsStoreTest {
         store.set(alice, 100);
 
         assertTrue(store.transfer(alice, bob, 40));
-        assertEquals(60, store.get(alice));
-        assertEquals(40, store.get(bob));
+        assertEquals(60L, store.get(alice));
+        assertEquals(40L, store.get(bob));
 
         assertFalse(store.transfer(alice, bob, 61));
-        assertEquals(60, store.get(alice));
-        assertEquals(40, store.get(bob));
+        assertEquals(60L, store.get(alice));
+        assertEquals(40L, store.get(bob));
 
         assertFalse(store.transfer(alice, alice, 10));
-        assertEquals(60, store.get(alice));
+        assertEquals(60L, store.get(alice));
     }
 
     @Test

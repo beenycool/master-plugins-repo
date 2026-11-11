@@ -12,26 +12,26 @@ import java.util.UUID;
 public interface PointsService {
 
     /** Current balance, or zero for an unknown player. */
-    int get(UUID player);
+    long get(UUID player);
 
     /** Overwrite a balance. Negative values clamp to zero. */
-    void set(UUID player, int amount);
+    void set(UUID player, long amount);
 
     /** Add points and return the new balance. Negative values clamp at zero. */
-    int add(UUID player, int amount);
+    long add(UUID player, long amount);
 
     /** Take points if the balance covers it. Returns false and changes nothing otherwise. */
-    boolean take(UUID player, int amount);
+    boolean take(UUID player, long amount);
 
     /** Highest balances first, skipping empty accounts. */
-    List<Map.Entry<UUID, Integer>> top(int limit);
+    List<Map.Entry<UUID, Long>> top(int limit);
 
     /**
      * Transfers points: either the whole amount moves or nothing does.
      * Returns false when the sender cannot cover the amount. The ledger implementation
      * overrides this with an atomic compare-and-move.
      */
-    default boolean transfer(UUID from, UUID to, int amount) {
+    default boolean transfer(UUID from, UUID to, long amount) {
         if (from == null || to == null || from.equals(to) || amount <= 0) {
             return false;
         }
@@ -54,7 +54,7 @@ public interface PointsService {
             return 0;
         }
         int rank = 1;
-        for (Map.Entry<UUID, Integer> entry : top(Integer.MAX_VALUE)) {
+        for (Map.Entry<UUID, Long> entry : top(Integer.MAX_VALUE)) {
             if (entry.getKey().equals(player)) {
                 return rank;
             }

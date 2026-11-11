@@ -37,7 +37,7 @@ public final class BeerMenuDialog {
             return;
         }
 
-        int balance = plugin.pub().balance(player.getUniqueId());
+        long balance = plugin.pub().balance(player.getUniqueId());
         double units = plugin.pub().drunkUnits(player.getUniqueId());
         String tier = plugin.pub().tierLabel(units);
 

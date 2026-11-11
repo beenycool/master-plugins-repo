@@ -193,7 +193,7 @@ makes a player immune to triggers.
 - Joining prints your balance and clickable `[Open menu]` and `[Settings]` buttons. There is no `[Enter casino]` button any more.
 - Balances are stored in `plugins/GuabCore/points.yml`, flushed every minute and on shutdown.
 - If Vault is installed, GuabCore registers the ledger as the server's Vault economy, so third-party plugins spend Guab points directly.
-- Vault withdrawals above `economy.max-withdraw` (default 100,000,000) are rejected, and oversized payouts saturate at the integer cap instead of wrapping negative. This stops third-party casino games from silently destroying large stakes.
+- Balances are stored as 64-bit integers end to end (`points.yml`, commands, HUD, events, history and the Vault bridge), so large payouts no longer wrap at the 32-bit boundary. Vault itself uses `double`, so values are exact up to 2^53; the ledger can hold more, but third-party plugins that speak Vault cannot represent every 64-bit value.
 
 ## Casino event
 

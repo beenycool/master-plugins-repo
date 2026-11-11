@@ -224,7 +224,7 @@ public final class BlackjackGui implements Listener {
     private void renderBet(Player player, Session session, Inventory inventory) {
         int min = minBet();
         int max = maxBet();
-        int balance = blackjack.balance(player);
+        long balance = blackjack.balance(player);
         String limit = max > 0 ? min + "–" + max : min + "+";
         Blackjack.Result last = blackjack.result(player);
 
@@ -277,7 +277,7 @@ public final class BlackjackGui implements Listener {
         if (view == null) {
             return;
         }
-        int balance = blackjack.balance(player);
+        long balance = blackjack.balance(player);
 
         List<Component> status = new ArrayList<>();
         status.add(line("Balance: " + balance + " points", NamedTextColor.GOLD));
@@ -317,7 +317,7 @@ public final class BlackjackGui implements Listener {
             return;
         }
         session.bet = clampBet(player, result.bet());
-        int balance = blackjack.balance(player);
+        long balance = blackjack.balance(player);
         int net = result.payout() - result.bet();
 
         List<Component> status = new ArrayList<>();
@@ -556,7 +556,7 @@ public final class BlackjackGui implements Listener {
         session.bet = clampBet(player, (int) Math.max(1L, Math.min(next, Integer.MAX_VALUE)));
     }
 
-    private int clampBet(Player player, int bet) {
+    private int clampBet(Player player, long bet) {
         int floor = minBet();
         int ceiling = maxBet() > 0 ? maxBet() : Integer.MAX_VALUE;
         long value = Math.max((long) floor, Math.min((long) bet, ceiling));

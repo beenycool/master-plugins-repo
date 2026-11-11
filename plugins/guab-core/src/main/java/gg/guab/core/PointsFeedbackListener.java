@@ -46,7 +46,7 @@ final class PointsFeedbackListener implements Listener {
         }
     }
 
-    private void accumulate(UUID player, int delta) {
+    private void accumulate(UUID player, long delta) {
         Pending entry = pending.computeIfAbsent(player, id -> new Pending());
         entry.delta += delta;
         if (entry.scheduled) {
@@ -83,7 +83,7 @@ final class PointsFeedbackListener implements Listener {
     }
 
     private static final class Pending {
-        private int delta;
+        private long delta;
         private boolean scheduled;
     }
 }

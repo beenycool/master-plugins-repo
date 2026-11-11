@@ -33,7 +33,7 @@ public final class GuabMenuDialog {
     }
 
     public void openHome(Player player) {
-        int balance = balance(player);
+        long balance = balance(player);
         String pubLine = "Pub: " + plugin.pub().pints(player.getUniqueId()) + " pints and "
                 + fmt(plugin.pub().drunkUnits(player.getUniqueId())) + " units right now.";
         List<DialogBody> body = List.of(
@@ -65,7 +65,7 @@ public final class GuabMenuDialog {
 
     public void openPub(Player player) {
         UUID id = player.getUniqueId();
-        int balance = balance(player);
+        long balance = balance(player);
         double units = plugin.pub().drunkUnits(id);
         String tier = plugin.pub().tierLabel(units);
 
@@ -363,9 +363,9 @@ public final class GuabMenuDialog {
                 .append(Component.text(text, colour)));
     }
 
-    private int balance(Player player) {
+    private long balance(Player player) {
         PointsService points = pointsService();
-        return points == null ? 0 : points.get(player.getUniqueId());
+        return points == null ? 0L : points.get(player.getUniqueId());
     }
 
     private int stat(UUID player, String metric) {

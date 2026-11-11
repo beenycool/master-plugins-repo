@@ -22,11 +22,11 @@ class PointsHistoryLogTest {
 
         List<PointsHistoryLog.Change> recent = log.recent(player);
         assertEquals(3, recent.size());
-        assertEquals(20, recent.get(0).delta());
-        assertEquals(-3, recent.get(1).delta());
-        assertEquals(10, recent.get(2).delta());
-        assertEquals(7, recent.get(0).before());
-        assertEquals(27, recent.get(0).after());
+        assertEquals(20L, recent.get(0).delta());
+        assertEquals(-3L, recent.get(1).delta());
+        assertEquals(10L, recent.get(2).delta());
+        assertEquals(7L, recent.get(0).before());
+        assertEquals(27L, recent.get(0).after());
     }
 
     @Test
@@ -42,7 +42,7 @@ class PointsHistoryLogTest {
 
         List<PointsHistoryLog.Change> recent = log.recent(player);
         assertEquals(2, recent.size());
-        assertEquals(3, recent.get(0).delta());
-        assertEquals(2, recent.get(1).delta());
+        assertEquals(3L, recent.get(0).delta());
+        assertEquals(2L, recent.get(1).delta());
     }
 }

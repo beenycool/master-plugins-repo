@@ -694,9 +694,9 @@ public final class DartsManager implements Listener {
         return DartsGeometry.centre(new Location(world, config.x(), config.y(), config.z()), config.face());
     }
 
-    public int balance(UUID player) {
+    public long balance(UUID player) {
         PointsService points = points();
-        return points == null ? 0 : points.get(player);
+        return points == null ? 0L : points.get(player);
     }
 
     private void tick() {

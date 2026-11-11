@@ -28,7 +28,7 @@ public final class DartsDialog {
 
     public static void openMenu(GuabItemsPlugin plugin, Player player) {
         DartsStatsStore.Stats stats = plugin.darts().stats(player.getUniqueId());
-        int balance = plugin.darts().balance(player.getUniqueId());
+        long balance = plugin.darts().balance(player.getUniqueId());
 
         List<DialogBody> body = List.of(
                 DialogBody.plainMessage(Component.text(
