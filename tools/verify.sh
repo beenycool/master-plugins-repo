@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Repository verification: build/tests, shell syntax, Python syntax, YAML,
-# jar/plugin.yml versions, docker compose config and the rickroll pack.
+# jar/plugin.yml versions and the rickroll pack.
 #
 #   tools/verify.sh             full check (runs Gradle)
 #   SKIP_BUILD=1 tools/verify.sh  reuse an existing build
@@ -29,7 +29,7 @@ else
 fi
 
 step "Shell syntax (bash -n)"
-scripts=(docker/*.sh tools/*.sh)
+scripts=(tools/*.sh)
 if [ "${#scripts[@]}" -eq 0 ]; then
   echo "no shell scripts found"
 else
@@ -55,7 +55,7 @@ cleanup_pycache() {
   rm -rf "$pycache"
 }
 trap cleanup_pycache EXIT
-pys=(tools/*.py docker/*.py)
+pys=(tools/*.py)
 if [ "${#pys[@]}" -eq 0 ]; then
   echo "no Python tools found"
 else
@@ -64,7 +64,7 @@ else
 fi
 
 step "YAML parse"
-yaml_files=(.github/workflows/*.yml .github/workflows/*.yaml docker/*.yml docker/*.yaml)
+yaml_files=(.github/workflows/*.yml .github/workflows/*.yaml)
 if [ "${#yaml_files[@]}" -eq 0 ]; then
   echo "no YAML files found"
 elif python3 -c 'import yaml' >/dev/null 2>&1; then
@@ -81,14 +81,6 @@ elif command -v ruby >/dev/null 2>&1; then
   ruby -e 'require "yaml"; ARGV.each { |f| YAML.load_file(f); puts "ok: #{f}" }' "${yaml_files[@]}"
 else
   echo "PyYAML and ruby are unavailable; skipping YAML parse"
-fi
-
-step "docker compose config"
-if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-  RCON_PASSWORD="${RCON_PASSWORD:-verify}" docker compose -f docker/docker-compose.yml config -q
-  echo "ok: docker/docker-compose.yml"
-else
-  echo "docker compose is unavailable; skipping compose config"
 fi
 
 step "Jar/plugin.yml versions"

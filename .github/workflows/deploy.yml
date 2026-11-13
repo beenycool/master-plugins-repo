@@ -3,8 +3,8 @@ name: Build plugins
 on:
   push:
     branches: [main]
-    # Only plugin changes should restart the live server. Docker, tool and
-    # documentation-only changes are verified by ci.yml instead.
+    # Only plugin changes rebuild the release; tool and documentation-only
+    # changes are verified by ci.yml instead.
     paths:
       - 'plugins/**'
       - 'build.gradle.kts'
@@ -65,11 +65,3 @@ jobs:
             sleep $((attempt * 10))
           done
           exit 1
-
-      - name: Ping the server
-        continue-on-error: true
-        env:
-          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
-        run: |
-          curl -fsS --max-time 280 -X POST "http://145.241.198.214:39001/deploy" \
-            -H "Authorization: Bearer ${DEPLOY_TOKEN}"

@@ -1,9 +1,0 @@
-[Unit]
-Description=Daily world backup for the Guab server
-
-[Timer]
-OnCalendar=daily
-Persistent=true
-
-[Install]
-WantedBy=timers.target

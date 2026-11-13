@@ -13,9 +13,9 @@
 # it (reverse proxy) and set web.allowed-ips.
 web:
   enabled: true
-  # Loopback only for bare-metal installs. When running inside Docker with a
-  # 127.0.0.1:39100:39100 host mapping, set this to 0.0.0.0: Docker forwards
-  # to the container interface but the host mapping is still loopback-only.
+  # Loopback only for bare-metal installs. When Paper runs inside a container
+  # with a 127.0.0.1:39100:39100 host mapping, set this to 0.0.0.0: the
+  # container sees its own interface, while the host side stays loopback-only.
   bind: "127.0.0.1"
   port: 39100
 

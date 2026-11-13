@@ -1,8 +1,7 @@
 # GuabWebConsole
 
 Runs a Minecraft command from a `curl` request without an RCON client or a game
-login. The listener binds to **loopback** (`127.0.0.1`) by default and the
-compose file only publishes `127.0.0.1:39100`.
+login. The listener binds to **loopback** (`127.0.0.1`) by default.
 
 ## Endpoints
 
@@ -16,7 +15,7 @@ GET  /command?token=SECRET&cmd=list           (legacy; prefer the header)
 Examples (through an SSH tunnel):
 
 ```bash
-ssh -N -L 39100:127.0.0.1:39100 user@145.241.198.214
+ssh -N -L 39100:127.0.0.1:39100 user@your-server
 ```
 
 In a second terminal:
@@ -56,23 +55,15 @@ rate limited, `413` body/command too long, `500` server-side error.
 
 Generate a token with `openssl rand -hex 32` and put it in `config.yml`.
 
-## Docker deployment
+## Bind address
 
-`docker/docker-compose.yml` publishes only the loopback address:
+`web.bind` defaults to `127.0.0.1`, so the endpoint is reachable only from the
+server itself. Connect with the SSH tunnel shown above.
 
-```yaml
-ports:
-  - "127.0.0.1:39100:39100"
-```
-
-That means the port is reachable from the VM itself, but not from the
-internet. Connect with the SSH tunnel shown above.
-
-Docker forwards a published port to the container interface, not to the
-container's loopback. Because the host side is still bound to `127.0.0.1`, it is
-safe (and necessary) to set `web.bind: 0.0.0.0` in the **container's**
-`config.yml`; external clients still cannot reach it except through the SSH
-tunnel. Bare-metal installs should keep the default `127.0.0.1`.
+If Paper runs inside a container, publish the port on the host's loopback
+(`127.0.0.1:39100:39100`) and set `web.bind: 0.0.0.0` **inside** the container;
+external clients still cannot reach it except through the tunnel. A bare-metal
+install should keep the default `127.0.0.1`.
 
 ## Security notes
 

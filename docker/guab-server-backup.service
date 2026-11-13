@@ -1,7 +1,0 @@
-[Unit]
-Description=Back up the Guab server world
-
-[Service]
-Type=oneshot
-TimeoutStartSec=30min
-ExecStart=/opt/guab-server/backup.sh

@@ -32,7 +32,7 @@ server:
 ./gradlew test
 ```
 
-Run the repository checks (Gradle build/tests, shell/Python syntax, YAML, compose,
+Run the repository checks (Gradle build/tests, shell/Python syntax, YAML,
 jar and `plugin.yml` versions, and the optional rickroll pack) with:
 
 ```bash
@@ -46,89 +46,67 @@ mentioned in this README. It is intentionally not part of `tools/verify.sh`.
 
 ## Deploy
 
-Push to `main` and everything else is automatic:
+The live server is a PebbleHost Paper instance. There is no Docker or VM deploy
+step; jars are uploaded over SFTP and the server is restarted from the panel or
+over RCON.
 
-1. GitHub Actions builds every plugin jar into the `deploy-latest` release.
-2. It pings the VM's authenticated deploy webhook (`:39001`).
-3. The VM announces the restart in-game, swaps the jars and restarts Paper.
+Credentials live in `.env` at the repo root. `.gitignore` excludes it, so it is
+never committed:
 
-If the ping is missed, a 2-minute timer on the VM polls for new releases as a fallback.
+| Variable | Purpose |
+|---|---|
+| `PEBBLE_SFTP_HOST`, `PEBBLE_SFTP_PORT`, `PEBBLE_SFTP_USER`, `PEBBLE_SFTP_PASSWORD` | jar uploads |
+| `RCON_HOST`, `RCON_PORT`, `RCON_PASSWORD` | console commands and restarts |
+| `PACK_URL`, `PACK_DIR` | resource pack URL and the directory behind it |
 
-The deploy is health-gated. `deploy.sh` stops Paper with a 90-second timeout
-(`docker compose down --timeout 90`, matching `stop_grace_period: 120s`), swaps
-the jars, then runs `docker compose up -d --wait --wait-timeout 420`. It only
-writes `.deployed-build` after the container healthcheck passes. If the new jars
-fail, it restores the jars in `previous/` and boots them instead, so a broken
-build does not leave the server down. `rollback.sh` does the same swap manually
-and stays on the old build until a new one is published.
+1. Build and test:
 
-Create `/opt/guab-server/.deploy-paused` to stop both the webhook and the timer
-from deploying (write a reason inside the file). Deploy and rollback exit
-immediately while it exists; the webhook returns `503`. Remove it to resume.
-Before maintenance or a restart that is not a deploy, run `/guabcore save`
-(alias `/gcore`) in game or from the console to flush points, stats and
-preferences; `/guabcore status` shows the ledger, save timer, HUD and Vault state.
+   ```bash
+   ./gradlew build
+   ```
 
-**CI and path filters**
+2. Upload the jars **while the server is stopped**, or during the restart
+   window. Replacing a jar under a running server leaves the old classes loaded
+   and produces `ClassNotFoundException` / `NoSuchMethodError` later:
+
+   ```bash
+   set -a; . ./.env; set +a
+   export SSHPASS="$PEBBLE_SFTP_PASSWORD"
+   sshpass -e sftp -P "$PEBBLE_SFTP_PORT" "$PEBBLE_SFTP_USER@$PEBBLE_SFTP_HOST" <<'EOF'
+   cd plugins
+   put plugins/guab-core/build/libs/guab-core-0.2.0.jar
+   put plugins/guab-items/build/libs/guab-items-0.2.0.jar
+   put plugins/guab-marriage/build/libs/guab-marriage-0.2.0.jar
+   EOF
+   ```
+
+3. Restart from the PebbleHost panel (Restart, not Stop) or send `restart` over
+   RCON. Paper's `/restart` runs the server's `start.sh`, which writes
+   PebbleHost's `.reboot` marker, so the container comes back by itself.
+
+4. Verify: `plugins` should list every plugin, the log should end with
+   `Done (...)`, and `/marry`, the casino and the points ledger should answer.
+
+Keep the previous jars next to the new ones (`*.jar.bak-<date>`) so a bad build
+can be rolled back by renaming files and restarting.
+
+**CI**
 
 `.github/workflows/ci.yml` runs on every pull request, every push to `main` and
 manual dispatch. It builds and tests the whole suite, then runs
-`SKIP_BUILD=1 bash tools/verify.sh`. The deploy workflow only runs when plugin
-code, Gradle files or the wrapper change (`plugins/**`, `build.gradle.kts`,
-`settings.gradle.kts`, `gradle/**`, `gradlew`, `gradlew.bat`), so a docs, docker
-or tools-only push is verified without restarting the live server.
+`SKIP_BUILD=1 bash tools/verify.sh`. `.github/workflows/deploy.yml` publishes a
+rolling `deploy-latest` release of the jars; it does not touch the live server.
 
 **Server details**
 
-- Address: `145.241.198.214:30565`
-- Resources: 3 GB heap, 4 GB cap
-- World: superflat, 20 slots, no whitelist
-- Rickroll admin commands require `guab.rickroll.admin` (OP by default)
-- Command blocks are disabled (`enable-command-block=false` in `data/server.properties`)
-- World and plugin configs live in `/opt/guab-server/data` and survive every deploy
-- `backup.sh` runs daily to `/opt/guab-server/backups` (last 7 kept). It includes
-  all three worlds, **`data/plugins`** (points, stats, preferences, darts/pints,
-  saved inventories and plugin configs) and `data/server.properties`. It uses
-  RCON `save-off`/`save-all flush` around the archive so the tarball is consistent.
-
-**Restore from a backup**
-
-The guarded helper stages and verifies the archive first, stops the server,
-keeps the current `data/` as `data.pre-restore-<timestamp>`, overlays the
-backup, and starts Paper again. It rolls the previous data back if anything
-fails. Use `--dry-run` to inspect the archive without touching the server:
-
-```bash
-cd /opt/guab-server
-sudo docker/restore.sh backups/world-YYYYMMDD-HHMMSS.tar.gz --dry-run
-sudo docker/restore.sh backups/world-YYYYMMDD-HHMMSS.tar.gz
-```
-
-To restore by hand instead, stop Paper first so nothing writes while files are
-replaced:
-
-```bash
-cd /opt/guab-server
-sudo docker compose down
-sudo tar -xzf backups/world-YYYYMMDD-HHMMSS.tar.gz
-sudo docker compose up -d --wait --wait-timeout 420
-```
-
-The archive is rooted at the deploy directory, so extracting it restores
-`data/world*`, `data/plugins` and `data/server.properties` in place.
-
-**Manual commands on the VM**
-
-```bash
-sudo docker/install.sh                     # first-time install
-sudo /opt/guab-server/deploy.sh            # no-op if already current
-sudo /opt/guab-server/deploy.sh --check    # prerequisites only, change nothing
-sudo /opt/guab-server/deploy.sh --dry-run  # show what would be deployed
-sudo /opt/guab-server/deploy.sh --force    # re-apply the latest release
-sudo /opt/guab-server/rollback.sh          # revert; sticks until the next push
-sudo /opt/guab-server/backup.sh            # on-demand backup
-touch /opt/guab-server/.deploy-paused      # pause deploy/rollback (reason on line 1)
-```
+- PebbleHost SFTP and RCON endpoints are in `.env`
+- Worlds, plugin data and configs live in the server root (`world*`, `plugins/`)
+  and survive jar swaps
+- Resource pack: `PACK_URL/guab-items.zip`; `resource-pack-sha1` in
+  `server.properties` must match the served file after every pack change
+- 20 slots; command blocks are disabled in `server.properties`
+- Take a panel backup before risky world or plugin changes. To restore, stop the
+  server, unpack the backup over the server root, then start it again.
 
 ## Rickroll
 
@@ -146,11 +124,9 @@ Build a resource pack from your own mp4. Media stays on the VM and is never comm
 ```bash
 sudo tools/build-rickroll-pack.sh /opt/guab-server/media/rickroll.mp4
 sudo systemctl restart guab-server-pack.service
-sudo docker exec guab-mc rcon-cli rickroll reload
-sudo docker exec guab-mc rcon-cli rickroll verify
 ```
 
-The pack is served at `:39002/rickroll.zip`. Its `pack.properties` passes the frame count, fps, duration and SHA-1 to the plugin.
+The pack is served at `:39002/rickroll.zip`. Its `pack.properties` passes the frame count, fps, duration and SHA-1 to the plugin. Send `rickroll reload` and `rickroll verify` over RCON (credentials in `.env`) after the service restarts.
 
 **Current pack:** a 60-second cut starting at 0:19 (the first lyric), at 12 fps and 192x108, about 7.6 MB.
 
@@ -203,12 +179,9 @@ The casino is a walk-in venue for the one-night event. `GuabGambling` builds it 
 
 ### Setup
 
-1. Install the pinned dependencies and redeploy:
-
-   ```bash
-   sudo /opt/guab-server/install-casino.sh   # pinned VaultUnlocked + MineGames
-   sudo /opt/guab-server/deploy.sh --force
-   ```
+1. The pinned dependencies (`VaultUnlocked 2.20.3` and `MineGames 1.0.6`) are
+   already installed in `plugins/` on the live server. Nothing to reinstall when
+   you swap the Guab jars.
 
 2. In game as an op, build the venue and check the hooks:
 
@@ -264,7 +237,7 @@ If the plugin is disabled or redeployed while hands are in play, `Blackjack.stop
 
 Players bet on red, blue, gold or green, then either cash out at the live multiplier or ride the lightning for the 4.6× colour bonus. The 7×7 board has 10 black (dead) tiles, so the chance of landing on the chosen colour is **39/196 ≈ 19.9%**. The chicken's multiplier climbs as it walks and golden pickups add to it, so cashing out early is a real choice rather than a flat refund. Winners are paid even if they disconnect before the round resolves.
 
-If the chicken sticks at `1.00×`, run `sudo docker/fix-minegames-chicken.sh` on the VM. It restores `multiplier-increase-per-second: 0.03` and `pickup-multiplier: 0.25`, then reloads MineGames.
+If the chicken sticks at `1.00×`, set `multiplier-increase-per-second: 0.03` and `pickup-multiplier: 0.25` in `plugins/MineGames/config.yml`, then run `/minegames reload` (or restart the server).
 
 ### Wetherspoons
 
@@ -339,22 +312,21 @@ The pub entrance, face, ring sizes, wobble, rewards and cooldowns are all in `pu
 
 `/casino snapshot` (admin-only) writes `data/backups/casino-snapshot-<timestamp>.zip` containing `points.yml`, the GuabCore/GuabGambling configs and every MineGames YAML. It first flushes GuabCore (`/guabcore save`), so `points.yml` is current rather than up to a minute behind the table. `/casino snapshot list` lists the existing snapshots newest-first with their size. It does not include the venue world or the hand-built pub; use the world backup for those.
 
-Restore a snapshot with Paper stopped (or no one online), from the data directory so the zip's `plugins/...` paths land in the right place:
+Restore a snapshot with the server stopped (or nobody online), unpacking it at
+the server root so the zip's `plugins/...` paths land in the right place:
 
 ```bash
-cd /opt/guab-server/data
-sudo unzip -o backups/casino-snapshot-YYYYMMDD-HHMMSS.zip
-sudo docker compose -f /opt/guab-server/docker-compose.yml restart mc
+unzip -o backups/casino-snapshot-YYYYMMDD-HHMMSS.zip
 ```
 
-The deploy restarts Paper and installs the pinned third-party jars from
-`/opt/guab-server/third-party` after every swap. Take a snapshot before a
-redeploy if you are about to change points or table config; the daily backup
-covers the rest.
+Then start Paper again. Take a snapshot before changing points or table config;
+the panel backup covers the rest.
 
 ### Third-party jars
 
-Jars are pinned in `docker/install-casino.sh` with SHA-256 checks and installed to `/opt/guab-server/third-party`. `deploy.sh` reinstalls them after every jar swap.
+`VaultUnlocked 2.20.3`, `MineGames 1.0.6`, `SpleensUtils 1.0.0`, `SPlinko 1.0.0`,
+`SShop 1.0.0`, `GrimAC` and `WorldEdit` are installed in `plugins/`. Jar swaps
+only replace the `guab-*` jars and leave these alone.
 
 ## Battle pit
 
@@ -434,7 +406,7 @@ The gameplay permissions are enforced in code as well as on the commands, so a p
 
 ## Web console
 
-`GuabWebConsole` exposes a token-protected HTTP endpoint so a command can be run with `curl`. It binds to **loopback** (`127.0.0.1:39100`) by default, and the compose file publishes only `127.0.0.1:39100`; reach it through an SSH tunnel:
+`GuabWebConsole` exposes a token-protected HTTP endpoint so a command can be run with `curl`. It binds to **loopback** (`127.0.0.1:39100`) by default; reach it through an SSH tunnel to the server:
 
 ```bash
 ssh -N -L 39100:127.0.0.1:39100 user@145.241.198.214
@@ -447,7 +419,7 @@ curl -H "Authorization: Bearer SECRET" \
      "http://127.0.0.1:39100/command?cmd=list"
 ```
 
-The POST body is read only after the IP check, rate limit and token check, and is capped at `web.max-body-bytes` (16,384 by default); commands are capped at `web.max-command-length` (1,000). See `plugins/guab-webconsole/README.md` for the full endpoint list, config and the Docker bind caveat.
+The POST body is read only after the IP check, rate limit and token check, and is capped at `web.max-body-bytes` (16,384 by default); commands are capped at `web.max-command-length` (1,000). See `plugins/guab-webconsole/README.md` for the full endpoint list, config and the bind caveat.
 
 ## Adding a plugin
 
