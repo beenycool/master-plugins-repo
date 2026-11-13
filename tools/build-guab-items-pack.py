@@ -105,34 +105,34 @@ COMPONENT_KEEP_RATIO = 0.10
 # Fixed ZIP timestamp: makes the SHA-1 values reproducible across rebuilds.
 ZIP_DATE_TIME = (2000, 1, 1, 0, 0, 0)
 
-# Vanilla block-item display transforms, used so the extruded pint reads as a
-# solid object in the inventory and in both hands.
+# Vanilla block-item display transforms, bumped about 20% so the small extruded
+# bottles still read clearly in the inventory and in both hands.
 ITEM_DISPLAY = {
-    "gui": {"rotation": [25, 210, 0], "scale": [0.625, 0.625, 0.625]},
+    "gui": {"rotation": [25, 210, 0], "scale": [0.75, 0.75, 0.75]},
     "ground": {
         "rotation": [0, 0, 0],
         "translation": [0, 3, 0],
-        "scale": [0.25, 0.25, 0.25],
+        "scale": [0.3, 0.3, 0.3],
     },
-    "fixed": {"rotation": [0, 0, 0], "scale": [0.5, 0.5, 0.5]},
+    "fixed": {"rotation": [0, 0, 0], "scale": [0.6, 0.6, 0.6]},
     "on_shelf": {"rotation": [0, 180, 0], "scale": [1, 1, 1]},
     "thirdperson_righthand": {
         "rotation": [75, 45, 0],
         "translation": [0, 2.5, 0],
-        "scale": [0.375, 0.375, 0.375],
+        "scale": [0.45, 0.45, 0.45],
     },
     "thirdperson_lefthand": {
         "rotation": [75, -45, 0],
         "translation": [0, 2.5, 0],
-        "scale": [0.375, 0.375, 0.375],
+        "scale": [0.45, 0.45, 0.45],
     },
     "firstperson_righthand": {
         "rotation": [0, 45, 0],
-        "scale": [0.4, 0.4, 0.4],
+        "scale": [0.48, 0.48, 0.48],
     },
     "firstperson_lefthand": {
         "rotation": [0, 225, 0],
-        "scale": [0.4, 0.4, 0.4],
+        "scale": [0.48, 0.48, 0.48],
     },
 }
 
