@@ -64,7 +64,7 @@ public final class BlockStore {
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("blocks", new ArrayList<>(keys));
         try {
-            yaml.save(file);
+            gg.guab.core.YamlFiles.writeAtomic(file.toPath(), yaml);
         } catch (IOException exception) {
             plugin.getLogger().warning("Could not save blocks.yml: " + exception.getMessage());
         }

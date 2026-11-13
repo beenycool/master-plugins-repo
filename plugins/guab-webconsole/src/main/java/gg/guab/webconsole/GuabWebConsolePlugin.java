@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -52,7 +53,7 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
     private int rateLimitPerMinute;
     private List<String> allowedIps;
     private List<String> blockedPrefixes;
-    private final Map<String, Deque<Long>> requests = Collections.synchronizedMap(new LinkedHashMap<>());
+    private final Map<String, Deque<Long>> requests = new ConcurrentHashMap<>();
 
     @Override
     public void onEnable() {
@@ -162,17 +163,20 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
                 respond(exchange, 400, "missing cmd\n");
                 return;
             }
-            command = command.trim();
-            if (command.startsWith("/")) {
-                command = command.substring(1);
+            command = normalizeCommand(command);
+            if (command.isEmpty()) {
+                respond(exchange, 400, "missing cmd\n");
+                return;
             }
             if (command.length() > maxCommandLength) {
                 respond(exchange, 413, "command too long\n");
                 return;
             }
             String lower = command.toLowerCase(Locale.ROOT);
+            String namespaceless = stripNamespace(lower);
             for (String prefix : blockedPrefixes) {
-                if (!prefix.isBlank() && lower.startsWith(prefix)) {
+                if (!prefix.isBlank()
+                        && (lower.startsWith(prefix) || namespaceless.startsWith(prefix))) {
                     respond(exchange, 403, "command blocked\n");
                     return;
                 }
@@ -239,6 +243,27 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
                 provided.getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Strips every leading slash and trims again, so {@code "/  op player"}
+     * cannot hide its leading spaces from the blocked-prefix check.
+     */
+    private static String normalizeCommand(String raw) {
+        String command = raw == null ? "" : raw.trim();
+        while (command.startsWith("/")) {
+            command = command.substring(1).trim();
+        }
+        return command;
+    }
+
+    /** Removes a leading {@code minecraft:} (or any other) namespace for the block list. */
+    private static String stripNamespace(String command) {
+        int colon = command.indexOf(':');
+        if (colon <= 0 || command.indexOf(' ') != -1 && colon > command.indexOf(' ')) {
+            return command;
+        }
+        return command.substring(colon + 1).trim();
+    }
+
     private boolean rateLimited(String remote) {
         long now = System.currentTimeMillis();
         Deque<Long> hits = requests.computeIfAbsent(remote, key -> new ArrayDeque<>());
@@ -250,8 +275,17 @@ public final class GuabWebConsolePlugin extends JavaPlugin {
                 return true;
             }
             hits.addLast(now);
-            return false;
         }
+        // Periodically drop idle addresses so the map cannot grow forever.
+        if (requests.size() > 256) {
+            requests.entrySet().removeIf(entry -> {
+                Deque<Long> value = entry.getValue();
+                synchronized (value) {
+                    return value.isEmpty() || now - value.peekLast() > 60_000L;
+                }
+            });
+        }
+        return false;
     }
 
     private Map<String, String> parseQuery(String rawQuery) {

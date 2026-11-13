@@ -1,6 +1,5 @@
 package gg.guab.core;
 
-import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -23,8 +22,6 @@ import java.util.UUID;
 final class JoinGuideListener implements Listener {
 
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
-    private static final Key HUD_FONT = Key.key("guab", "hud");
-    private static final String GLYPH_COIN = "\uE000";
 
     private static final List<String> DEFAULT_FIRST_JOIN = List.of(
             "&6&lWelcome to Guab, &f%player%&6!",
@@ -69,7 +66,9 @@ final class JoinGuideListener implements Listener {
         for (String line : template) {
             Component message = LEGACY.deserialize(replace(line, player));
             if (line.contains("%points%")) {
-                message = withIcon(message);
+                message = GuabGlyphs.withIcon(
+                        plugin.getConfig().getBoolean("hud.font-icons", true),
+                        player, GuabGlyphs.COIN, NamedTextColor.GOLD, message);
             }
             player.sendMessage(message);
         }
@@ -88,16 +87,6 @@ final class JoinGuideListener implements Listener {
                 .replace("%points%", String.format(Locale.ROOT, "%,d",
                         plugin.points().get(id)))
                 .replace("%online%", String.valueOf(Bukkit.getOnlinePlayers().size()));
-    }
-
-    private Component withIcon(Component body) {
-        if (!plugin.getConfig().getBoolean("hud.font-icons", true)) {
-            return body;
-        }
-        return Component.empty()
-                .append(Component.text(GLYPH_COIN, NamedTextColor.GOLD).font(HUD_FONT))
-                .append(Component.text(" "))
-                .append(body);
     }
 
     private Component button(String label, String command, NamedTextColor colour, String hover) {

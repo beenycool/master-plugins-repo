@@ -74,6 +74,7 @@ public final class ItemFactory {
                         .decoration(TextDecoration.ITALIC, false),
                 Component.text("Clears the drunk meter and potion effects.", NamedTextColor.DARK_GRAY)
                         .decoration(TextDecoration.ITALIC, false)));
+        meta.setItemModel(NamespacedKey.fromString("guab:milk"));
         meta.getPersistentDataContainer().set(milkKey, PersistentDataType.BYTE, (byte) 1);
         milk.setItemMeta(meta);
         return milk;
@@ -244,6 +245,27 @@ public final class ItemFactory {
         meta.getPersistentDataContainer().remove(styleKey);
         meta.getPersistentDataContainer().remove(brandKey);
         stack.setItemMeta(meta);
+    }
+
+    /**
+     * True when a beer stack has to be rebuilt before use. A stack that already
+     * carries a live brand tag and a display name is left untouched, which avoids
+     * rewriting the inventory slot on every single right-click.
+     */
+    public boolean needsCanonicalize(ItemStack stack) {
+        if (typeOf(stack) != ItemType.BEER) {
+            return false;
+        }
+        ItemMeta meta = stack.getItemMeta();
+        if (meta == null || !meta.hasDisplayName()) {
+            return true;
+        }
+        String id = meta.getPersistentDataContainer().get(brandKey, PersistentDataType.STRING);
+        if (id == null || id.isBlank()) {
+            return true;
+        }
+        BeerBrand brand = plugin.beer().findBrand(id);
+        return brand == null;
     }
 
     /**

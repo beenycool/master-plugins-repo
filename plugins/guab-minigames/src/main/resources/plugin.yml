@@ -25,6 +25,9 @@ permissions:
   guab.battlepit.admin:
     description: Set the pit spawn and exit, kick, purge, and reload its config.
     default: op
+  guab.battlepit.bounty:
+    description: Place a points bounty on another fighter in the battle pit.
+    default: true
   guab.kit.use:
     description: Take the battle pit PvP kit.
     default: true

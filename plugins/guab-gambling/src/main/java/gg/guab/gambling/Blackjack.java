@@ -20,9 +20,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -35,17 +37,22 @@ public final class Blackjack implements Listener {
     private static final int HISTORY_LIMIT = 5;
     private static final long RESULT_TTL_MILLIS = 5 * 60_000L;
 
-    /** A card as the UI should draw it. Hidden cards are the dealer's hole card. */
-    public record CardView(String label, boolean red, boolean hidden) {
+    /**
+     * A card as the UI should draw it. Hidden cards are the dealer's hole card;
+     * {@code value} is the pip value used for the item stack amount (1 for an
+     * ace, 10 for face cards).
+     */
+    public record CardView(String label, boolean red, boolean hidden, int value) {
     }
 
     /** A read-only snapshot of an active hand for the inventory UI. */
     public record View(List<CardView> dealer, List<CardView> player, int dealerTotal,
-                       int playerTotal, int bet, boolean canDouble, long expiresAt) {
+                       int playerTotal, long bet, boolean canDouble, long expiresAt,
+                       boolean revealing) {
     }
 
     /** The final state of a hand, kept briefly so the UI can show the result screen. */
-    public record Result(String outcome, int bet, int payout, int playerTotal, int dealerTotal,
+    public record Result(String outcome, long bet, long payout, int playerTotal, int dealerTotal,
                          List<CardView> dealerCards, List<CardView> playerCards,
                          String message, long at) {
     }
@@ -112,7 +119,8 @@ public final class Blackjack implements Listener {
     private final Map<UUID, Deque<HandRecord>> history = new HashMap<>();
     private final Map<UUID, Result> lastResults = new HashMap<>();
     private final Deque<Card> shoe = new ArrayDeque<>();
-    private final Map<UUID, Integer> lastBets = new HashMap<>();
+    private final Map<UUID, Long> lastBets = new HashMap<>();
+    private final Set<UUID> quiet = new HashSet<>();
     private final Random random = new Random();
     private ViewListener viewListener;
     private BukkitTask task;
@@ -141,7 +149,28 @@ public final class Blackjack implements Listener {
         lastBets.clear();
         history.clear();
         lastResults.clear();
+        quiet.clear();
         viewListener = null;
+    }
+
+    /**
+     * The chest UI sets this while it is open so routine dealer chatter and the
+     * clickable chat buttons are not printed behind the window. Chat commands
+     * played outside the GUI are never quiet.
+     */
+    public void setQuiet(Player player, boolean value) {
+        if (player == null) {
+            return;
+        }
+        if (value) {
+            quiet.add(player.getUniqueId());
+        } else {
+            quiet.remove(player.getUniqueId());
+        }
+    }
+
+    public boolean isQuiet(Player player) {
+        return player != null && quiet.contains(player.getUniqueId());
     }
 
     public boolean hasHand(Player player) {
@@ -173,27 +202,32 @@ public final class Blackjack implements Listener {
         if (hand == null) {
             return null;
         }
+        int visible = hand.revealing ? hand.revealed : Math.min(1, hand.dealer.size());
         List<CardView> dealer = new ArrayList<>(hand.dealer.size());
         for (int index = 0; index < hand.dealer.size(); index++) {
             Card card = hand.dealer.get(index);
-            boolean hidden = index == 1;
-            dealer.add(hidden
-                    ? new CardView("??", false, true)
-                    : new CardView(card.label(), isRed(card), false));
+            if (index >= visible) {
+                dealer.add(new CardView("??", false, true, 0));
+            } else {
+                dealer.add(new CardView(card.label(), isRed(card), false, pip(card)));
+            }
         }
         List<CardView> mine = new ArrayList<>(hand.cards.size());
         for (Card card : hand.cards) {
-            mine.add(new CardView(card.label(), isRed(card), false));
+            mine.add(new CardView(card.label(), isRed(card), false, pip(card)));
         }
-        int dealerVisible = hand.dealer.isEmpty() ? 0 : total(hand.dealer.subList(0, 1));
+        int dealerVisible = visible <= 0
+                ? 0
+                : total(hand.dealer.subList(0, Math.min(visible, hand.dealer.size())));
         return new View(
                 List.copyOf(dealer),
                 List.copyOf(mine),
                 dealerVisible,
                 total(hand.cards),
                 hand.bet,
-                hand.cards.size() == 2 && BetMath.canDouble(hand.bet),
-                hand.expiresAt);
+                hand.cards.size() == 2 && BetMath.canDouble(hand.bet) && !hand.revealing,
+                hand.expiresAt,
+                hand.revealing);
     }
 
     /** The most recent finished hand, kept for five minutes so the UI can show it. */
@@ -215,8 +249,8 @@ public final class Blackjack implements Listener {
     }
 
     /** The player's last blackjack bet, or the table minimum when they have not played yet. */
-    public int lastBet(Player player) {
-        int fallback = Math.max(1, plugin.getConfig().getInt("blackjack.min-bet", 10));
+    public long lastBet(Player player) {
+        long fallback = Math.max(1L, plugin.getConfig().getLong("blackjack.min-bet", 10L));
         return lastBets.getOrDefault(player.getUniqueId(), fallback);
     }
 
@@ -232,41 +266,41 @@ public final class Blackjack implements Listener {
         buttons(player, hand);
     }
 
-    public void start(Player player, int bet) {
+    public boolean start(Player player, long bet) {
         if (!player.hasPermission("guab.casino.use")) {
             msg(player, "&cYou need guab.casino.use to play blackjack.", NamedTextColor.RED);
-            return;
+            return false;
         }
         if (!plugin.getConfig().getBoolean("blackjack.enabled", true)) {
             msg(player, "&cBlackjack is closed.", NamedTextColor.RED);
-            return;
+            return false;
         }
         if (!plugin.config().enabled()) {
             msg(player, "&cThe casino is closed.", NamedTextColor.RED);
-            return;
+            return false;
         }
         if (hands.containsKey(player.getUniqueId())) {
             msg(player, "&eYou already have a hand. Use &f/bj hit&e, &f/bj stand&e or &f/bj double&e.", NamedTextColor.YELLOW);
-            return;
+            return false;
         }
-        int min = Math.max(1, plugin.getConfig().getInt("blackjack.min-bet", 10));
-        int max = plugin.getConfig().getInt("blackjack.max-bet", -1);
+        long min = Math.max(1L, plugin.getConfig().getLong("blackjack.min-bet", 10L));
+        long max = plugin.getConfig().getLong("blackjack.max-bet", -1L);
         if (bet <= 0) {
             msg(player, "&cBet a positive number of points.", NamedTextColor.RED);
-            return;
+            return false;
         }
         if (!BetMath.validBet(bet, min, max)) {
             msg(player, "&cBet between &6" + min + "&c and &6" + (max > 0 ? max : "no limit") + "&c points.", NamedTextColor.RED);
-            return;
+            return false;
         }
         PointsService points = points();
         if (points == null) {
             msg(player, "&cThe points ledger is unavailable.", NamedTextColor.RED);
-            return;
+            return false;
         }
         if (!points.take(player.getUniqueId(), bet)) {
             msg(player, "&cYou do not have enough points.", NamedTextColor.RED);
-            return;
+            return false;
         }
         lastBets.put(player.getUniqueId(), bet);
         Hand hand = new Hand(player.getUniqueId(), player.getName(), bet);
@@ -277,10 +311,12 @@ public final class Blackjack implements Listener {
         hand.expiresAt = System.currentTimeMillis() + timeoutMillis();
         hands.put(player.getUniqueId(), hand);
 
-        msg(player, "&6Blackjack &7— bet &6" + bet + " &7points", NamedTextColor.GRAY);
-        player.sendMessage(handLine("Dealer: ", hand.dealer, true, total(hand.dealer.subList(0, 1))));
-        player.sendMessage(handLine("You: ", hand.cards, false, total(hand.cards)));
-        msg(player, "&7Dealer: &f" + voice(GREETINGS), NamedTextColor.GRAY);
+        if (!isQuiet(player)) {
+            msg(player, "&6Blackjack &7— bet &6" + bet + " &7points", NamedTextColor.GRAY);
+            player.sendMessage(handLine("Dealer: ", hand.dealer, true, total(hand.dealer.subList(0, 1))));
+            player.sendMessage(handLine("You: ", hand.cards, false, total(hand.cards)));
+            msg(player, "&7Dealer: &f" + voice(GREETINGS), NamedTextColor.GRAY);
+        }
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.PLAYERS, 0.7f, 1.2f);
 
         int playerTotal = total(hand.cards);
@@ -288,10 +324,18 @@ public final class Blackjack implements Listener {
         if (playerTotal == 21) {
             msg(player, "&6Blackjack!", NamedTextColor.GOLD);
             settle(hand);
-            return;
+            return true;
+        }
+        // Peek for a dealer natural immediately, as a real table does. Without
+        // this the player is invited to hit/double into an already-dead hand.
+        if (dealerTotal == 21) {
+            msg(player, "&cDealer has blackjack.", NamedTextColor.RED);
+            settle(hand);
+            return true;
         }
         buttons(player, hand);
         notifyView(player);
+        return true;
     }
 
     public void hit(Player player) {
@@ -300,14 +344,20 @@ public final class Blackjack implements Listener {
             msg(player, "&cStart a hand with &f/bj <bet>&c.", NamedTextColor.RED);
             return;
         }
+        if (hand.revealing) {
+            msg(player, "&7The dealer is revealing the cards.", NamedTextColor.GRAY);
+            return;
+        }
         hand.cards.add(draw());
         refreshTimeout(hand);
-        player.sendMessage(handLine("You: ", hand.cards, false, total(hand.cards)));
-        msg(player, "&7Dealer: &f" + voice(HITS), NamedTextColor.GRAY);
+        if (!isQuiet(player)) {
+            player.sendMessage(handLine("You: ", hand.cards, false, total(hand.cards)));
+            msg(player, "&7Dealer: &f" + voice(HITS), NamedTextColor.GRAY);
+        }
         int total = total(hand.cards);
         if (total > 21) {
             msg(player, "&cBust with " + total + ".", NamedTextColor.RED);
-            settle(hand);
+            beginReveal(hand);
             return;
         }
         if (total == 21) {
@@ -322,6 +372,10 @@ public final class Blackjack implements Listener {
         Hand hand = hands.get(player.getUniqueId());
         if (hand == null) {
             msg(player, "&cStart a hand with &f/bj <bet>&c.", NamedTextColor.RED);
+            return;
+        }
+        if (hand.revealing) {
+            msg(player, "&7The dealer is revealing the cards.", NamedTextColor.GRAY);
             return;
         }
         if (hand.cards.size() != 2) {
@@ -341,11 +395,13 @@ public final class Blackjack implements Listener {
         hand.bet = BetMath.winPayout(hand.bet);
         hand.cards.add(draw());
         refreshTimeout(hand);
-        msg(player, "&6Doubled to " + hand.bet + " points.", NamedTextColor.GOLD);
-        player.sendMessage(handLine("You: ", hand.cards, false, total(hand.cards)));
+        if (!isQuiet(player)) {
+            msg(player, "&6Doubled to " + hand.bet + " points.", NamedTextColor.GOLD);
+            player.sendMessage(handLine("You: ", hand.cards, false, total(hand.cards)));
+        }
         if (total(hand.cards) > 21) {
             msg(player, "&cBust with " + total(hand.cards) + ".", NamedTextColor.RED);
-            settle(hand);
+            beginReveal(hand);
             return;
         }
         stand(player);
@@ -357,7 +413,10 @@ public final class Blackjack implements Listener {
             msg(player, "&cYou have no hand in play.", NamedTextColor.RED);
             return;
         }
-        settle(hand);
+        if (hand.revealing) {
+            return;
+        }
+        beginReveal(hand);
     }
 
     /** Every action gets the full timeout window again, not one shared deadline. */
@@ -371,10 +430,19 @@ public final class Blackjack implements Listener {
         return card.suit == Suit.HEARTS || card.suit == Suit.DIAMONDS;
     }
 
+    /** The pip value shown as the card item's stack amount. */
+    private static int pip(Card card) {
+        return switch (card.rank) {
+            case "A" -> 1;
+            case "J", "Q", "K" -> 10;
+            default -> Integer.parseInt(card.rank);
+        };
+    }
+
     private static List<CardView> cardViews(List<Card> cards) {
         List<CardView> views = new ArrayList<>(cards.size());
         for (Card card : cards) {
-            views.add(new CardView(card.label(), isRed(card), false));
+            views.add(new CardView(card.label(), isRed(card), false, pip(card)));
         }
         return List.copyOf(views);
     }
@@ -393,7 +461,9 @@ public final class Blackjack implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        Hand hand = hands.remove(event.getPlayer().getUniqueId());
+        UUID id = event.getPlayer().getUniqueId();
+        quiet.remove(id);
+        Hand hand = hands.remove(id);
         if (hand != null) {
             settleSilently(hand);
         }
@@ -405,6 +475,11 @@ public final class Blackjack implements Listener {
         for (UUID id : new ArrayList<>(hands.keySet())) {
             Hand hand = hands.get(id);
             if (hand == null) {
+                continue;
+            }
+            if (hand.revealing) {
+                // The reveal owns this hand until it settles; the timeout must not
+                // stand or settle it out from under the staged animation.
                 continue;
             }
             Player player = Bukkit.getPlayer(id);
@@ -430,21 +505,71 @@ public final class Blackjack implements Listener {
         }
     }
 
+    /**
+     * Starts the short dealer-reveal beat. The dealer's final hand is drawn now
+     * (so settlement is unchanged), but only a couple of cards become visible
+     * every 0.4s. The player cannot act while {@code hand.revealing} is set.
+     */
+    private void beginReveal(Hand hand) {
+        hand.revealing = true;
+        hand.revealed = Math.min(1, hand.dealer.size());
+        hand.warned20 = true;
+        hand.warned10 = true;
+        drawDealer(hand);
+        hand.dealerDone = true;
+        notifyView(Bukkit.getPlayer(hand.player));
+        // Let the table settle on "revealing", then turn cards over two at a time.
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> revealStep(hand), 8L);
+    }
+
+    private void revealStep(Hand hand) {
+        if (hands.get(hand.player) != hand) {
+            return;
+        }
+        Player player = Bukkit.getPlayer(hand.player);
+        if (hand.revealed >= hand.dealer.size()) {
+            // One last pause so the final card lands before the result screen.
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (hands.get(hand.player) == hand) {
+                    settle(hand);
+                }
+            });
+            return;
+        }
+        hand.revealed = Math.min(hand.dealer.size(), hand.revealed + 2);
+        if (player != null) {
+            player.playSound(player.getLocation(), "guab:card_flip",
+                    SoundCategory.PLAYERS, 0.6f, 1.1f);
+        }
+        notifyView(player);
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> revealStep(hand), 8L);
+    }
+
+    /** Draw the dealer to its standing total (idempotent through {@code dealerDone}). */
+    private void drawDealer(Hand hand) {
+        int playerTotal = total(hand.cards);
+        boolean natural = hand.cards.size() == 2 && playerTotal == 21;
+        if (!natural && playerTotal <= 21) {
+            int standsOn = plugin.getConfig().getInt("blackjack.dealer-stands-on", 17);
+            while (total(hand.dealer) < standsOn) {
+                hand.dealer.add(draw());
+            }
+        }
+    }
+
     private void settle(Hand hand) {
         hands.remove(hand.player);
         Player player = Bukkit.getPlayer(hand.player);
         int playerTotal = total(hand.cards);
         boolean natural = hand.cards.size() == 2 && playerTotal == 21;
+        if (!hand.dealerDone) {
+            drawDealer(hand);
+            hand.dealerDone = true;
+        }
         boolean dealerNatural = hand.dealer.size() == 2 && total(hand.dealer) == 21;
 
-        if (!natural && playerTotal <= 21) {
-            while (total(hand.dealer) < plugin.getConfig().getInt("blackjack.dealer-stands-on", 17)) {
-                hand.dealer.add(draw());
-            }
-        }
-
         int dealerTotal = total(hand.dealer);
-        int payout;
+        long payout;
         String outcome;
         String result;
         String[] voice;
@@ -492,11 +617,19 @@ public final class Blackjack implements Listener {
                 outcome, hand.bet, payout, playerTotal, dealerTotal,
                 cardViews(hand.dealer), cardViews(hand.cards), result, System.currentTimeMillis()));
         if (player != null) {
-            player.sendMessage(handLine("Dealer: ", hand.dealer, false, dealerTotal));
+            // The result itself always prints; the dealer flavour and the balance
+            // reminder are only for chat play, not behind the chest window.
+            if (!isQuiet(player)) {
+                player.sendMessage(handLine("Dealer: ", hand.dealer, false, dealerTotal));
+            }
             msg(player, result, NamedTextColor.WHITE);
-            msg(player, "&7Dealer: &f" + voice(voice), NamedTextColor.GRAY);
-            msg(player, "&7Balance: &6" + (points() == null ? "?" : points().get(hand.player)) + " &7| &f/bj <bet> &7to play again", NamedTextColor.GRAY);
+            if (!isQuiet(player)) {
+                msg(player, "&7Dealer: &f" + voice(voice), NamedTextColor.GRAY);
+                msg(player, "&7Balance: &6" + (points() == null ? "?" : points().get(hand.player)) + " &7| &f/bj <bet> &7to play again", NamedTextColor.GRAY);
+            }
             if (won) {
+                player.playSound(player.getLocation(), "guab:blackjack",
+                        SoundCategory.PLAYERS, 0.75f, 1.0f);
                 player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.7f, 1.2f);
             } else if (payout == hand.bet) {
                 player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, SoundCategory.PLAYERS, 0.6f, 1.0f);
@@ -521,13 +654,12 @@ public final class Blackjack implements Listener {
         hands.remove(hand.player);
         int playerTotal = total(hand.cards);
         boolean natural = hand.cards.size() == 2 && playerTotal == 21;
-        if (!natural && playerTotal <= 21) {
-            while (total(hand.dealer) < plugin.getConfig().getInt("blackjack.dealer-stands-on", 17)) {
-                hand.dealer.add(draw());
-            }
+        if (!hand.dealerDone) {
+            drawDealer(hand);
+            hand.dealerDone = true;
         }
         int dealerTotal = total(hand.dealer);
-        int payout = 0;
+        long payout = 0;
         String outcome;
         if (playerTotal > 21) {
             payout = 0;
@@ -550,7 +682,7 @@ public final class Blackjack implements Listener {
         recordHistory(hand, outcome, payout);
     }
 
-    private void recordHistory(Hand hand, String outcome, int payout) {
+    private void recordHistory(Hand hand, String outcome, long payout) {
         Deque<HandRecord> records = history.computeIfAbsent(hand.player, id -> new ArrayDeque<>());
         records.addFirst(new HandRecord(outcome, hand.bet, payout, System.currentTimeMillis()));
         while (records.size() > HISTORY_LIMIT) {
@@ -566,7 +698,12 @@ public final class Blackjack implements Listener {
         }
         List<String> out = new ArrayList<>(records.size());
         for (HandRecord record : records) {
-            int net = record.payout() - record.bet();
+            int net = 0;
+            if (record.payout() > record.bet()) {
+                net = (int) Math.min(Integer.MAX_VALUE, record.payout() - record.bet());
+            } else if (record.payout() < record.bet()) {
+                net = (int) Math.max(Integer.MIN_VALUE, record.payout() - record.bet());
+            }
             String colour = net > 0 ? "&a" : net < 0 ? "&c" : "&7";
             String sign = net > 0 ? "+" : "";
             out.add("&6" + record.outcome() + " &7· bet &f" + record.bet() + " &7· " + colour + sign + net);
@@ -575,6 +712,11 @@ public final class Blackjack implements Listener {
     }
 
     private void buttons(Player player, Hand hand) {
+        if (isQuiet(player)) {
+            // The chest UI already has clickable buttons; do not stack chat
+            // command buttons behind the open window.
+            return;
+        }
         Component hit = Component.text("[Hit]", NamedTextColor.GREEN)
                 .clickEvent(ClickEvent.runCommand("/bj hit"))
                 .hoverEvent(HoverEvent.showText(Component.text("Draw another card", NamedTextColor.GRAY)));
@@ -702,7 +844,7 @@ public final class Blackjack implements Listener {
         }
     }
 
-    private record HandRecord(String outcome, int bet, int payout, long at) {
+    private record HandRecord(String outcome, long bet, long payout, long at) {
     }
 
     private static final class Hand {
@@ -710,13 +852,19 @@ public final class Blackjack implements Listener {
         private final String name;
         private final List<Card> cards = new ArrayList<>();
         private final List<Card> dealer = new ArrayList<>();
-        private int bet;
+        private long bet;
         private boolean doubled;
         private boolean warned20;
         private boolean warned10;
         private long expiresAt;
+        /** True while the staged dealer reveal is running; the player cannot act. */
+        private boolean revealing;
+        /** How many dealer cards are visible during the reveal. */
+        private int revealed;
+        /** Set once the dealer's final hand has been drawn, so settle never redraws. */
+        private boolean dealerDone;
 
-        private Hand(UUID player, String name, int bet) {
+        private Hand(UUID player, String name, long bet) {
             this.player = player;
             this.name = name;
             this.bet = bet;

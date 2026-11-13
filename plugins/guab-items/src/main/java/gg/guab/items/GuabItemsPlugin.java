@@ -53,6 +53,7 @@ public final class GuabItemsPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new DartsBoard(this), this);
         getServer().getPluginManager().registerEvents(darts, this);
         getServer().getPluginManager().registerEvents(darts.room(), this);
+        getServer().getPluginManager().registerEvents(new DartsShotListener(this), this);
         getServer().getPluginManager().registerEvents(menuShelves, this);
         getServer().getPluginManager().registerEvents(new PubProtection(this), this);
 
@@ -63,7 +64,7 @@ public final class GuabItemsPlugin extends JavaPlugin {
             command.setTabCompleter(executor);
         }
         PubCommand pubCommand = new PubCommand(this);
-        for (String name : new String[]{"round", "pints", "quiz", "beer"}) {
+        for (String name : new String[]{"round", "pints", "quiz", "beer", "pub"}) {
             PluginCommand pubExecutor = getCommand(name);
             if (pubExecutor != null) {
                 pubExecutor.setExecutor(pubCommand);

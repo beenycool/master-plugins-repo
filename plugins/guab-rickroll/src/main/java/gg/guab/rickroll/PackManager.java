@@ -1,6 +1,5 @@
 package gg.guab.rickroll;
 
-import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -64,11 +63,15 @@ public final class PackManager implements Listener {
             return false;
         }
         try {
-            player.setResourcePack(
+            // Additive delivery: setResourcePack replaces the server's guab-items pack on
+            // Paper 26.x, which dropped the HUD font. addResourcePack stacks rickroll.zip
+            // on top and leaves the server pack in place. The UUID still tags every
+            // status event so tracker keeps ignoring guab-items.zip.
+            player.addResourcePack(
                     packId,
                     config.packUrl().trim(),
                     config.packHash(),
-                    Component.text("Guab wants to show you something."),
+                    "Guab wants to show you something.",
                     false);
             tracker.recordRequest(player.getUniqueId(), packId, System.currentTimeMillis());
             warnedOnSend = false;

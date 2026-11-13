@@ -20,15 +20,28 @@ Run it from the repo root with Pillow and numpy installed:
 
     sudo tools/build-guab-items-pack.py
 
-It rebuilds both the standalone guab-items pack and the copy embedded in the
-rickroll pack, validates the finished ZIPs, and updates the rickroll
-pack.properties SHA-1 atomically (or prints the exact command when the file is
-not writable). It also prints the SHA-1 for server.properties.
+The minimal base assets (``pack.mcmeta`` and the red-carpet override) live in
+``pack/items`` and are committed, so a fresh checkout can build without the
+live server. Pass ``--items-base`` with a legacy ``guab-items.zip`` to use an
+existing pack as the base instead. The rickroll base still comes from the live
+server or ``--rickroll-base``; it is only re-zipped so its frames and audio
+survive.
+
+The server now delivers the two packs stacked (guab-items first, then
+rickroll), so this tool no longer duplicates the beer, dartboard, icon, HUD font
+or custom sounds into rickroll.zip. Those assets live only in the guab-items
+pack; rickroll.zip carries just its frames, rickroll.ogg/sounds.json and pack
+metadata. ``build-rickroll-pack.sh`` is the source of that pack.
+
+It rebuilds the standalone guab-items pack, validates both finished ZIPs, and
+updates the rickroll pack.properties SHA-1 atomically (or prints the exact
+command when the file is not writable). It also prints the SHA-1 for
+server.properties.
 
 The HUD font and custom sounds live in pack/hud. Regenerate those source
 assets with tools/build-guab-hud-assets.py (Pillow + numpy + ffmpeg), then run
-this script to copy them into both zips. Run this script after
-build-rickroll-pack.sh, otherwise a fresh rickroll pack will not embed them.
+this script to copy them into the guab-items zip only. Run this script after
+build-rickroll-pack.sh so the rickroll SHA-1 matches the current frames.
 """
 
 from __future__ import annotations
@@ -51,7 +64,9 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 USER_AGENT = "GuabMinecraft/1.0 (private Paper server; pack build tool)"
-HUD_SOURCE = Path(__file__).resolve().parent.parent / "pack" / "hud"
+ROOT = Path(__file__).resolve().parent.parent
+HUD_SOURCE = ROOT / "pack" / "hud"
+ITEMS_BASE_SOURCE = ROOT / "pack" / "items"
 
 BRAND_IMAGES = {
     "stella": "https://images.openfoodfacts.org/images/products/789/114/910/1900/2.400.jpg",
@@ -923,6 +938,50 @@ def merge_sounds_json(pack_root: Path, fragment: Path) -> None:
         json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def prune_rickroll_duplicates(pack_root: Path) -> None:
+    """Strip base-pack assets the rickroll pack no longer needs.
+
+    The packs stack, so beer/item models, the HUD font and custom sounds belong
+    only to guab-items.zip. Old rickroll bases may still contain them; removing
+    them keeps the rickroll download to frames + rickroll.ogg.
+    """
+    keep = {"frame"}
+    for relative in ("assets/guab/items", "assets/guab/models/item",
+                     "assets/guab/textures/item"):
+        directory = pack_root / relative
+        if not directory.is_dir():
+            continue
+        for child in directory.iterdir():
+            if child.name in keep:
+                continue
+            # A top-level frame file, if any, is not part of the generated layout.
+            if child.is_dir():
+                shutil.rmtree(child, ignore_errors=True)
+            else:
+                child.unlink(missing_ok=True)
+
+    for relative in ("assets/guab/font", "assets/guab/textures/font"):
+        shutil.rmtree(pack_root / relative, ignore_errors=True)
+
+    sounds = pack_root / "assets" / "guab" / "sounds"
+    if sounds.is_dir():
+        for sound in sounds.glob("*.ogg"):
+            if sound.name != "rickroll.ogg":
+                sound.unlink(missing_ok=True)
+
+    sounds_json = pack_root / "assets" / "guab" / "sounds.json"
+    if sounds_json.is_file():
+        try:
+            data = json.loads(sounds_json.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            data = {}
+        rickroll = data.get("rickroll") if isinstance(data, dict) else None
+        if rickroll:
+            sounds_json.write_text(
+                json.dumps({"rickroll": rickroll}, separators=(",", ":")) + "\n",
+                encoding="utf-8")
+
+
 def install_hud_assets(pack_root: Path, hud_source: Path) -> None:
     """Copy the HUD font and custom sounds into an extracted pack root."""
     if not hud_source.is_dir():
@@ -946,6 +1005,22 @@ def install_hud_assets(pack_root: Path, hud_source: Path) -> None:
     merge_sounds_json(pack_root, hud_source / "sounds.json")
     validate_guab_sounds(pack_root)
 
+    # Generated item definitions, models and textures (cards, chips, UI icons,
+    # milk, darts, prank items) live in the HUD source tree and belong in the
+    # base guab-items pack. The rickroll pack deliberately does not duplicate them.
+    for relative in ("assets/guab/items", "assets/guab/models/item", "assets/guab/textures/item"):
+        source = hud_source / relative
+        if not source.is_dir():
+            continue
+        destination = pack_root / relative
+        destination.mkdir(parents=True, exist_ok=True)
+        for asset in sorted(source.rglob("*")):
+            if not asset.is_file():
+                continue
+            target = destination / asset.relative_to(source)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(asset, target)
+
 
 def validate_guab_sounds(pack_root: Path) -> None:
     """Fail loudly when a guab sound event points at a file that is not in the pack."""
@@ -967,7 +1042,12 @@ def validate_guab_sounds(pack_root: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--items-base", default="/opt/guab-server/resourcepack/guab-items.zip")
+    parser.add_argument(
+        "--items-base-dir", default=str(ITEMS_BASE_SOURCE),
+        help="base pack directory (default: pack/items)")
+    parser.add_argument(
+        "--items-base", default=None,
+        help="legacy guab-items.zip to extract instead of --items-base-dir")
     parser.add_argument("--rickroll-base", default="/opt/guab-server/resourcepack/rickroll.zip")
     parser.add_argument("--hud-source", default=str(HUD_SOURCE))
     parser.add_argument("--out", default="/tmp/guab-pack")
@@ -995,10 +1075,27 @@ def main() -> None:
         rickroll = temporary / "rickroll"
         items.mkdir()
         rickroll.mkdir()
-        with zipfile.ZipFile(args.items_base) as archive:
-            archive.extractall(items)
+        items_base_dir = Path(args.items_base_dir)
+        items_base_zip = Path(args.items_base) if args.items_base else None
+        if items_base_zip is not None:
+            if not items_base_zip.is_file():
+                raise SystemExit(
+                    f"items base ZIP not found: {items_base_zip} "
+                    "(pass --items-base or omit it to use --items-base-dir)")
+            with zipfile.ZipFile(items_base_zip) as archive:
+                archive.extractall(items)
+        elif items_base_dir.is_dir():
+            shutil.copytree(items_base_dir, items, dirs_exist_ok=True)
+        else:
+            raise SystemExit(
+                "items base not found: expected a directory at "
+                f"{items_base_dir} or a ZIP via --items-base")
+        # The rickroll zip is delivered stacked on top of guab-items, so it gets
+        # no duplicated beer, dartboard, icon, HUD font or custom sounds.  Keep
+        # the extracted base (frames, rickroll.ogg, pack metadata) as-is.
         with zipfile.ZipFile(args.rickroll_base) as archive:
             archive.extractall(rickroll)
+        prune_rickroll_duplicates(rickroll)
 
         beer_dir = items / "assets/guab/textures/item"
         target_dir = items / "assets/minecraft/textures/block"
@@ -1050,38 +1147,13 @@ def main() -> None:
             (64, 32))
         icon.save(items / "pack.png", optimize=True)
 
-        rickroll_beer = rickroll / "assets/guab/textures/item"
-        rickroll_beer.mkdir(parents=True, exist_ok=True)
-        rickroll_models = rickroll / "assets/guab/models/item"
-        rickroll_definitions = rickroll / "assets/guab/items"
-        rickroll_models.mkdir(parents=True, exist_ok=True)
-        rickroll_definitions.mkdir(parents=True, exist_ok=True)
-
-        # Copy the generic pint and every brand (textures, 3D models, item defs).
-        for texture in sorted(beer_dir.glob("beer*.png")):
-            shutil.copy2(texture, rickroll_beer / texture.name)
-        for model in sorted(item_models.glob("beer*.json")):
-            shutil.copy2(model, rickroll_models / model.name)
-        for definition in sorted(item_definitions.glob("beer*.json")):
-            shutil.copy2(definition, rickroll_definitions / definition.name)
-
-        rickroll_target = rickroll / "assets/minecraft/textures/block"
-        rickroll_target.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(target_dir / "target_side.png",
-                     rickroll_target / "target_side.png")
-        shutil.copy2(beer_dir / "dartboard.png", rickroll_beer / "dartboard.png")
-        shutil.copy2(items / "assets/guab/models/item/dartboard.json",
-                     rickroll_models / "dartboard.json")
-        shutil.copy2(items / "assets/guab/items/dartboard.json",
-                     rickroll_definitions / "dartboard.json")
-        shutil.copy2(items / "pack.png", rickroll / "pack.png")
-
-        # Font HUD and custom audio: the same source assets go into both packs.
+        # HUD font and custom sounds belong to the stacked guab-items pack only.
         install_hud_assets(items, hud_source)
-        install_hud_assets(rickroll, hud_source)
 
-        # Validate every item definition, model texture, coordinate and UV
-        # before either ZIP is written.
+        # Validate the items pack, then whatever the rickroll base supplied
+        # (its frame definitions/models).  rickroll no longer carries beer,
+        # dartboard, HUD or custom-sound assets, so nothing here should expect
+        # guab-items assets inside it.
         validate_pack(items)
         validate_pack(rickroll)
 

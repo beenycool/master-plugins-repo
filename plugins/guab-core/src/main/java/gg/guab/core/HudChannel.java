@@ -99,9 +99,10 @@ public final class HudChannel implements Listener {
             return;
         }
         active.remove(player.getUniqueId());
-        if (player.isOnline()) {
-            player.sendActionBar(Component.empty());
-        }
+        // Do not send an empty component on expiry: the client fades the old
+        // message out by itself, and blanking the bar here made the ambient
+        // provider's next repaint flicker. Bookkeeping is still cleared, so a
+        // newer message can take over immediately.
     }
 
     @EventHandler

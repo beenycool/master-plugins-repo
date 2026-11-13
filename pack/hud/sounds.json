@@ -1,8 +1,64 @@
 {
-  "quiz_correct": {
+  "beer_pour": {
     "sounds": [
       {
-        "name": "guab:quiz_correct"
+        "name": "guab:beer_pour"
+      }
+    ]
+  },
+  "blackjack": {
+    "sounds": [
+      {
+        "name": "guab:blackjack"
+      }
+    ]
+  },
+  "card_flip": {
+    "sounds": [
+      {
+        "name": "guab:card_flip"
+      }
+    ]
+  },
+  "chip_click": {
+    "sounds": [
+      {
+        "name": "guab:chip_click"
+      }
+    ]
+  },
+  "dart_miss": {
+    "sounds": [
+      {
+        "name": "guab:dart_miss"
+      }
+    ]
+  },
+  "dart_thud": {
+    "sounds": [
+      {
+        "name": "guab:dart_thud"
+      }
+    ]
+  },
+  "drink_clink": {
+    "sounds": [
+      {
+        "name": "guab:drink_clink"
+      }
+    ]
+  },
+  "hiccup": {
+    "sounds": [
+      {
+        "name": "guab:hiccup"
+      }
+    ]
+  },
+  "milestone": {
+    "sounds": [
+      {
+        "name": "guab:milestone"
       }
     ]
   },
@@ -13,17 +69,17 @@
       }
     ]
   },
-  "beer_pour": {
+  "pit_kill": {
     "sounds": [
       {
-        "name": "guab:beer_pour"
+        "name": "guab:pit_kill"
       }
     ]
   },
-  "milestone": {
+  "quiz_correct": {
     "sounds": [
       {
-        "name": "guab:milestone"
+        "name": "guab:quiz_correct"
       }
     ]
   }

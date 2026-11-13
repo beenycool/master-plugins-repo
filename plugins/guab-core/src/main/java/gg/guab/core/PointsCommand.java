@@ -432,7 +432,7 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
                                       String[] args) {
         if (command.getName().equalsIgnoreCase("top")) {
             if (args.length == 1) {
-                return filtered(List.of("5", "10", "20", "50"), args[0]);
+                return filtered(List.of("5", "10", "15", "20"), args[0]);
             }
             return List.of();
         }
@@ -451,7 +451,7 @@ public final class PointsCommand implements CommandExecutor, TabCompleter, Liste
         } else if (args.length == 2) {
             String first = args[0].toLowerCase(Locale.ROOT);
             if (first.equals("top") || first.equals("leaderboard")) {
-                out.addAll(List.of("5", "10", "20", "50"));
+                out.addAll(List.of("5", "10", "15", "20"));
             } else if (first.equals("reset")) {
                 out.add("all");
                 for (Player player : Bukkit.getOnlinePlayers()) {

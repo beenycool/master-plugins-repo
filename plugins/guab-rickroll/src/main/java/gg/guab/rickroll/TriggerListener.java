@@ -8,7 +8,9 @@ import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
+import org.bukkit.World;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -112,9 +114,21 @@ public final class TriggerListener implements Listener {
         return true;
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onTeleport(PlayerTeleportEvent event) {
-        lastTeleport.put(event.getPlayer().getUniqueId(), System.currentTimeMillis());
+        Player player = event.getPlayer();
+        lastTeleport.put(player.getUniqueId(), System.currentTimeMillis());
+        if (!plugin.shows().isActive(player)) {
+            return;
+        }
+        // A spectator can hotbar-teleport to any online player (TeleportCause.SPECTATE),
+        // which would drop the victim out of the cinema mid-show while leaving them in
+        // spectator mode. Keep the show's teleports, cancel everything that leaves it.
+        Location to = event.getTo();
+        World cinema = plugin.cinema().world();
+        if (to == null || cinema == null || !cinema.equals(to.getWorld())) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler

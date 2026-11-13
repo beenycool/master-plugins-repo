@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * The native 26.3 "Dialog OS" hub. Everything is read live from the existing
@@ -25,6 +26,7 @@ import java.util.function.Consumer;
 public final class GuabMenuDialog {
 
     private static final String TARGET_INPUT = "darts_target";
+    private static final String RICKROLL_INPUT = "rickroll_target";
 
     private final GuabItemsPlugin plugin;
 
@@ -84,13 +86,14 @@ public final class GuabMenuDialog {
                         NamedTextColor.WHITE));
 
         List<ActionButton> actions = new ArrayList<>();
+        List<DialogInput> inputs = List.of();
         if (menuEnabled) {
             int houseCost = Math.max(0, plugin.getConfig().getInt("beer.cost", 1));
             actions.add(GuabDialogFactory.button(plugin,
                     Component.text("House pint · " + houseCost + " pt", NamedTextColor.YELLOW),
                     Component.text("A random cheap pint from the tap."), 280,
-                    clicker -> plugin.beerService().purchase(clicker,
-                            plugin.beer().randomHouseBrand(), 1, houseCost, true)));
+                    reopenAfter(clicker -> plugin.beerService().purchase(clicker,
+                            plugin.beer().randomHouseBrand(), 1, houseCost, true))));
             for (BeerBrand brand : plugin.beer().allBrands()) {
                 BeerStyle style = brand.style();
                 Component label = Component.text(brand.displayName() + " · " + style.price() + " pt · "
@@ -99,8 +102,34 @@ public final class GuabMenuDialog {
                         + " units, " + fmt(brand.abv()) + "% ABV"
                         + (style.lethal() ? " · ☠ Kills you." : ""));
                 actions.add(GuabDialogFactory.button(plugin, label, tooltip, 280,
-                        clicker -> plugin.beerService().purchase(clicker, brand, 1, style.price(), true)));
+                        reopenAfter(clicker -> plugin.beerService().purchase(clicker, brand, 1, style.price(), true))));
             }
+
+            int goldenCost = Math.max(0,
+                    plugin.getConfig().getInt("pub.golden-round.cost", 500));
+            actions.add(GuabDialogFactory.button(plugin,
+                    Component.text("Golden round · " + goldenCost + " pt", NamedTextColor.GOLD),
+                    Component.text("Buys every eligible player online a random house pint, "
+                            + "with fireworks."), 280,
+                    reopenAfter(clicker -> plugin.beerService().buyGoldenRound(clicker, goldenCost))));
+
+            int rickrollCost = Math.max(0, plugin.getConfig().getInt("pub.rickroll.cost", 1500));
+            inputs = List.of(DialogInput.text(RICKROLL_INPUT,
+                            Component.text("Rickroll target (online player name)"))
+                    .maxLength(16)
+                    .build());
+            actions.add(GuabDialogFactory.button(plugin,
+                    Component.text("Rickroll contract · " + rickrollCost + " pt",
+                            NamedTextColor.LIGHT_PURPLE),
+                    Component.text("Pay to rickroll the named online player. "
+                            + "Five-minute buyer cooldown."), 280,
+                    (clicker, response) -> {
+                        boolean hired = plugin.beerService().hireRickroll(clicker,
+                                response.getText(RICKROLL_INPUT), rickrollCost);
+                        if (hired && clicker.isOnline() && menuEnabled) {
+                            Bukkit.getScheduler().runTask(plugin, () -> openPub(clicker));
+                        }
+                    }));
         }
 
         if (plugin.getConfig().getBoolean("beer.milk.enabled", true)) {
@@ -109,7 +138,7 @@ public final class GuabMenuDialog {
                     Component.text("Milk · " + milkCost + " pt · Sober up", NamedTextColor.WHITE),
                     Component.text("Clears the drunk meter and all nausea/slowness effects."),
                     280,
-                    clicker -> plugin.beerService().buyMilk(clicker, true)));
+                    reopenAfter(clicker -> plugin.beerService().buyMilk(clicker, true))));
         }
 
         actions.add(GuabDialogFactory.button(plugin,
@@ -121,7 +150,18 @@ public final class GuabMenuDialog {
 
         player.showDialog(GuabDialogFactory.build(
                 Component.text("The Wetherspoons Bar", NamedTextColor.GOLD),
-                body, actions, Component.text("Close", NamedTextColor.GRAY), 2));
+                body, inputs, actions, Component.text("Close", NamedTextColor.GRAY), 2));
+    }
+
+    /** Mirrors /beer: after a successful purchase, reopen the pub page so the balance updates. */
+    private Consumer<Player> reopenAfter(Predicate<Player> purchase) {
+        return clicker -> {
+            boolean bought = purchase.test(clicker);
+            if (bought && clicker.isOnline()
+                    && plugin.getConfig().getBoolean("beer.menu.enabled", true)) {
+                Bukkit.getScheduler().runTask(plugin, () -> openPub(clicker));
+            }
+        };
     }
 
     public void openCasino(Player player) {

@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-11
 
-Overall: `█████████░` **93%** (91/98 checklist items)
+Overall: `█████████░` **93%** (90/97 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
@@ -10,14 +10,14 @@ Overall: `█████████░` **93%** (91/98 checklist items)
 | guab-blocks      | `██████████` 100% (10/10)   |
 | guab-items       | `██████████` 100% (16/16)   |
 | guab-rickroll    | `█████████░` 92% (22/24)    |
-| guab-gambling    | `█████████░` 88% (14/16)    |
+| guab-gambling    | `█████████░` 87% (13/15)    |
 | guab-minigames   | `█████████░` 94% (17/18)    |
 
 Progress is per checklist line, updated by hand.
 
 The loop: **minigames earn points → gambling risks them → items and blocks are the rewards.**
 
-## guab-core — `████████░░` 86% (12/14)
+## guab-core — `█████████░` 93% (13/14)
 
 **What it does:** the shared foundation. Holds the player points ledger, the shared stats tracker and common helpers. Every other plugin depends on it.
 
@@ -35,7 +35,7 @@ Status: live. `PointsService` is registered, `/points` and `/points top` work, t
 - [x] `/points history|pay|reset`, rank/session delta and `[audit]` logging
 - [x] `/top`, `/spawn` and `/hub` shortcuts
 - [x] `/guabcore save|status|reload` (alias `/gcore`, `guab.core.admin`)
-- [ ] Shared cooldown helper and message helpers
+- [x] Shared cooldown helper (`CooldownMap`) and message helpers (`GuabMessages`)
 
 ## guab-blocks — `██████████` 100% (10/10)
 
@@ -87,6 +87,9 @@ Status: live. 60-second show cut from 0:19, 12 fps, shared 256-color palette, sy
 - [x] Hidden void cinema world + room
 - [x] ItemDisplay screen with per-frame `ITEM_MODEL` swapping
 - [x] Resource pack build script + pack server (`:39002`)
+- [x] Additive pack stacking: `rickroll.zip` contains only frames + audio, delivered with `Player#addResourcePack`
+- [x] Per-player pack acceptance (`PackStatusService`) with ASCII fallback for glyphs
+- [x] Generated card/chip/UI/dart/milk item models and twelve custom sounds
 - [x] Shared-palette 256-color pipeline (dedupe, oxipng/advpng, `zip -9 -X`)
 - [x] SHA-1 verification, frame count/fps/duration via `pack.properties`
 - [x] Spectator lock, per-player midnight, restore on stop/quit/restart
@@ -107,19 +110,18 @@ Status: live. 60-second show cut from 0:19, 12 fps, shared 256-color palette, sy
 - [x] UUID-scoped pack handshake ignores `guab-items.zip` status events
 - [x] `/rickroll verify` checks all frames, duration, SHA-1, sound event and screen
 
-## guab-gambling — `█████████░` 88% (14/16)
+## guab-gambling — `█████████░` 87% (13/15)
 
-**What it does:** the point sink. A walk-in casino for the one-night event: MineGames runs the physical tables (roulette, slots, mines, chicken, mob fights, dice) on top of the Guab points ledger, inside a venue built by this plugin.
+**What it does:** the point sink. A walk-in casino for the one-night event: MineGames runs the physical tables (slots, mines, chicken, mob fights, dice) on top of the Guab points ledger, inside a venue built by this plugin.
 
-Status: live in production. Venue built, all six station types placed, event open, points flowing through Vault. Bets are uncapped, roulette idles until the first wager, fights preview frozen fighters with their real gear, holograms no longer duplicate, slots run at roughly 92% RTP, chicken pays offline winners, and the blackjack table now has a 54-slot chest GUI. `/casino close` stops new hands and the dealer while in-flight hands finish.
+Status: live in production. Venue built, all five station types placed, event open, points flowing through Vault. Bets are uncapped, fights preview frozen fighters with their real gear, holograms no longer duplicate, slots run at roughly 92% RTP, chicken pays offline winners, and the blackjack table now has a 54-slot chest GUI. `/casino close` stops new hands and the dealer while in-flight hands finish.
 
 - [x] Load `PointsService` from GuabCore
 - [x] Vault economy bridge so MineGames spends and refunds Guab points
 - [x] Walk-in venue: `/casino build|setup|dispatch|status|reload|setspawn|leave|exit|open|close`, protected world
 - [x] Pin VaultUnlocked + MineGames in the deploy pipeline
-- [x] Place stations: roulette, three slots, mines, chicken, fight arena
+- [x] Place stations: three slots, mines, chicken, fight arena
 - [x] Event limits: no per-bet cap, `/casino` open to everyone, 1,000-point first-join stake
-- [x] Roulette idles until the first wager
 - [x] Fight preview: fighters spawn frozen with their real gear during betting
 - [x] Fix fight holograms duplicating across chunk unloads
 - [x] Retune slots: 8 weighted reels (3 diamonds), 1.5x pair / 10x triple, ~92% RTP
@@ -173,7 +175,7 @@ Done in this pass:
 Remaining:
 
 - Live server verification of the whole QoL pass (deploy, HUD, points, pub, darts, battle pit).
-- Roulette was intentionally untouched; confirm the live station still behaves during the event rehearsal.
+- Rehearse the live slots, mines, chicken, fight and blackjack stations with two accounts.
 - Blackjack chest GUI in-game test with two accounts, including a disconnect mid-hand.
 - Rebuild the rickroll pack from the current media and deploy the new SHA-1/hash.
 

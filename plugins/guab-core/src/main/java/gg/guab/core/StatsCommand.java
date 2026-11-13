@@ -66,7 +66,13 @@ public final class StatsCommand implements CommandExecutor, TabCompleter {
             name = fallbackName;
         }
         sender.sendMessage(Component.text("[" + name + "'s stats]", NamedTextColor.GOLD));
-        sender.sendMessage(line("Deaths", plugin.stats().get(id, StatsService.DEATHS), NamedTextColor.RED));
+        Component deaths = line("Deaths", plugin.stats().get(id, StatsService.DEATHS),
+                NamedTextColor.RED);
+        if (sender instanceof Player viewer) {
+            deaths = GuabGlyphs.withIcon(true, viewer, GuabGlyphs.SKULL,
+                    NamedTextColor.DARK_RED, deaths);
+        }
+        sender.sendMessage(deaths);
         sender.sendMessage(line("Void deaths", plugin.stats().get(id, StatsService.VOID_DEATHS), NamedTextColor.DARK_RED));
         sender.sendMessage(line("Kills", plugin.stats().get(id, StatsService.KILLS), NamedTextColor.GREEN));
         sender.sendMessage(line("Rickrolls", plugin.stats().get(id, StatsService.RICKROLLS), NamedTextColor.LIGHT_PURPLE));
@@ -141,7 +147,7 @@ public final class StatsCommand implements CommandExecutor, TabCompleter {
                     .toList();
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("top")) {
-            return List.of("5", "10", "20", "50").stream()
+            return List.of("5", "10", "15", "20").stream()
                     .filter(value -> value.startsWith(args[2]))
                     .toList();
         }

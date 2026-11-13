@@ -1,5 +1,6 @@
 package gg.guab.items;
 
+import gg.guab.core.CooldownMap;
 import gg.guab.core.PointsService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -13,6 +14,7 @@ import org.bukkit.SoundCategory;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
@@ -28,13 +30,21 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
 
     private static final String PERMISSION = "guab.pub.use";
     private static final String QUIZ_ADMIN = "guab.pub.quiz.admin";
+    private static final String PUB_ADMIN = "guab.pub.admin";
 
     private final GuabItemsPlugin plugin;
-    private final Map<UUID, Long> roundCooldowns = new HashMap<>();
+    private final CooldownMap<UUID> roundCooldowns = new CooldownMap<>();
     private final Map<UUID, PendingRound> pendingRounds = new HashMap<>();
 
     public PubCommand(GuabItemsPlugin plugin) {
         this.plugin = plugin;
+        // /pub is optional in plugin.yml; bind it here so the happy-hour toggle
+        // works as soon as the command is declared, without another wiring edit.
+        PluginCommand pubCommand = plugin.getCommand("pub");
+        if (pubCommand != null) {
+            pubCommand.setExecutor(this);
+            pubCommand.setTabCompleter(this);
+        }
     }
 
     @Override
@@ -44,6 +54,7 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
             case "pints" -> pints(sender, args);
             case "quiz" -> quiz(sender, args);
             case "beer" -> beer(sender, args);
+            case "pub" -> pub(sender, args);
             default -> {
                 return false;
             }
@@ -103,8 +114,8 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
         }
 
         int costEach = args.length > 0
-                ? Math.max(0, style.price())
-                : Math.max(0, plugin.getConfig().getInt("pub.round.cost-per-pint", 1));
+                ? pub.pubPrice(Math.max(0, style.price()))
+                : pub.pubPrice(Math.max(0, plugin.getConfig().getInt("pub.round.cost-per-pint", 1)));
         long total = (long) costEach * drinkers.size();
         long expiresAt = System.currentTimeMillis() + confirmSeconds() * 1000L;
         pendingRounds.put(player.getUniqueId(), new PendingRound(
@@ -167,13 +178,12 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
         long total = (long) pending.costEach() * drinkers.size();
         PointsService points = points();
         if (total > 0) {
-            if (points == null || total > Integer.MAX_VALUE
-                    || !points.take(player.getUniqueId(), (int) total)) {
+            if (points == null || !points.take(player.getUniqueId(), total)) {
                 error(player, "A round costs " + total + " points and you cannot cover it.");
                 return;
             }
         }
-        roundCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
+        roundCooldowns.start(player.getUniqueId(), roundCooldownMillis());
 
         for (Player drinker : drinkers) {
             plugin.beerService().give(drinker, brand, 1);
@@ -210,9 +220,11 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
     }
 
     private long roundCooldownRemaining(Player player) {
-        long cooldown = Math.max(0, plugin.getConfig().getInt("pub.round.cooldown-seconds", 30)) * 1000L;
-        return cooldown - (System.currentTimeMillis()
-                - roundCooldowns.getOrDefault(player.getUniqueId(), 0L));
+        return roundCooldowns.remainingMillis(player.getUniqueId());
+    }
+
+    private long roundCooldownMillis() {
+        return Math.max(0, plugin.getConfig().getInt("pub.round.cooldown-seconds", 30)) * 1000L;
     }
 
     private long confirmSeconds() {
@@ -321,19 +333,23 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
 
     private void list(CommandSender sender) {
         info(sender, "The Wetherspoons menu:");
+        if (plugin.pub().happyHourActive()) {
+            info(sender, "Happy hour: pints are half price right now.");
+        }
         for (BeerBrand brand : plugin.beer().allBrands()) {
             BeerStyle style = brand.style();
+            int price = plugin.pub().pubPrice(style.price());
             Component line = Component.text("  " + brand.displayName(), style.colour())
                     .append(Component.text("  ·  " + style.displayName() + "  ·  "
                                     + String.format(Locale.ROOT, "%.1f", brand.abv()) + "%  ·  "
-                                    + brand.unitsLabel() + " units  ·  " + style.price() + " pt",
+                                    + brand.unitsLabel() + " units  ·  " + price + " pt",
                             NamedTextColor.GRAY))
                     .append(style.lethal()
                             ? Component.text("  ☠", NamedTextColor.RED) : Component.empty());
             if (sender instanceof Player) {
                 line = line.clickEvent(ClickEvent.runCommand("/beer buy " + brand.id()))
                         .hoverEvent(HoverEvent.showText(Component.text(
-                                "Buy " + brand.displayName() + " for " + style.price() + " points.")));
+                                "Buy " + brand.displayName() + " for " + price + " points.")));
             }
             sender.sendMessage(line);
         }
@@ -373,7 +389,8 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
                 return;
             }
         }
-        plugin.beerService().purchase(player, brand, amount, brand.style().price(), true);
+        plugin.beerService().purchase(player, brand, amount,
+                plugin.pub().pubPrice(brand.style().price()), true);
     }
 
     // ------------------------------------------------------------------
@@ -425,6 +442,64 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
     }
 
     // ------------------------------------------------------------------
+    // /pub
+    // ------------------------------------------------------------------
+
+    private void pub(CommandSender sender, String[] args) {
+        String sub = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
+        if (!sub.equals("happyhour")) {
+            info(sender, "Use /pub happyhour <minutes|off>.");
+            return;
+        }
+        if (!sender.hasPermission(QUIZ_ADMIN) && !sender.hasPermission(PUB_ADMIN)) {
+            error(sender, "You need " + QUIZ_ADMIN + " or " + PUB_ADMIN
+                    + " to run happy hour.");
+            return;
+        }
+        PubManager pub = plugin.pub();
+        if (args.length < 2) {
+            if (pub.happyHourActive()) {
+                long remaining = seconds(pub.happyHourRemainingMillis());
+                info(sender, "Happy hour is on: " + (remaining / 60) + "m "
+                        + (remaining % 60) + "s left. Half-price pints, double units, "
+                        + "double quiz prizes.");
+            } else {
+                info(sender, "Happy hour is off. Start it with /pub happyhour <minutes>.");
+            }
+            return;
+        }
+        String value = args[1].toLowerCase(Locale.ROOT);
+        if (value.equals("off") || value.equals("stop") || value.equals("end")) {
+            boolean wasActive = pub.happyHourActive();
+            pub.setHappyHour(0);
+            if (wasActive) {
+                Bukkit.broadcast(prefix().append(Component.text(
+                        "Happy hour is over. Full prices and normal quiz prizes return.",
+                        NamedTextColor.GRAY)));
+            } else {
+                info(sender, "Happy hour is already off.");
+            }
+            return;
+        }
+        int minutes;
+        try {
+            minutes = Integer.parseInt(value);
+        } catch (NumberFormatException exception) {
+            error(sender, "Minutes must be a number from 1 to 1440, or off.");
+            return;
+        }
+        if (minutes < 1 || minutes > 24 * 60) {
+            error(sender, "Minutes must be a number from 1 to 1440, or off.");
+            return;
+        }
+        pub.setHappyHour(minutes);
+        Bukkit.broadcast(prefix().append(Component.text(
+                "Happy hour! Half-price pints, double units and double quiz prizes for the next "
+                        + minutes + " minute" + (minutes == 1 ? "" : "s") + ".",
+                NamedTextColor.GOLD)));
+    }
+
+    // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
 
@@ -454,6 +529,15 @@ public final class PubCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         String name = command.getName().toLowerCase(Locale.ROOT);
+        if (name.equals("pub")) {
+            if (args.length == 1) {
+                return matching(List.of("happyhour"), args[0]);
+            }
+            if (args.length == 2 && args[0].equalsIgnoreCase("happyhour")) {
+                return matching(List.of("15", "30", "60", "off"), args[1]);
+            }
+            return List.of();
+        }
         if (name.equals("pints") && args.length == 1) {
             return matching(List.of("top", "units"), args[0]);
         }

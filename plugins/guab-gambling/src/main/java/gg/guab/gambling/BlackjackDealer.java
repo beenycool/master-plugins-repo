@@ -204,8 +204,8 @@ public final class BlackjackDealer implements Listener {
     }
 
     private void openDialog(Player player) {
-        int min = Math.max(1, plugin.getConfig().getInt("blackjack.min-bet", 10));
-        int max = plugin.getConfig().getInt("blackjack.max-bet", -1);
+        long min = Math.max(1L, plugin.getConfig().getLong("blackjack.min-bet", 10L));
+        long max = plugin.getConfig().getLong("blackjack.max-bet", -1L);
         String range = max > 0 ? min + "–" + max : min + "+";
 
         ActionButton deal = ActionButton.builder(Component.text("Deal", NamedTextColor.GOLD))
@@ -216,15 +216,15 @@ public final class BlackjackDealer implements Listener {
                                 return;
                             }
                             String raw = response.getText("bet");
-                            int bet = min;
+                            long bet = min;
                             if (raw != null && !raw.isBlank()) {
                                 try {
-                                    bet = Integer.parseInt(raw.trim());
+                                    bet = Long.parseLong(raw.trim());
                                 } catch (NumberFormatException ignored) {
                                     // The normal start() validation will explain the range.
                                 }
                             }
-                            int finalBet = bet;
+                            long finalBet = bet;
                             plugin.getServer().getScheduler().runTask(plugin,
                                     () -> blackjack.start(clicker, finalBet));
                         },

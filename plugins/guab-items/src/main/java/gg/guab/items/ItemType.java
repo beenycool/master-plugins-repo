@@ -23,7 +23,8 @@ public enum ItemType {
             NamedTextColor.AQUA,
             List.of(
                     "Right-click to boost yourself forward",
-                    "and knock nearby players away.")),
+                    "and knock nearby players away."),
+            "guab:wind_charge"),
 
     JUMP_BOOST(
             "jump_boost",
@@ -32,7 +33,8 @@ public enum ItemType {
             NamedTextColor.GREEN,
             List.of(
                     "Right-click for permanent Jump Boost.",
-                    "Consumed on use.")),
+                    "Consumed on use."),
+            "guab:jump_feather"),
 
     BEER(
             "beer",

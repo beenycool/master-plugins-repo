@@ -137,7 +137,6 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
                 + plugin.config().x() + ", " + plugin.config().y() + ", " + plugin.config().z()
                 + " (" + blocks + " blocks cleared; pub area preserved).");
         info(sender, "Now stand on each coloured pad in game and run:");
-        info(sender, "  /rouletteadmin create   (red, centre)");
         info(sender, "  /slotsadmin create 3 1  (lime, three pads)");
         info(sender, "  /minegameadmin create   (blue, on the beacon)");
         info(sender, "  /chickenadmin create 7  (yellow)");
@@ -166,7 +165,6 @@ public final class CasinoCommand implements CommandExecutor, TabCompleter {
         }
 
         List<SetupStep> steps = List.of(
-                new SetupStep(0.5, 65.0, 0.5, "rouletteadmin create"),
                 new SetupStep(19.5, 65.0, -9.5, "slotsadmin create 3 1"),
                 new SetupStep(19.5, 65.0, -4.5, "slotsadmin create 3 1"),
                 new SetupStep(19.5, 65.0, 0.5, "slotsadmin create 3 1"),

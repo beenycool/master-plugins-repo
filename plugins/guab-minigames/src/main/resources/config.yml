@@ -25,6 +25,15 @@ battlepit:
   # Restore an inventory left behind by a crash/restart when the player rejoins.
   restore-saved-on-join: true
 
+  # Persist kills, deaths and best streaks to pit-stats.yml across restarts.
+  persist-stats: true
+
+  # Player-funded bounties: /battlepit bounty <player> <amount>
+  bounty:
+    enabled: true
+    # Maximum total bounty on one target. Zero or below means unlimited.
+    max: 10000
+
   # Brief invulnerability after joining or respawning in the pit.
   spawn-protection:
     enabled: true
@@ -74,8 +83,8 @@ killplane:
 respawn-bell:
   enabled: true
   # Only ring for players who respawn while in the battle pit.
-  only-in-pit: false
-  volume: 4.0
+  only-in-pit: true
+  volume: 2.0
   pitch: 0.5
 
 # Battle pit PvP kit, taken with /kit.

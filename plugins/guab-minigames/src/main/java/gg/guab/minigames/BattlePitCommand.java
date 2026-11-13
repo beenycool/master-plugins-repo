@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 public final class BattlePitCommand implements CommandExecutor, TabCompleter {
 
@@ -41,6 +42,7 @@ public final class BattlePitCommand implements CommandExecutor, TabCompleter {
             case "status" -> status(sender);
             case "stats" -> stats(sender, args);
             case "top" -> top(sender, args);
+            case "bounty" -> bounty(sender, args);
             case "kick" -> kick(sender, args);
             case "purge" -> purge(sender);
             case "reload" -> reload(sender);
@@ -130,31 +132,39 @@ public final class BattlePitCommand implements CommandExecutor, TabCompleter {
     }
 
     private void stats(CommandSender sender, String[] args) {
-        BattlePit.SessionStats stats;
         String name;
+        UUID id = null;
         if (args.length >= 2) {
             Player online = Bukkit.getPlayerExact(args[1]);
             if (online != null) {
                 name = online.getName();
-                stats = pit.stats(online);
+                id = online.getUniqueId();
             } else {
                 name = args[1];
-                stats = pit.statsByName(args[1]);
             }
         } else if (sender instanceof Player player) {
             name = player.getName();
-            stats = pit.stats(player);
+            id = player.getUniqueId();
         } else {
             error(sender, "Usage: /battlepit stats <player>");
             return;
         }
-        if (stats == null) {
-            info(sender, "No battle pit session stats for " + name + ".");
+
+        PitStatsStore.Career career = id == null ? pit.careerByName(name) : pit.career(id);
+        BattlePit.SessionStats session = id == null ? pit.statsByName(name) : pit.stats(id);
+        if (career == null && (session == null || !session.hasPlayed())) {
+            info(sender, "No battle pit stats for " + name + ".");
             return;
         }
-        info(sender, name + " — K/D " + stats.kills() + "/" + stats.deaths()
-                + " (" + stats.kd() + ") | best streak " + stats.bestStreak()
-                + " | points " + signed(stats.points()));
+        if (career != null) {
+            info(sender, name + " — lifetime K/D " + career.kills() + "/" + career.deaths()
+                    + " (" + career.kd() + ") | best streak " + career.bestStreak());
+        }
+        if (session != null && session.hasPlayed()) {
+            info(sender, "This session — K/D " + session.kills() + "/" + session.deaths()
+                    + " (" + session.kd() + ") | best streak " + session.bestStreak()
+                    + " | points " + signed(session.points()));
+        }
     }
 
     private void top(CommandSender sender, String[] args) {
@@ -163,21 +173,49 @@ public final class BattlePitCommand implements CommandExecutor, TabCompleter {
             error(sender, "Metric must be one of: " + String.join(", ", METRICS) + ".");
             return;
         }
-        List<BattlePit.SessionStats> top = pit.leaderboard(metric, 10);
+        List<PitStatsStore.Career> top = pit.careerLeaderboard(metric, 10);
         if (top.isEmpty()) {
             info(sender, "No battle pit stats recorded yet.");
             return;
         }
-        info(sender, "Battle pit top " + metric + " (this session):");
+        info(sender, "Battle pit top " + metric + " (all time):");
         int rank = 1;
-        for (BattlePit.SessionStats stats : top) {
+        for (PitStatsStore.Career career : top) {
             int value = switch (metric) {
-                case "deaths" -> stats.deaths();
-                case "streak" -> stats.bestStreak();
-                default -> stats.kills();
+                case "deaths" -> career.deaths();
+                case "streak" -> career.bestStreak();
+                default -> career.kills();
             };
-            info(sender, "  " + rank++ + ". " + stats.name() + " — " + value);
+            info(sender, "  " + rank++ + ". " + career.name() + " — " + value);
         }
+    }
+
+    private void bounty(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("guab.battlepit.bounty")) {
+            error(sender, "You need guab.battlepit.bounty to place a bounty.");
+            return;
+        }
+        if (!(sender instanceof Player placer)) {
+            error(sender, "Only players can place a bounty.");
+            return;
+        }
+        if (args.length < 3) {
+            error(sender, "Usage: /battlepit bounty <player> <amount>");
+            return;
+        }
+        Player target = Bukkit.getPlayerExact(args[1]);
+        if (target == null) {
+            error(sender, "Player not online: " + args[1]);
+            return;
+        }
+        long amount;
+        try {
+            amount = Long.parseLong(args[2]);
+        } catch (NumberFormatException exception) {
+            error(sender, "Amount must be a whole number of points.");
+            return;
+        }
+        pit.placeBounty(placer, target, amount);
     }
 
     private void kick(CommandSender sender, String[] args) {
@@ -221,7 +259,7 @@ public final class BattlePitCommand implements CommandExecutor, TabCompleter {
     }
 
     private void usage(CommandSender sender) {
-        info(sender, "/battlepit join|leave|quit|status|stats [player]|top [kills|deaths|streak]");
+        info(sender, "/battlepit join|leave|quit|status|stats [player]|top [kills|deaths|streak]|bounty <player> <amount>");
         if (sender.hasPermission("guab.battlepit.admin")) {
             info(sender, "/battlepit setspawn [x y z world]|setexit|kick <player>|purge|reload");
         }
@@ -246,6 +284,9 @@ public final class BattlePitCommand implements CommandExecutor, TabCompleter {
         List<String> out = new ArrayList<>();
         if (args.length == 1) {
             out.addAll(List.of("join", "leave", "quit", "status", "stats", "top"));
+            if (sender.hasPermission("guab.battlepit.bounty")) {
+                out.add("bounty");
+            }
             if (sender.hasPermission("guab.battlepit.admin")) {
                 out.addAll(List.of("setspawn", "setexit", "kick", "purge", "reload"));
             }
@@ -257,11 +298,13 @@ public final class BattlePitCommand implements CommandExecutor, TabCompleter {
                     }
                 }
                 case "top" -> out.addAll(METRICS);
-                case "kick" -> out.addAll(pit.fighterNames());
+                case "kick", "bounty" -> out.addAll(pit.fighterNames());
                 default -> {
                     // No completions.
                 }
             }
+        } else if (args.length == 3 && "bounty".equalsIgnoreCase(args[0])) {
+            out.addAll(List.of("50", "100", "250", "500"));
         }
         String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
         out.removeIf(value -> !value.toLowerCase(Locale.ROOT).startsWith(prefix));

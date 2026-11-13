@@ -25,6 +25,10 @@ commands:
     usage: /beer [menu|list|stats|milk|again [amount]|buy <style> [amount]]
     permission: guab.pub.use
     aliases: [pint, spoons]
+  pub:
+    description: Pub-wide controls, including the Happy Hour toggle.
+    usage: /pub [happyhour <minutes|off>]
+    permission: guab.pub.use
   darts:
     description: Play the pub dartboard.
     usage: /darts [menu|start [101|301|501] [legs]|again|practice [101|301|501]|quit|status|stats [player]|top [legs|180s|checkout|best]]
@@ -70,4 +74,7 @@ permissions:
     default: op
   guab.pub.quiz.admin:
     description: Stop, skip and inspect the pub quiz.
+    default: op
+  guab.pub.admin:
+    description: Pub-wide controls such as Happy Hour.
     default: op

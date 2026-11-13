@@ -21,6 +21,9 @@ hud:
   # guab-items.zip (or the rickroll pack, which embeds the same assets) show
   # missing-character boxes. Set false for a plain-text HUD.
   font-icons: true
+  # Prefix the sidebar title and tab header with the Guab logo glyph when the
+  # player has the resource pack. Set false to keep the plain configured title.
+  logo: true
 
   # Neutral label for the %area% tab-header token outside the venue worlds.
   area:
@@ -31,18 +34,12 @@ hud:
     title: "&6&lGUAB"
     lines:
       - "&7Points &8» &6%points%"
-      - "&7Deaths &8» &f%deaths%"
-      - ""
       - "&7Online &8» &f%online%"
       - ""
-      - "&8Top points"
-      - "&6#1 &f%top1%"
-      - "&7#2 &f%top2%"
-      - "&7#3 &f%top3%"
-      - ""
-      - "&8/casino &7for the casino"
-      - "&8/blackjack &7for cards"
-      - "&8/points &7for the leaderboard"
+      - "&6#1 &f%top1% &8| &7#2 &f%top2%"
+      - "&8Pub &f\uE001 &7/beer"
+      - "&8Darts &f\uE002 &7/darts"
+      - "&7Area &8» &f%area%"
 
   tab:
     enabled: true

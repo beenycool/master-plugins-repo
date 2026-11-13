@@ -40,7 +40,28 @@ public record DartsConfig(
         int par501,
         int underParPerDart,
         double checkoutPerPoint,
-        int maxReward) {
+        int maxReward,
+        long maxStake) {
+
+    /**
+     * Backwards-compatible constructor for callers that predate wagered 1v1s.
+     * The default stake ceiling matches the config default.
+     */
+    public DartsConfig(boolean enabled, String world, int x, int y, int z, BlockFace face,
+                       double boardRadius, long cooldownMillis, double maxDistance,
+                       int defaultMode, int legsToWin, boolean beginnerAssist, int hudIntervalTicks,
+                       double wobbleSober, double wobblePerDrunk, double wobbleMax,
+                       double bull, double outerBull, double trebleInner, double trebleOuter,
+                       double doubleInner, double doubleOuter, boolean rewards,
+                       int base101, int base301, int base501, int par101, int par301, int par501,
+                       int underParPerDart, double checkoutPerPoint, int maxReward) {
+        this(enabled, world, x, y, z, face, boardRadius, cooldownMillis, maxDistance,
+                defaultMode, legsToWin, beginnerAssist, hudIntervalTicks,
+                wobbleSober, wobblePerDrunk, wobbleMax,
+                bull, outerBull, trebleInner, trebleOuter, doubleInner, doubleOuter, rewards,
+                base101, base301, base501, par101, par301, par501,
+                underParPerDart, checkoutPerPoint, maxReward, 100_000L);
+    }
 
     public static DartsConfig load(GuabItemsPlugin plugin) {
         var cfg = plugin.getConfig();
@@ -90,7 +111,8 @@ public record DartsConfig(
                 Math.max(1, cfg.getInt("pub.darts.rewards.par-darts-501", 21)),
                 Math.max(0, cfg.getInt("pub.darts.rewards.under-par-per-dart", 2)),
                 clamp(cfg.getDouble("pub.darts.rewards.checkout-per-point", 0.1), 0.0, 10.0),
-                Math.max(1, cfg.getInt("pub.darts.rewards.max", 300)));
+                Math.max(1, cfg.getInt("pub.darts.rewards.max", 300)),
+                Math.clamp(cfg.getLong("pub.darts.max-stake", 100_000L), 0L, Long.MAX_VALUE / 2));
     }
 
     private static BlockFace parseFace(String raw) {

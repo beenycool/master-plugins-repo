@@ -130,7 +130,7 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length < 2) {
-            error(sender, "Usage: /darts challenge <player>");
+            error(sender, "Usage: /darts challenge <player> [bet]");
             return;
         }
         Player target = Bukkit.getPlayerExact(args[1]);
@@ -138,7 +138,29 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
             error(sender, "Player not online: " + args[1]);
             return;
         }
-        plugin.darts().challenge(player, target);
+        long stake = 0L;
+        if (args.length >= 3) {
+            try {
+                stake = Long.parseLong(args[2]);
+            } catch (NumberFormatException exception) {
+                error(sender, "The bet must be a whole number of points.");
+                return;
+            }
+            if (stake <= 0L) {
+                error(sender, "The bet must be at least 1 point.");
+                return;
+            }
+            long max = plugin.darts().config().maxStake();
+            if (max <= 0L) {
+                error(sender, "Wagered 1v1s are disabled.");
+                return;
+            }
+            if (stake > max) {
+                error(sender, "The maximum bet is " + max + " points.");
+                return;
+            }
+        }
+        plugin.darts().challenge(player, target, stake);
     }
 
     private void accept(CommandSender sender, String[] args) {
@@ -250,8 +272,9 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
                 ? "Beginner assist is on: no busts, and any dart can finish on exactly 0."
                 : "Double out: the last arrow must be a double (bullseye 50 counts)."),
                 NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("  5. Challenge someone with /darts challenge <player>; they accept with "
-                + "/darts accept <you>.", NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("  5. Challenge someone with /darts challenge <player> [bet]; they accept with "
+                + "/darts accept <you>. A bet can be up to " + config.maxStake() + " points.",
+                NamedTextColor.GRAY));
         sender.sendMessage(Component.text("  Practice with /darts practice [101|301|501] (no stats or rewards), "
                 + "or replay with /darts again.", NamedTextColor.DARK_GRAY));
         sender.sendMessage(Component.text("  Checkout hints show on the action bar. Use /darts status, "
@@ -296,7 +319,8 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
     private void usage(CommandSender sender, String label) {
         sender.sendMessage(Component.text("/" + label + " start [101|301|501] [legs]", NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/" + label + " again | practice [101|301|501] | status", NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("/" + label + " challenge <player> | accept <player>", NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("/" + label + " challenge <player> [bet] | accept <player>",
+                NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/" + label + " quit | stats [player] | top [legs|180s|checkout|best] | help",
                 NamedTextColor.GRAY));
         if (sender.hasPermission(ADMIN)) {
@@ -356,6 +380,11 @@ public final class DartsCommand implements CommandExecutor, TabCompleter {
         if (args.length == 3 && (args[0].equalsIgnoreCase("start")
                 || args[0].equalsIgnoreCase("play"))) {
             return matching(List.of("1", "3", "5", "7", "9"), args[2]);
+        }
+        if (args.length == 3 && (args[0].equalsIgnoreCase("challenge")
+                || args[0].equalsIgnoreCase("1v1"))) {
+            long max = plugin.darts().config().maxStake();
+            return max > 0L ? matching(List.of(String.valueOf(max)), args[2]) : List.of();
         }
         return List.of();
     }

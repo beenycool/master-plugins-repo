@@ -10,6 +10,8 @@ public final class GuabCorePlugin extends JavaPlugin {
     private PointsStore points;
     private StatsStore stats;
     private PlayerPreferencesStore preferences;
+    private PackStatusService packStatus;
+    private PackStatusListener packStatusListener;
     private HudChannel hudChannel;
     private HudManager hud;
     private BukkitTask saveTask;
@@ -23,6 +25,13 @@ public final class GuabCorePlugin extends JavaPlugin {
                 getDataFolder().toPath().resolve("preferences"));
         getServer().getServicesManager().register(PlayerPreferencesStore.class, preferences,
                 this, ServicePriority.Normal);
+
+        // Track the server pack handshake before any listener can render HUD glyphs.
+        this.packStatus = new PackStatusService();
+        getServer().getServicesManager().register(PackStatusService.class, packStatus,
+                this, ServicePriority.Normal);
+        this.packStatusListener = new PackStatusListener(packStatus);
+        getServer().getPluginManager().registerEvents(packStatusListener, this);
 
         this.points = new PointsStore(getDataFolder().toPath().resolve("points.yml"));
         this.points.load();
@@ -139,6 +148,20 @@ public final class GuabCorePlugin extends JavaPlugin {
             hudChannel.stop();
             hudChannel = null;
         }
+        if (packStatusListener != null) {
+            org.bukkit.event.HandlerList.unregisterAll(packStatusListener);
+            packStatusListener = null;
+        }
+        if (packStatus != null) {
+            try {
+                getServer().getServicesManager().unregister(PackStatusService.class, packStatus);
+            } catch (RuntimeException exception) {
+                getLogger().warning("Could not unregister the pack status service: "
+                        + exception.getMessage());
+            }
+            packStatus.clear();
+            packStatus = null;
+        }
         getLogger().info("GuabCore disabled.");
     }
 
@@ -200,6 +223,10 @@ public final class GuabCorePlugin extends JavaPlugin {
 
     public PlayerPreferencesStore preferences() {
         return preferences;
+    }
+
+    public PackStatusService packStatus() {
+        return packStatus;
     }
 
     public HudChannel hudChannel() {

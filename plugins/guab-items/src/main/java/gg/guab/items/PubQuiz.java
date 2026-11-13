@@ -256,7 +256,13 @@ public final class PubQuiz implements Listener {
     }
 
     private int reward() {
-        return Math.max(1, plugin.getConfig().getInt("pub.quiz.reward", 100));
+        int reward = Math.max(1, plugin.getConfig().getInt("pub.quiz.reward", 100));
+        PubManager pub = plugin.pub();
+        if (pub != null && pub.happyHourActive()) {
+            reward *= Math.max(1,
+                    plugin.getConfig().getInt("pub.happy-hour.quiz-reward-multiplier", 2));
+        }
+        return reward;
     }
 
     private int intervalSeconds() {

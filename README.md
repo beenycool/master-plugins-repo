@@ -178,9 +178,9 @@ makes a player immune to triggers.
 
 - Your balance appears in the sidebar, the tab-list header and under your nametag, refreshed every second.
 - Point gains and losses play a short pickup/bass sound and a green `+50` / red `-25` action bar; rapid changes are netted over a quarter second so a bet and its payout read as one result.
-- The tab header supports `%area%` (`Casino`, `Darts`, `Cinema`, or `hud.area.default`) and the sidebar/nickname balance hides while spectating or watching the cinema.
+- The tab header supports `%area%` (`Casino`, `Darts`, `Cinema`, or `hud.area.default`) and both the sidebar and nametag balance hide while spectating or watching the cinema.
 - Points lines carry a small coin icon from the Guab bitmap font (`guab:hud`). Set `hud.font-icons: false` in `GuabCore/config.yml` to fall back to plain text if the resource pack is not installed.
-- `/points` (aliases `/guabpoints`, `/bal`, `/balance`) shows your balance with your rank and the points gained or lost this session. `/points top [count]` and `/top [count]` (aliases `/pointstop`, `/pointleaderboard`) show the leaderboard; the count is clamped to 1–20.
+- `/points` (aliases `/guabpoints`, `/bal`, `/balance`) shows your balance with your rank and the points gained or lost this session. `/points top [count]` and `/top [count]` (aliases `/pointstop`, `/pointleaderboard`) show the leaderboard; the count is clamped to 1–20 and tab completion offers 5/10/15/20.
 - `/points history [player]` lists recent changes newest-first with the time, amount and before/after balance. Looking at another player's history needs `guab.points.others`.
 - `/points pay <player> <amount>` sends your own points to an online or known player. It refuses self-payments, non-positive amounts and overdrafts, and needs `guab.points.pay`.
 - Staff with `guab.points.admin` can use `/points set|add|take <player> <amount>` and `/points reset <player|all>`. A reset first shows a 30-second `[Confirm]`/`[Cancel]` prompt instead of wiping a balance immediately.
@@ -188,7 +188,7 @@ makes a player immune to triggers.
 - `/guabcore save|status|reload` (alias `/gcore`) needs `guab.core.admin`. `save` flushes points, stats and player preferences immediately; `status` reports the ledger, stat player count, save interval, HUD state and Vault; `reload` reapplies dynamic config and restarts the save timer. HUD `enabled` and `update-ticks` changes still need a restart; sidebar lines, tab text and welcome messages apply on reload.
 - `/hud` (alias `/sidebar`) with no arguments still flips the sidebar. `/hud [sidebar|tab|nametag|sounds|actionbar|titles|rickroll-motion|rickroll] [on|off|toggle]` toggles one HUD or feedback channel; `/settings` (aliases `/prefs`, `/preferences`) opens the clickable summary. Preferences are stored per player and survive relogs.
 - Hiding the sidebar leaves the nametag balance in place. `rickroll` opts out of natural rickrolls and `rickroll-motion` enables reduced motion; both default to off.
-- `/stats [player]` (aliases `/tracker`, `/records`) shows deaths, void deaths, kills and rickrolls, and `/stats top [metric] [count]` shows a leaderboard. Your own stats need `guab.stats.use`; other players and leaderboards need `guab.stats.others`.
+- `/stats [player]` (aliases `/tracker`, `/records`) shows deaths, void deaths, kills and rickrolls, and `/stats top [metric] [count]` shows a leaderboard (count tab completion offers 5/10/15/20, clamped to 1–20). Your own stats need `guab.stats.use`; other players and leaderboards need `guab.stats.others`.
 - `/spawn` (alias `/sp`) and `/hub` (aliases `/lobby`) teleport to the configured spawn; `/hub` is currently the same point. Both need `guab.spawn.use`.
 - Joining prints your balance and clickable `[Open menu]` and `[Settings]` buttons. There is no `[Enter casino]` button any more.
 - Balances are stored in `plugins/GuabCore/points.yml`, flushed every minute and on shutdown.
@@ -238,7 +238,6 @@ All pads are in the `guab_casino` world at `y=65` (relative to `0, 64, 0`).
 
 | Station  | Pad color | Stand at                                  | Command                  |
 | -------- | --------- | ----------------------------------------- | ------------------------ |
-| Roulette | Red       | `0 65 0` (centre)                         | `/rouletteadmin create`  |
 | Slots    | Lime      | `19 65 -10`, `19 65 -5`, `19 65 0`        | `/slotsadmin create 3 1` |
 | Mines    | Blue      | `19 65 7` (on the beacon)                 | `/minegameadmin create`  |
 | Chicken  | Yellow    | `-15 65 12`                               | `/chickenadmin create 7` |
@@ -249,9 +248,9 @@ All pads are in the `guab_casino` world at `y=65` (relative to `0, 64, 0`).
 
 A dedicated **Blackjack Dealer** NPC stands in the main casino hall near the bar at `-5.5, 65, -13`, outside the pub. Right-click the dealer (or run `/bj` with no arguments) to open a **54-slot double-chest table**. The dealer drives three screens:
 
-- **Bet screen** — 1, 10, 100 and 1,000 chips, **All in**, **Reset** and **Repeat last bet**, plus the balance and table limits. Left-click a chip to add it; right-click subtracts. Press **Deal** to start.
-- **Table screen** — both hands, the totals, the bet and balance, and **Hit**, **Stand**, **Double**, **History** and **Close**. Double is only available on the first two cards. Closing does not lose the hand; right-click the dealer again to reopen it.
-- **Result screen** — the outcome, payout and net, then **Deal again** at the same bet or **Change bet** to return to the bet builder.
+- **Bet screen** — **All in**, **Reset** and **Repeat last bet**, plus the balance and table limits. The chips are the minimum bet (10 by default), then ×10, ×50 and ×100, plus max(×500, 10000): **10 / 100 / 500 / 1,000 / 10,000**. Left-click a chip to add it; right-click subtracts. Press **Deal** to start.
+- **Table screen** — both hands, the totals, the bet and balance, and **Hit**, **Stand**, **Double**, **History** and **Close**. Double is only available on the first two cards. Cards use generated `guab:card_*` models with pip-count stack sizes, red/black suits and a real card back; chips and action buttons use their own `guab:chip_*` / `guab:ui_*` models. Closing does not lose the hand; right-click the dealer again to reopen it in the same inventory.
+- **Result screen** — the dealer reveals the hole card and draws in a short staged beat (~0.4s per two cards, with a card-flip sound) before the outcome, payout and net appear, then **Deal again** at the same bet or **Change bet** to return to the bet builder.
 
 `/bj gui`, `/bj menu` and `/bj table` open the same chest explicitly. `/blackjack <bet>` (aliases `/bj`, `/21`) deals a hand directly, and `/bj hit`, `/bj stand`, `/bj double` and `/bj history` play it out from chat; the old chat buttons do the same. Blackjack pays 3:2 (`blackjack-payout: 1.5`), the dealer stands on 17, the shoe uses six decks, the minimum is 10 points and there is no maximum by default. Hands auto-stand after `blackjack.timeout-seconds` (120 seconds) and settle if the player disconnects.
 
@@ -271,40 +270,44 @@ A small Wetherspoons pub sits in the north-west corner of the casino hall (`x -2
 
 The pub is a **hand-built structure**. `/casino build` leaves its footprint untouched, but it does not recreate the walls, bar, shelves, dartboard or tap, so a fresh world needs the pub restored from a snapshot or rebuilt by hand.
 
-The menu has **16 branded pints** across six styles: Lager, Stout, Ale, Cider, Alcohol-Free and the lethal **Baileys and Lime**. Every pint carries its own real brand name and matching bottle/can picture in the inventory — Stella, Guinness, Carling, Peroni, Strongbow and the rest — instead of all saying just “Beer”. Each style still has its own ABV, price, flavour lines and potion effects. Beer stacks to **64 per brand**. Drinking is a real 26.3 `CONSUMABLE` component, and left/right-click handling is instant so a quick click always drinks. Old tagged pints are migrated to their branded item the first time they are used or when the player logs in.
+The menu has **16 branded pints** across six styles: Lager, Stout, Ale, Cider, Alcohol-Free and the lethal **Baileys and Lime**. Every pint carries its own real brand name and matching bottle/can picture in the inventory — Stella, Guinness, Carling, Peroni, Strongbow and the rest — instead of all saying just “Beer”. Each style still has its own ABV, price, flavour lines and potion effects. Beer stacks to **64 per brand**. Drinking is a real 26.3 `CONSUMABLE` component with the full gulp animation; right-clicking a barrel, shelf or dealer no longer drinks the pint in your hand by accident. Old tagged pints are migrated to their branded item the first time they are used or when the player logs in.
 
 Staff can hand out stacks with `/guabitems give <player> beer 64` (alias `/gi give`), a specific brand with `/guabitems give <player> beer:stella 64`, or a style with `/guabitems give <player> beer:stout 64` (styles pick a random brand).
 
-The item textures live in `guab-items.zip` on the pack host (`:39002`) and are applied as the server resource pack; the same assets are embedded in the rickroll pack so beer stays textured after a show. The branded pint textures are real product photos from Open Food Facts (CC BY-SA 3.0) where a clean cutout exists, the Baileys bottle is a public-domain Wikimedia Commons photo, and the dartboard face is Wikimedia Commons' unlabelled dartboard (CC BY-SA 3.0). Brands whose OFF photo is a scene shot, plus the generic house pint, are drawn procedurally so they still look like a clean 3D pint.
+The item textures live in `guab-items.zip` on the pack host (`:39002`) and are applied as the server resource pack; the server stacks `rickroll.zip` on top, so beer and HUD assets stay available during a show without being duplicated into the rickroll pack. The branded pint textures are real product photos from Open Food Facts (CC BY-SA 3.0) where a clean cutout exists, the Baileys bottle is a public-domain Wikimedia Commons photo, and the dartboard face is Wikimedia Commons' unlabelled dartboard (CC BY-SA 3.0). Brands whose OFF photo is a scene shot, plus the generic house pint, are drawn procedurally so they still look like a clean 3D pint.
 
-The same packs also carry the HUD bitmap font (`assets/guab/font/hud.json` plus `assets/guab/textures/font/hud.png`) and four custom sound events. Regenerate those source assets deterministically with:
+The same packs also carry the HUD bitmap font (`assets/guab/font/hud.json` plus `assets/guab/textures/font/hud.png`), the generated card/chip/UI/dart/milk item models, and twelve custom sound events. Regenerate those source assets deterministically with:
 
 ```bash
 python3 tools/build-guab-hud-assets.py
 ```
 
-That writes the font PNG and the four OGG files under `pack/hud/`. It needs Pillow, numpy and ffmpeg. Then rebuild both packs with:
+That writes the font PNG, generated item models and the twelve OGG files under `pack/hud/`. It needs Pillow, numpy and ffmpeg. Then rebuild the packs with:
 
 ```bash
 sudo tools/build-guab-items-pack.py
 ```
 
-It copies the HUD assets into both zips, merges the custom sound events into `assets/guab/sounds.json` without removing the `guab:rickroll` entry, and validates that every referenced OGG exists. It writes `/tmp/guab-pack/guab-items.zip` and `/tmp/guab-pack/rickroll.zip` and prints their SHA-1 values. Copy them into `/opt/guab-server/resourcepack/`, update `resource-pack-sha1` in `data/server.properties` and `sha1` in `data/plugins/GuabRickroll/pack.properties`, then restart Paper. Run this after `tools/build-rickroll-pack.sh`, because the rickroll script recreates the base zip.
+It copies the HUD assets into the guab-items zip, merges the custom sound events into `assets/guab/sounds.json` without removing the `guab:rickroll` entry, and validates that every referenced OGG exists. It writes `/tmp/guab-pack/guab-items.zip` and `/tmp/guab-pack/rickroll.zip` and prints their SHA-1 values. Copy them into `/opt/guab-server/resourcepack/`, update `resource-pack-sha1` in `data/server.properties` and `sha1` in `data/plugins/GuabRickroll/pack.properties`, then restart Paper. Run this after `tools/build-rickroll-pack.sh`, because the rickroll script recreates the base zip.
 
-Beer items use generated 3D models: each 4-pixel row of the 64×64 texture becomes a 1-unit-tall cuboid following the alpha silhouette, with 1.5–4 units of depth, label art wrapped around the sides, and full GUI/hand/ground display transforms. The builder flood-fills photo backgrounds with tolerance, keeps the largest connected component, pads/crops the subject, and falls back to a brand-coloured procedural can/bottle (or a drawn house pint) when a photo has no usable cutout. Both zips get the generic `guab:beer` pint and every brand model/texture; item→model and texture→PNG references, coordinates (0–16) and UVs (0–16) are validated before zipping, and sorted JSON plus fixed ZIP timestamps keep hashes reproducible. Pass `--preview DIR` for flat depth-offset previews.
+Beer items use generated 3D models: each 4-pixel row of the 64×64 texture becomes a 1-unit-tall cuboid following the alpha silhouette, with 1.5–4 units of depth, label art wrapped around the sides, and full GUI/hand/ground display transforms. The builder flood-fills photo backgrounds with tolerance, keeps the largest connected component, pads/crops the subject, and falls back to a brand-coloured procedural can/bottle (or a drawn house pint) when a photo has no usable cutout. Only the guab-items pack carries the generic `guab:beer` pint, every brand model/texture and the generated card/chip/UI/milk/dart assets; the rickroll pack is frames + audio only and stacks on top. Item→model and texture→PNG references, coordinates (0–16) and UVs (0–16) are validated before zipping, and sorted JSON plus fixed ZIP timestamps keep hashes reproducible. Pass `--preview DIR` for flat depth-offset previews.
 
 **Pub features**
 
-- **Weighted drunk meter** — every pint contributes real alcohol units based on ABV and volume. They decay over the configured window (15 minutes by default); the action bar shows `Tipsy → Merry → Drunk → Wrecked → Absolutely Wetherspoons`, with escalating nausea, slowness, blindness and the occasional hangover. Effects stay on continuously at your current tier instead of blinking off between refreshes; they step down as the meter drops, and disappear when you sober up. Milk clears the meter and all drunk effects immediately.
+- **Weighted drunk meter** — every pint contributes real alcohol units based on ABV and volume. They decay over the configured window (15 minutes by default); the action bar shows `Tipsy → Merry → Drunk → Wrecked → Absolutely Wetherspoons`. Slowness and wobble escalate, while Wrecked and Absolutely Wetherspoons now get a warm amber pub glow and a gentle horizontal dust wave instead of continuous blindness/nausea, so you can still see the dartboard and the bar. Effects step down as the meter drops and disappear when you sober up. Milk clears the meter and all drunk effects immediately.
+- **Happy Hour** — staff can run `/pub happyhour <minutes|off>`. Pints are half price, drinks contribute double units and quiz prizes are doubled for the duration.
 - **Pints leaderboard** — lifetime pints and units are saved to `pints.yml`, `/pints [top|units]` lists them with clickable **Top pints** / **Top units** buttons, and a hologram above the bar shows the top three plus total pints served.
 - **Milestones** — the 1st, 10th, 25th, 50th and 100th lifetime pint each pay a one-off points reward.
 - **`/round [beer]`** — buys that brand (or a random brand from a style) for everyone within 14 blocks of the pub centre. It first posts a **cost preview** with clickable **Confirm** / **Cancel** buttons and a 30-second expiry; no points are taken until `/round confirm`. The default house round stays 1 point each.
 - **`/beer`** (aliases `/pint`, `/spoons`) — opens the dialog menu; `/beer list` shows every branded pint with clickable buy buttons, `/beer buy <beer> [amount]`, `/beer milk`, `/beer stats` and `/beer again [amount]` (repeat your last order, optionally with a new amount).
+- **`/pub happyhour <minutes|off>`** — starts or stops the pub-wide Happy Hour: half-price pints, double drunk units and doubled quiz prizes. Needs `guab.pub.quiz.admin` or `guab.pub.admin`.
+- **Golden Round** — a 500-point social purchase in the bar menu: every eligible player online gets a house pint, with fireworks and a server-wide announcement.
+- **Rickroll contract** — a 1,500-point purchase in the bar menu that hires a rickroll on another online player, respecting a five-minute buyer cooldown and the rickroll plugin's own opt-outs.
 - **Milk** — sold from the bar menu for 5 points. It is only available when `beer.milk.enabled` is true, needs `guab.pub.use`, refuses spectators and players who are already sober, and is blocked outside the pub unless the player has `guab.pub.menu.remote`. Drinking it clears the drunk meter and the nausea/slowness effects, so you can sober up without waiting.
 - **Pub setup commands** — staff with `guab.items.admin` can use `/guabitems tapinfo` (tap block and radius), `/guabitems status` (pub centre, tap, board, shelves and worlds), and `/guabitems shelf <add|remove>` while looking at a shelf block.
 - **Baileys and Lime** — a 3-point cursed cocktail. Drinking it kills you instantly with a custom death message, and it is deliberately excluded from the random house tap. It still counts as a pint on the leaderboard.
 - **Pub quiz** — every 10 minutes (or `/quiz`) a question goes out in chat; the first correct answer wins 100 points.
-- **Beer menu shelves** — right-click a shelf to open the dialog menu; left-click still refuses to let anyone take the display bottles.
+- **Beer menu shelves** — right-click a shelf to open the dialog menu; left-click still refuses to let anyone take the display bottles. The shelves are stocked with persistent branded `ItemDisplay` bottles, so the bar looks like a real back bar; set `pub.menu.shelf-displays: false` to keep them empty.
 - **Carpet** — the pack overrides `red_carpet` with the Wetherspoons-style pattern, so the pub rug and the casino aisles share it.
 
 ### Darts
@@ -357,7 +360,9 @@ Jars are pinned in `docker/install-casino.sh` with SHA-256 checks and installed 
 
 - `/battlepit join` teleports you in; `/battlepit leave` or `/battlepit quit` returns you to the pit exit. With `battlepit.exit-mode: join`, leave instead returns you to the exact spot where you joined. Auto-leaving by walking or teleporting out restores your inventory but never teleports you back.
 - Kills pay **50 points**, deaths cost **25**, and the action bar shows the current kill streak. The kill feed includes the weapon and the victim's coordinates (`at world x, y, z`).
-- `/battlepit status` shows the open state, spawn/exit, `exit-mode`, rewards and who is fighting. `/battlepit stats [player]` and `/battlepit top [kills|deaths|streak]` show session records.
+- `/battlepit status` shows the open state, spawn/exit, `exit-mode`, rewards and who is fighting. `/battlepit stats [player]` shows lifetime career stats plus the current session, and `/battlepit top [kills|deaths|streak]` uses the persisted all-time leaderboard (`pit-stats.yml`).
+- `/battlepit bounty <player> <amount>` escrows points from the placer, gives the target a glowing outline and pays the bounty to whoever kills them, on top of the normal kill reward.
+- `/darts challenge <player> [bet]` accepts an optional wager; both stakes are escrowed and the 1v1 winner takes the pot.
 - `/kit` gives the tagged iron PvP loadout (sword, bow, arrows, shield, food, blocks and pickaxe) with a 30-second cooldown. Joining or leaving resets the cooldown; tagged gear cannot be dropped or placed.
 - Your inventory is saved on join and restored on leave, disconnect and graceful stop. If a crash or restart leaves a save behind, it is restored when you next join. Inventory is kept on death in the pit.
 - `/battlepit setspawn [x y z world]`, `setexit`, `kick <player>`, `purge` and `reload` need `guab.battlepit.admin`.
@@ -387,12 +392,14 @@ The gameplay permissions are enforced in code as well as on the commands, so a p
 | `guab.pub.darts.admin` | op | `/darts board\|reload` |
 | `guab.pub.quiz.start` | op | Start a pub quiz question with `/quiz start` |
 | `guab.pub.quiz.admin` | op | Stop, skip and inspect the pub quiz |
+| `guab.pub.admin` | op | Pub-wide controls such as Happy Hour |
 | `guab.menu.use` | true | The native `/guab` hub (`/menu`) |
 | `guab.casino.use` | true | `/casino enter`, blackjack, `/new` and the dealer NPC |
 | `guab.casino.admin` | op | `/casino open\|close\|build\|setup\|dispatch\|setspawn\|status\|snapshot\|reload` and `/blackjack setdealer` |
 | `guab.casino.build` | op | Changing blocks inside `guab_casino` |
 | `guab.battlepit.use` | true | Join/leave, status and session stats for the battle pit |
 | `guab.battlepit.admin` | op | `setspawn`, `setexit`, `kick`, `purge` and `reload` |
+| `guab.battlepit.bounty` | true | `/battlepit bounty <player> <amount>` |
 | `guab.kit.use` | true | `/kit` |
 | `guab.killplane.admin` | op | `/killplane on\|off\|set\|world\|reload` |
 | `guab.killplane.status` | true | `/killplane status` without admin rights |

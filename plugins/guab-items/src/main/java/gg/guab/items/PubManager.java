@@ -64,6 +64,8 @@ public final class PubManager {
     private boolean dirty;
     private boolean hologramDirty;
     private int tickCounter;
+    private volatile long happyHourUntil;
+    private boolean happyHourWasActive;
 
     public PubManager(GuabItemsPlugin plugin) {
         this.plugin = plugin;
@@ -176,7 +178,63 @@ public final class PubManager {
     }
 
     private void clearMeter(Player player) {
+        // Never borrow the meter lane while the pit or darts owns the action bar.
+        if (inBattlePit(player) || dartsPlaying(player.getUniqueId())) {
+            return;
+        }
         sendMeter(player, Component.empty());
+    }
+
+    public boolean happyHourActive() {
+        return System.currentTimeMillis() < happyHourUntil;
+    }
+
+    public long happyHourRemainingMillis() {
+        return Math.max(0L, happyHourUntil - System.currentTimeMillis());
+    }
+
+    /** Starts happy hour for the given minutes; zero or less turns it off. */
+    public void setHappyHour(int minutes) {
+        if (minutes <= 0) {
+            happyHourUntil = 0L;
+            happyHourWasActive = false;
+            return;
+        }
+        happyHourUntil = System.currentTimeMillis()
+                + Math.min(minutes, 24 * 60) * 60_000L;
+        happyHourWasActive = true;
+    }
+
+    /**
+     * Applies the happy-hour discount to a pub price. {@link BeerService} charges
+     * whatever unit price its caller passes in, so commands and menus should price
+     * through this method instead of reading {@link BeerStyle#price()} directly.
+     */
+    public int pubPrice(int basePrice) {
+        int price = Math.max(0, basePrice);
+        if (price == 0 || !happyHourActive()) {
+            return price;
+        }
+        int divisor = Math.max(2, plugin.getConfig().getInt("pub.happy-hour.price-divisor", 2));
+        return Math.max(1, price / divisor);
+    }
+
+    private static boolean inBattlePit(Player player) {
+        return player.hasMetadata("guab.battlepit") || player.hasMetadata("battlepit");
+    }
+
+    private boolean dartsPlaying(UUID player) {
+        DartsManager darts = plugin.darts();
+        return darts != null && darts.isPlaying(player);
+    }
+
+    private boolean inPub(Player player) {
+        Location centre = centre();
+        if (centre == null || !player.getWorld().equals(centre.getWorld())) {
+            return false;
+        }
+        double radius = Math.max(4.0, plugin.getConfig().getDouble("beer.tap.radius", 12.0));
+        return player.getLocation().distanceSquared(centre) <= radius * radius;
     }
 
     public int rank(UUID player) {
@@ -207,6 +265,10 @@ public final class PubManager {
     }
 
     private void recordDrink(Player player, BeerStyle style, int unitsMilli) {
+        if (happyHourActive()) {
+            unitsMilli *= Math.max(1,
+                    plugin.getConfig().getInt("pub.happy-hour.drunk-multiplier", 2));
+        }
         PlayerPints entry = players.computeIfAbsent(player.getUniqueId(),
                 id -> new PlayerPints(player.getName()));
         entry.name = player.getName();
@@ -291,6 +353,12 @@ public final class PubManager {
     }
 
     private void tick() {
+        if (happyHourWasActive && !happyHourActive()) {
+            happyHourWasActive = false;
+            Bukkit.broadcast(prefix().append(Component.text(
+                    "Happy hour is over. Full prices and normal quiz prizes return.",
+                    NamedTextColor.GRAY)));
+        }
         tickCounter++;
         if ((hologram == null || !hologram.isValid()) && tickCounter % 10 == 0
                 && plugin.getConfig().getBoolean("pub.pints.leaderboard.enabled", true)) {
@@ -300,6 +368,7 @@ public final class PubManager {
         for (Player player : Bukkit.getOnlinePlayers()) {
             UUID id = player.getUniqueId();
             double units = drunkUnits(id);
+            boolean suppressed = inBattlePit(player) || dartsPlaying(id);
             DrunkEffects.Tier tier = DrunkEffects.forUnits(units);
             DrunkEffects.Tier previous = lastTier.get(id);
             PlayerPints profile = players.get(id);
@@ -330,37 +399,33 @@ public final class PubManager {
                 playTierChime(player);
             }
             if (plugin.darts() == null || !plugin.darts().isPlaying(id)) {
-                Component bar = Component.text("Pints ", NamedTextColor.GOLD)
-                        .append(Component.text(pints(id), NamedTextColor.WHITE))
-                        .append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
-                        .append(Component.text(String.format(Locale.ROOT, "%.1f", units) + " units",
-                                NamedTextColor.AQUA))
-                        .append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
-                        .append(Component.text(tier.label(), tier.colour()));
-                DrunkEffects.Tier next = nextTier(tier);
-                if (next != null) {
-                    bar = bar.append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
-                            .append(Component.text(String.format(Locale.ROOT, "%.1f", next.minimumUnits())
-                                    + " to " + next.label(), NamedTextColor.GRAY));
+                // The passive meter must never sit on top of BattlePit's hint lane,
+                // and while darts owns the bar it stays out of the way too. Outside
+                // those states only a tier change or standing in the pub is worth a
+                // repaint, instead of blocking the bar every second.
+                boolean tierChanged = previous == null || previous != tier;
+                if (!suppressed && (tierChanged || inPub(player))) {
+                    Component bar = Component.text("Pints ", NamedTextColor.GOLD)
+                            .append(Component.text(pints(id), NamedTextColor.WHITE))
+                            .append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
+                            .append(Component.text(String.format(Locale.ROOT, "%.1f", units) + " units",
+                                    NamedTextColor.AQUA))
+                            .append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
+                            .append(Component.text(tier.label(), tier.colour()));
+                    DrunkEffects.Tier next = nextTier(tier);
+                    if (next != null) {
+                        bar = bar.append(Component.text("  ·  ", NamedTextColor.DARK_GRAY))
+                                .append(Component.text(String.format(Locale.ROOT, "%.1f", next.minimumUnits())
+                                        + " to " + next.label(), NamedTextColor.GRAY));
+                    }
+                    sendMeter(player, bar);
                 }
-                sendMeter(player, bar);
             }
             if (tier.level() >= 3 && ThreadLocalRandom.current().nextInt(100) < 8) {
                 player.getWorld().spawnParticle(Particle.NOTE,
                         player.getLocation().add(0, 2.2, 0), 1, 0.35, 0.4, 0.35, 0.0);
             }
-            if (tier.level() >= 4 && ThreadLocalRandom.current().nextInt(100) < 5) {
-                player.getWorld().spawnParticle(Particle.SMOKE,
-                        player.getLocation().add(0.5, 1.0, 0.5), 2, 0.2, 0.2, 0.2, 0.01);
-            }
-            if (tier.level() >= 4 && ThreadLocalRandom.current().nextInt(100) < 5) {
-                player.getWorld().spawnParticle(Particle.WITCH,
-                        player.getLocation().add(0, 1.2, 0), 3, 0.4, 0.5, 0.4, 0.0);
-            }
-            if (tier.level() >= 5 && ThreadLocalRandom.current().nextInt(100) < 4) {
-                player.getWorld().spawnParticle(Particle.SOUL,
-                        player.getLocation().add(0, 0.4, 0), 1, 0.3, 0.1, 0.3, 0.0);
-            }
+            DrunkEffects.ambient(player, tier, tickCounter);
         }
         if (hologramDirty) {
             updateHologram();
@@ -576,7 +641,7 @@ public final class PubManager {
             yaml.set(path + ".milestones", new ArrayList<>(profile.milestones));
         }
         try {
-            yaml.save(file);
+            gg.guab.core.YamlFiles.writeAtomic(file.toPath(), yaml);
             dirty = false;
         } catch (IOException exception) {
             plugin.getLogger().warning("Could not save pints.yml: " + exception.getMessage());

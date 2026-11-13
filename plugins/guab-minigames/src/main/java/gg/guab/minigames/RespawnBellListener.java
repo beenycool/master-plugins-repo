@@ -24,7 +24,7 @@ public final class RespawnBellListener implements Listener {
             return;
         }
         Player player = event.getPlayer();
-        if (plugin.getConfig().getBoolean("respawn-bell.only-in-pit", false)
+        if (plugin.getConfig().getBoolean("respawn-bell.only-in-pit", true)
                 && (plugin.pit() == null || !plugin.pit().inPit(player))) {
             return;
         }

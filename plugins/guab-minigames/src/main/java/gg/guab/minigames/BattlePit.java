@@ -1,6 +1,7 @@
 package gg.guab.minigames;
 
 import gg.guab.core.GuabFx;
+import gg.guab.core.GuabGlyphs;
 import gg.guab.core.HudChannel;
 import gg.guab.core.PointsService;
 import net.kyori.adventure.text.Component;
@@ -65,15 +66,21 @@ public final class BattlePit implements Listener {
     private final Map<UUID, Double> lastHitHealth = new HashMap<>();
     private final Map<UUID, Long> protectedUntil = new HashMap<>();
     private final SavedInventoryStore savedInventories;
+    private final PitStatsStore careerStats;
     private BukkitTask task;
+    private int autosaveTicks;
 
     public BattlePit(GuabMinigamesPlugin plugin) {
         this.plugin = plugin;
         this.savedInventories = new SavedInventoryStore(
                 new File(plugin.getDataFolder(), "saved-inventories.yml"), plugin.getLogger());
+        this.careerStats = new PitStatsStore(plugin);
     }
 
     public void start() {
+        if (persistStats()) {
+            careerStats.load();
+        }
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
     }
@@ -83,12 +90,23 @@ public final class BattlePit implements Listener {
             task.cancel();
             task = null;
         }
+        // Record the live streak champion before anything is cleared, so a restart cannot erase it.
+        announceStreakChampion();
+        if (persistStats()) {
+            careerStats.save();
+        }
         for (UUID id : new ArrayList<>(fighters)) {
             Player player = Bukkit.getPlayer(id);
             if (player != null && player.isOnline()) {
+                Location target = exitTarget(id);
                 releaseRespawnHold(player);
                 clearMetadata(player);
+                clearBountyGlow(player);
                 restore(player);
+                if (target != null) {
+                    player.teleport(target);
+                    player.setFallDistance(0);
+                }
             }
         }
         fighters.clear();
@@ -151,6 +169,24 @@ public final class BattlePit implements Listener {
                 .sorted(comparator.thenComparing(SessionStats::name, String.CASE_INSENSITIVE_ORDER))
                 .limit(Math.max(1, limit))
                 .toList();
+    }
+
+    /** Career record for a player, or {@code null} if they have never fought. */
+    public PitStatsStore.Career career(UUID id) {
+        return careerStats.find(id);
+    }
+
+    public PitStatsStore.Career careerByName(String name) {
+        return careerStats.findByName(name);
+    }
+
+    public List<PitStatsStore.Career> careerLeaderboard(String metric, int limit) {
+        return careerStats.leaderboard(metric, limit);
+    }
+
+    /** Active bounty total on a player, or zero. */
+    public long bounty(UUID id) {
+        return careerStats.bountyAmount(id);
     }
 
     /** True when the location is inside the pit's horizontal arena bounds. */
@@ -240,6 +276,11 @@ public final class BattlePit implements Listener {
             plugin.kit().resetCooldown(id);
         }
         protect(player);
+        long bounty = careerStats.bountyAmount(id);
+        if (bounty > 0) {
+            applyBountyGlow(player);
+            msg(player, "&cThere is a &6" + bounty + " point &cbounty on your head.", NamedTextColor.RED);
+        }
         msg(player, "&aWelcome to the battle pit. Kills pay &6"
                 + plugin.getConfig().getInt("battlepit.kill-reward", 50)
                 + " points&a, deaths cost &6"
@@ -334,6 +375,7 @@ public final class BattlePit implements Listener {
         lastHitHealth.remove(id);
         releaseRespawnHold(player);
         clearMetadata(player);
+        clearBountyGlow(player);
         restore(player);
     }
 
@@ -374,9 +416,11 @@ public final class BattlePit implements Listener {
         }
         victimStats.addDeaths(1);
         victimStats.addPoints((int) -lost);
+        careerStats.recordDeath(victimId, victim.getName());
 
         int lostStreak = streaks.getOrDefault(victimId, 0);
         victimStats.recordStreak(lostStreak);
+        careerStats.recordStreak(victimId, victim.getName(), lostStreak);
         streaks.put(victimId, 0);
 
         String coords = formatCoordinates(victim.getLocation());
@@ -391,6 +435,7 @@ public final class BattlePit implements Listener {
             killerStats.addKills(1);
             killerStats.addPoints(reward);
             killerStats.recordStreak(streak);
+            careerStats.recordKill(killer.getUniqueId(), killer.getName(), streak);
 
             long balance = points == null ? 0L : points.get(killer.getUniqueId());
             String weapon = weaponName(killer, victim);
@@ -400,11 +445,13 @@ public final class BattlePit implements Listener {
                     + " HP&7. &a+&6" + reward + " &7(&6" + balance + " pts&7), streak &e" + streak
                     + "&7.", NamedTextColor.GRAY);
             if (plugin.sounds(killer)) {
-                killer.playSound(killer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP,
-                        SoundCategory.PLAYERS, 0.6f, 1.4f);
+                killer.playSound(killer.getLocation(), "guab:pit_kill",
+                        SoundCategory.PLAYERS, 0.75f, 1.0f);
             }
-            plugin.actionBar(killer, Component.text("Eliminated " + victim.getName()
-                    + "  +" + reward + " pts  Streak " + streak, NamedTextColor.GOLD),
+            Component killLine = GuabGlyphs.withIcon(true, killer, GuabGlyphs.SKULL,
+                    NamedTextColor.DARK_RED, Component.text("Eliminated " + victim.getName()
+                            + "  +" + reward + " pts  Streak " + streak, NamedTextColor.GOLD));
+            plugin.actionBar(killer, killLine,
                     HudChannel.PRIORITY_CRITICAL, 40);
             String victimLoss = lost > 0 ? "  -" + lost + " pts" : "";
             plugin.actionBar(victim, Component.text("Eliminated by " + killer.getName()
@@ -416,6 +463,10 @@ public final class BattlePit implements Listener {
                 Bukkit.broadcast(Component.text("[BattlePit] ", NamedTextColor.GOLD)
                         .append(Component.text(killer.getName() + " is on a " + streak + " kill streak!",
                                 NamedTextColor.YELLOW)));
+            }
+            long bounty = claimBounty(victim, killer);
+            if (bounty > 0) {
+                killerStats.addPoints((int) Math.min(Integer.MAX_VALUE, bounty));
             }
         } else {
             broadcast("&7" + victim.getName() + " died in the pit at &f" + coords
@@ -454,8 +505,7 @@ public final class BattlePit implements Listener {
             player.teleport(spawn);
             player.setFallDistance(0);
             player.setInvulnerable(true);
-            player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 80, 250, false, false, false));
-            player.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 80, 250, false, false, false));
+            applyBountyGlow(player);
             respawnCountdown(player, 3);
         });
     }
@@ -467,6 +517,7 @@ public final class BattlePit implements Listener {
         if (fighters.contains(id)) {
             return;
         }
+        clearBountyGlow(player);
         if (!plugin.getConfig().getBoolean("battlepit.restore-saved-on-join", true)) {
             return;
         }
@@ -486,8 +537,6 @@ public final class BattlePit implements Listener {
         }
         if (seconds <= 0) {
             player.setInvulnerable(false);
-            player.removePotionEffect(PotionEffectType.SLOWNESS);
-            player.removePotionEffect(PotionEffectType.JUMP_BOOST);
             if (plugin.kitEnabled()) {
                 BattleKit.resetAndGive(plugin, player);
             }
@@ -515,8 +564,6 @@ public final class BattlePit implements Listener {
 
     private void releaseRespawnHold(Player player) {
         player.setInvulnerable(false);
-        player.removePotionEffect(PotionEffectType.SLOWNESS);
-        player.removePotionEffect(PotionEffectType.JUMP_BOOST);
     }
 
     @EventHandler
@@ -526,8 +573,15 @@ public final class BattlePit implements Listener {
         if (fighters.remove(id)) {
             releaseRespawnHold(player);
             clearMetadata(player);
-            restore(player);
-            broadcast("&7" + player.getName() + " left the pit.", NamedTextColor.DARK_GRAY);
+            clearBountyGlow(player);
+            if (player.isDead()) {
+                // Respawning later would apply a stale inventory on top of the death
+                // screen. Keep the saved gear so onJoin restores it once they are alive.
+                broadcast("&7" + player.getName() + " left the pit.", NamedTextColor.DARK_GRAY);
+            } else {
+                restore(player);
+                broadcast("&7" + player.getName() + " left the pit.", NamedTextColor.DARK_GRAY);
+            }
         }
         streaks.remove(id);
         protectedUntil.remove(id);
@@ -584,9 +638,10 @@ public final class BattlePit implements Listener {
         NamedTextColor colour = health <= max * 0.25
                 ? NamedTextColor.RED
                 : health <= max * 0.5 ? NamedTextColor.YELLOW : NamedTextColor.GREEN;
-        plugin.actionBar(shooter, Component.text(
-                String.format(Locale.ROOT, "Hit %s — %.1f/%.0f HP", victim.getName(), health, max),
-                colour), HudChannel.PRIORITY_HINT, 30);
+        Component hitLine = GuabGlyphs.withIcon(true, shooter, GuabGlyphs.HEART, colour,
+                Component.text(String.format(Locale.ROOT, "Hit %s — %.1f/%.0f HP",
+                        victim.getName(), health, max), colour));
+        plugin.actionBar(shooter, hitLine, HudChannel.PRIORITY_HINT, 30);
     }
 
     private Player attacker(Entity damager) {
@@ -649,6 +704,10 @@ public final class BattlePit implements Listener {
     }
 
     private void tick() {
+        if (persistStats() && ++autosaveTicks >= 60) {
+            autosaveTicks = 0;
+            careerStats.saveIfDirty();
+        }
         if (fighters.isEmpty()) {
             return;
         }
@@ -691,6 +750,128 @@ public final class BattlePit implements Listener {
             }
             plugin.actionBar(player, bar, HudChannel.PRIORITY_HINT, 30);
         }
+    }
+
+    /**
+     * Records and announces the highest live streak before {@link #stop()} clears the
+     * session, so the champion is remembered in the career file across a restart.
+     */
+    private void announceStreakChampion() {
+        int top = topStreak();
+        if (top <= 0) {
+            return;
+        }
+        String champion = "a fighter";
+        for (Map.Entry<UUID, Integer> entry : streaks.entrySet()) {
+            int value = entry.getValue();
+            if (value <= 0) {
+                continue;
+            }
+            Player online = Bukkit.getPlayer(entry.getKey());
+            if (online != null) {
+                careerStats.recordStreak(entry.getKey(), online.getName(), value);
+                if (value == top) {
+                    champion = online.getName();
+                }
+            } else if (value == top) {
+                PitStatsStore.Career career = careerStats.find(entry.getKey());
+                if (career != null) {
+                    champion = career.name();
+                }
+            }
+        }
+        broadcast("&6" + champion + " &7holds the pit streak record of &e" + top
+                + "&7 and it survives the restart.", NamedTextColor.GOLD);
+        plugin.getLogger().info("Battle pit streak champion " + champion + " (" + top
+                + ") saved before shutdown.");
+    }
+
+    private boolean persistStats() {
+        return plugin.getConfig().getBoolean("battlepit.persist-stats", true);
+    }
+
+    private void applyBountyGlow(Player player) {
+        if (careerStats.bountyAmount(player.getUniqueId()) <= 0) {
+            return;
+        }
+        player.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 0,
+                false, false, false));
+    }
+
+    private void clearBountyGlow(Player player) {
+        if (careerStats.bountyAmount(player.getUniqueId()) > 0) {
+            player.removePotionEffect(PotionEffectType.GLOWING);
+        }
+    }
+
+    /** Pays the victim's bounty to the killer and clears the highlight. */
+    private long claimBounty(Player victim, Player killer) {
+        PitStatsStore.Bounty bounty = careerStats.claimBounty(victim.getUniqueId());
+        if (bounty == null || bounty.amount() <= 0) {
+            return 0L;
+        }
+        victim.removePotionEffect(PotionEffectType.GLOWING);
+        PointsService points = points();
+        if (points != null) {
+            points.add(killer.getUniqueId(), bounty.amount());
+        }
+        broadcast("&6" + killer.getName() + " &7claimed the &6" + bounty.amount()
+                + (bounty.amount() == 1 ? " point" : " points") + " &7bounty on &f"
+                + victim.getName() + "&7.", NamedTextColor.GOLD);
+        if (plugin.sounds(killer)) {
+            killer.playSound(killer.getLocation(), "guab:pit_kill",
+                    SoundCategory.PLAYERS, 0.8f, 1.8f);
+        }
+        return bounty.amount();
+    }
+
+    /**
+     * Player-funded bounty: the points leave the placer immediately and are paid to
+     * whoever kills the target. Rejects zero/negative amounts, offline targets, targets
+     * outside the pit and totals above {@code battlepit.bounty.max}.
+     */
+    public boolean placeBounty(Player placer, Player target, long amount) {
+        if (amount <= 0) {
+            msg(placer, "&cThe bounty must be greater than zero.", NamedTextColor.RED);
+            return false;
+        }
+        if (!plugin.getConfig().getBoolean("battlepit.bounty.enabled", true)) {
+            msg(placer, "&cBounties are disabled.", NamedTextColor.RED);
+            return false;
+        }
+        if (placer.getUniqueId().equals(target.getUniqueId())) {
+            msg(placer, "&cYou cannot put a bounty on yourself.", NamedTextColor.RED);
+            return false;
+        }
+        if (!inPit(target)) {
+            msg(placer, "&c" + target.getName() + " is not in the battle pit.", NamedTextColor.RED);
+            return false;
+        }
+        long max = plugin.getConfig().getLong("battlepit.bounty.max", 0L);
+        long existing = careerStats.bountyAmount(target.getUniqueId());
+        if (max > 0 && (amount > max || existing + amount > max)) {
+            msg(placer, "&cThe total bounty on " + target.getName() + " is capped at &6"
+                    + max + " points&c.", NamedTextColor.RED);
+            return false;
+        }
+        PointsService points = points();
+        if (points == null) {
+            msg(placer, "&cPoints are unavailable right now.", NamedTextColor.RED);
+            return false;
+        }
+        if (!points.take(placer.getUniqueId(), amount)) {
+            msg(placer, "&cYou do not have &6" + amount + " points&c.", NamedTextColor.RED);
+            return false;
+        }
+        long total = careerStats.addBounty(target.getUniqueId(), target.getName(), amount);
+        applyBountyGlow(target);
+        Bukkit.broadcast(Component.text("[BattlePit] ", NamedTextColor.GOLD)
+                .append(Component.text(placer.getName() + " placed a ", NamedTextColor.GRAY))
+                .append(Component.text(total + " point", NamedTextColor.GOLD))
+                .append(Component.text(" bounty on ", NamedTextColor.GRAY))
+                .append(Component.text(target.getName(), NamedTextColor.RED))
+                .append(Component.text(".", NamedTextColor.GRAY)));
+        return true;
     }
 
     public Location spawn() {

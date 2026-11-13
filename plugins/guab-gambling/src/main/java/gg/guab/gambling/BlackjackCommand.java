@@ -74,7 +74,7 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 try {
-                    int bet = Integer.parseInt(args[0]);
+                    long bet = Long.parseLong(args[0]);
                     blackjack.start(player, bet);
                     openAfterStart(player);
                 } catch (NumberFormatException exception) {
@@ -91,10 +91,10 @@ public final class BlackjackCommand implements CommandExecutor, TabCompleter {
             info(player, "Finish this hand first: /bj hit, /bj stand or /bj double.");
             return;
         }
-        int bet = blackjack.lastBet(player);
+        long bet = blackjack.lastBet(player);
         if (args.length > 0) {
             try {
-                bet = Integer.parseInt(args[0]);
+                bet = Long.parseLong(args[0]);
             } catch (NumberFormatException exception) {
                 error(player, "Usage: /new [bet]");
                 return;

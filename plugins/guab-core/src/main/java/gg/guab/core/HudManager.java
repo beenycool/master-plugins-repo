@@ -1,9 +1,9 @@
 package gg.guab.core;
 
-import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import io.papermc.paper.scoreboard.numbers.NumberFormat;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
@@ -37,8 +37,6 @@ import java.util.UUID;
 public final class HudManager implements Listener {
 
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
-    private static final Key HUD_FONT = Key.key("guab", "hud");
-    private static final String GLYPH_COIN = "\uE000";
 
     private final GuabCorePlugin plugin;
     private final PointsService points;
@@ -147,6 +145,102 @@ public final class HudManager implements Listener {
         return LEGACY.deserialize(raw == null ? "" : raw);
     }
 
+    private static boolean isHudGlyph(char value) {
+        return value >= GuabGlyphs.COIN && value <= GuabGlyphs.LOGO;
+    }
+
+    private static boolean hasHudGlyph(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            if (isHudGlyph(text.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String stripHudGlyphs(String text) {
+        StringBuilder plain = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            if (!isHudGlyph(text.charAt(i))) {
+                plain.append(text.charAt(i));
+            }
+        }
+        return plain.toString();
+    }
+
+    /**
+     * Parses a line and gives any pack glyph its own {@code guab:hud} component.
+     * The local {@link #withIcon(Player, char, NamedTextColor, Component)} handles
+     * the coin that the manager adds itself; this path covers glyphs written
+     * directly into config lines (beer, dart, skull, logo).
+     *
+     * <p>When the pack is disabled globally or declined by this player, every
+     * private-use glyph is stripped instead of being rendered as a tofu box.</p>
+     */
+    private Component parseIcons(String raw, boolean declined) {
+        String text = raw == null ? "" : raw;
+        if (!hasHudGlyph(text)) {
+            return parse(text);
+        }
+        if (!fontIcons() || declined) {
+            return parse(stripHudGlyphs(text));
+        }
+        Component out = Component.empty();
+        int start = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char value = text.charAt(i);
+            if (!isHudGlyph(value)) {
+                continue;
+            }
+            if (i > start) {
+                out = out.append(parse(text.substring(start, i)));
+            }
+            out = out.append(GuabGlyphs.icon(value, null));
+            start = i + 1;
+        }
+        if (start < text.length()) {
+            out = out.append(parse(text.substring(start)));
+        }
+        return out;
+    }
+
+    /**
+     * Whether the configured title/header already opens with the logo glyph,
+     * skipping legacy formatting codes.
+     */
+    private static boolean startsWithGlyph(String text, char glyph) {
+        for (int i = 0; i < text.length(); i++) {
+            char value = text.charAt(i);
+            if (value == '&' || value == '\u00A7') {
+                i++;
+                continue;
+            }
+            return value == glyph;
+        }
+        return false;
+    }
+
+    /**
+     * Prefixes the sidebar title or tab header with the small logo unless the
+     * configured text already starts with it. Respects the optional
+     * {@code hud.logo} switch, the global icon switch and the player's
+     * resource-pack decision.
+     */
+    private Component withLogo(String raw, boolean declined) {
+        String text = raw == null ? "" : raw;
+        Component body = parseIcons(text, declined);
+        if (!logoEnabled() || !fontIcons() || declined || startsWithGlyph(text, GuabGlyphs.LOGO)) {
+            return body;
+        }
+        return GuabGlyphs.withIcon(fontIcons(), declined,
+                GuabGlyphs.LOGO, NamedTextColor.GOLD, body);
+    }
+
+    /** Optional, separate switch for the sidebar/tab logo; defaults to on. */
+    private boolean logoEnabled() {
+        return plugin.getConfig().getBoolean("hud.logo", true);
+    }
+
     /**
      * Whether private-use glyphs from the Guab resource pack should be drawn.
      * Admins can turn this off when the pack is not installed, because clients
@@ -161,14 +255,8 @@ public final class HudManager implements Listener {
      * font; the wrapper deliberately does not, so the rest of the line keeps
      * the default font instead of inheriting a font with no ASCII glyphs.
      */
-    private Component withIcon(String glyph, NamedTextColor colour, Component body) {
-        if (!fontIcons()) {
-            return body;
-        }
-        return Component.empty()
-                .append(Component.text(glyph, colour).font(HUD_FONT))
-                .append(Component.text(" "))
-                .append(body);
+    private Component withIcon(Player player, char glyph, NamedTextColor colour, Component body) {
+        return GuabGlyphs.withIcon(fontIcons(), player, glyph, colour, body);
     }
 
     private HudTokens tokens(Player player) {
@@ -274,16 +362,26 @@ public final class HudManager implements Listener {
         private final List<String> lastLines = new ArrayList<>();
         private final Map<String, Integer> lastScores = new HashMap<>();
         private boolean lastFontIcons;
+        private boolean lastDeclined;
         private int lastPointsLine = -1;
         private Component lastHeader;
         private Component lastFooter;
+        private String lastTitle;
+        private String lastBelowNameTitle;
+        private boolean lastTitleLogo;
+        private boolean lastBelowNameIcon;
 
         private Panel(Player player) {
             this.player = player;
             this.board = Bukkit.getScoreboardManager().getNewScoreboard();
             String title = plugin.getConfig().getString("hud.scoreboard.title", "&6&lGUAB");
-            this.objective = board.registerNewObjective("guab", Criteria.DUMMY, parse(title));
+            boolean declined = GuabGlyphs.declined(player);
+            this.objective = board.registerNewObjective("guab", Criteria.DUMMY,
+                    withLogo(title, declined));
             this.objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+            this.objective.numberFormat(NumberFormat.blank());
+            this.lastTitle = title;
+            this.lastTitleLogo = logoEnabled() && fontIcons() && !declined;
             this.belowName = registerBelowName();
             player.setScoreboard(board);
         }
@@ -297,9 +395,13 @@ public final class HudManager implements Listener {
                 return null;
             }
             String title = plugin.getConfig().getString("hud.below-name.title", "&6Points");
+            boolean declined = GuabGlyphs.declined(player);
             Objective objective = board.registerNewObjective("guab_points", Criteria.DUMMY,
-                    withIcon(GLYPH_COIN, NamedTextColor.GOLD, parse(title)));
+                    withIcon(player, GuabGlyphs.COIN, NamedTextColor.GOLD,
+                            parseIcons(title, declined)));
             objective.setDisplaySlot(DisplaySlot.BELOW_NAME);
+            this.lastBelowNameTitle = title;
+            this.lastBelowNameIcon = fontIcons() && !declined;
             return objective;
         }
 
@@ -307,17 +409,19 @@ public final class HudManager implements Listener {
             if (!player.isOnline()) {
                 return;
             }
+            applyTitles();
+            boolean spectatingOrCinema = player.getGameMode() == GameMode.SPECTATOR
+                    || player.getWorld().getName().equals("guab_cinema");
             boolean showNametag = belowName != null
-                    && preferences.nametag(player.getUniqueId());
+                    && preferences.nametag(player.getUniqueId())
+                    && !spectatingOrCinema;
             if (belowName != null) {
-                boolean hide = !showNametag
-                        || player.getGameMode() == GameMode.SPECTATOR
-                        || player.getWorld().getName().equals("guab_cinema");
-                belowName.setDisplaySlot(hide ? null : DisplaySlot.BELOW_NAME);
+                belowName.setDisplaySlot(showNametag ? DisplaySlot.BELOW_NAME : null);
             }
 
             boolean showSidebar = plugin.getConfig().getBoolean("hud.scoreboard.enabled", true)
-                    && preferences.sidebar(player.getUniqueId());
+                    && preferences.sidebar(player.getUniqueId())
+                    && !spectatingOrCinema;
             boolean showTab = plugin.getConfig().getBoolean("hud.tab.enabled", true)
                     && preferences.tab(player.getUniqueId());
             if (showSidebar || showTab) {
@@ -338,6 +442,35 @@ public final class HudManager implements Listener {
             }
             if (showNametag) {
                 refreshBelowName();
+            }
+        }
+
+        /** Re-read the configurable titles so {@code /guabcore reload} applies edits. */
+        private void applyTitles() {
+            String title = plugin.getConfig().getString("hud.scoreboard.title", "&6&lGUAB");
+            if (title == null) {
+                title = "";
+            }
+            boolean declined = GuabGlyphs.declined(player);
+            boolean titleLogo = logoEnabled() && fontIcons() && !declined;
+            if (!title.equals(lastTitle) || titleLogo != lastTitleLogo) {
+                lastTitle = title;
+                lastTitleLogo = titleLogo;
+                objective.displayName(withLogo(title, declined));
+            }
+            if (belowName == null) {
+                return;
+            }
+            String below = plugin.getConfig().getString("hud.below-name.title", "&6Points");
+            if (below == null) {
+                below = "";
+            }
+            boolean belowIcon = fontIcons() && !declined;
+            if (!below.equals(lastBelowNameTitle) || belowIcon != lastBelowNameIcon) {
+                lastBelowNameTitle = below;
+                lastBelowNameIcon = belowIcon;
+                belowName.displayName(withIcon(player, GuabGlyphs.COIN,
+                        NamedTextColor.GOLD, parseIcons(below, declined)));
             }
         }
 
@@ -376,17 +509,34 @@ public final class HudManager implements Listener {
             }
             List<String> lines = new ArrayList<>(raw.size());
             List<Boolean> pointsFlags = new ArrayList<>(raw.size());
+            boolean baseHasPoints = false;
             for (String template : raw) {
                 lines.add(tokens.apply(template));
-                pointsFlags.add(template.contains("%points%"));
+                boolean pointsLine = template.contains("%points%");
+                pointsFlags.add(pointsLine);
+                baseHasPoints |= pointsLine;
             }
 
+            // Only the highest-priority provider that has anything to say owns the
+            // context block. Layering every provider (pub + casino + pit) blew the
+            // 15-line budget and made unrelated sections compete for the sidebar.
             List<String> context = new ArrayList<>();
             for (HudContextService provider : contextProviders()) {
+                List<String> providerLines = new ArrayList<>();
                 for (String line : safeLines(provider, player)) {
-                    if (line != null && !line.isEmpty()) {
-                        context.add(tokens.apply(line));
+                    if (line == null || line.isEmpty()) {
+                        continue;
                     }
+                    // The base config already shows the balance; do not repeat it
+                    // just because a venue context also carries a %points% line.
+                    if (baseHasPoints && line.contains("%points%")) {
+                        continue;
+                    }
+                    providerLines.add(tokens.apply(line));
+                }
+                if (!providerLines.isEmpty()) {
+                    context.addAll(providerLines);
+                    break;
                 }
             }
             if (!context.isEmpty()) {
@@ -419,11 +569,13 @@ public final class HudManager implements Listener {
             }
 
             boolean icons = fontIcons();
+            boolean declined = GuabGlyphs.declined(player);
             if (lines.equals(lastLines) && icons == lastFontIcons
-                    && pointsLine == lastPointsLine) {
+                    && declined == lastDeclined && pointsLine == lastPointsLine) {
                 return;
             }
             lastFontIcons = icons;
+            lastDeclined = declined;
             lastPointsLine = pointsLine;
             if (entries.size() > lines.size()) {
                 for (int i = lines.size(); i < entries.size(); i++) {
@@ -450,9 +602,9 @@ public final class HudManager implements Listener {
             for (int i = 0; i < lines.size(); i++) {
                 Team team = board.getTeam("guab_line_" + i);
                 if (team != null) {
-                    Component line = parse(lines.get(i));
+                    Component line = parseIcons(lines.get(i), declined);
                     if (i == pointsLine) {
-                        line = withIcon(GLYPH_COIN, NamedTextColor.GOLD, line);
+                        line = withIcon(player, GuabGlyphs.COIN, NamedTextColor.GOLD, line);
                     }
                     team.prefix(line);
                 }
@@ -478,13 +630,15 @@ public final class HudManager implements Listener {
         }
 
         private void refreshTab(HudTokens tokens) {
-            Component header = parse(tokens.apply(
-                    plugin.getConfig().getString("hud.tab.header", "&6&lGUAB &8» &f%area%")));
+            boolean declined = GuabGlyphs.declined(player);
+            Component header = withLogo(tokens.apply(
+                    plugin.getConfig().getString("hud.tab.header", "&6&lGUAB &8» &f%area%")),
+                    declined);
             String footerRaw = plugin.getConfig().getString("hud.tab.footer",
                     "&7Points &8» &6%points%");
-            Component footer = parse(tokens.apply(footerRaw));
+            Component footer = parseIcons(tokens.apply(footerRaw), declined);
             if (footerRaw != null && footerRaw.contains("%points%")) {
-                footer = withIcon(GLYPH_COIN, NamedTextColor.GOLD, footer);
+                footer = withIcon(player, GuabGlyphs.COIN, NamedTextColor.GOLD, footer);
             }
             if (header.equals(lastHeader) && footer.equals(lastFooter)) {
                 return;

@@ -37,6 +37,16 @@ final class VaultEconomy implements Economy {
     }
 
     private static UUID id(String playerName) {
+        var online = Bukkit.getPlayerExact(playerName);
+        if (online != null) {
+            return online.getUniqueId();
+        }
+        OfflinePlayer cached = Bukkit.getOfflinePlayerIfCached(playerName);
+        if (cached != null) {
+            return cached.getUniqueId();
+        }
+        // A third-party plugin asked about a name we have never seen. This can
+        // trigger a synchronous Mojang lookup, so it is strictly the last resort.
         return Bukkit.getOfflinePlayer(playerName).getUniqueId();
     }
 

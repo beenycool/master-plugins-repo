@@ -1,6 +1,9 @@
 package gg.guab.items;
 
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Color;
+import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -11,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Central table for the pub's drunk tiers, the universal drunk effects and the
@@ -38,15 +42,13 @@ final class DrunkEffects {
         DRUNK(3, DrunkTiers.DRUNK, "Drunk", NamedTextColor.RED, List.of(
                 new EffectSpec(PotionEffectType.SLOWNESS, 30, 0),
                 new EffectSpec(PotionEffectType.NAUSEA, 30, 0))),
+        // Tier 4+ no longer blinds or makes the room spin. An amber pub glow
+        // plus a gentle horizontal particle wave sells the state without taking
+        // the dartboard (or the bar) away from the player.
         WRECKED(4, DrunkTiers.WRECKED, "Wrecked", NamedTextColor.DARK_RED, List.of(
-                new EffectSpec(PotionEffectType.SLOWNESS, 30, 0),
-                new EffectSpec(PotionEffectType.NAUSEA, 30, 0),
-                new EffectSpec(PotionEffectType.BLINDNESS, 30, 0))),
+                new EffectSpec(PotionEffectType.SLOWNESS, 30, 0))),
         ABSOLUTELY_WETHERSPOONS(5, DrunkTiers.ABSOLUTELY_WETHERSPOONS, "Absolutely Wetherspoons", NamedTextColor.DARK_PURPLE, List.of(
-                new EffectSpec(PotionEffectType.SLOWNESS, 30, 1),
-                new EffectSpec(PotionEffectType.NAUSEA, 30, 1),
-                new EffectSpec(PotionEffectType.BLINDNESS, 30, 0),
-                new EffectSpec(PotionEffectType.DARKNESS, 30, 0)));
+                new EffectSpec(PotionEffectType.SLOWNESS, 30, 1)));
 
         private final int level;
         private final double minimumUnits;
@@ -102,6 +104,16 @@ final class DrunkEffects {
     /** Only the effects this plugin actually applied, per player. */
     private static final Map<UUID, Set<PotionEffectType>> APPLIED = new HashMap<>();
 
+    /** When each player is next due a short tier 4+ blink, in epoch millis. */
+    private static final Map<UUID, Long> NEXT_BLINK = new HashMap<>();
+
+    private static final List<String> BLINK_MESSAGES = List.of(
+            "The room blinks. Try to stay upright.",
+            "You hiccup. The floor sways politely.",
+            "Everything goes dark for a second. Probably fine.",
+            "The carpet is definitely moving.",
+            "You forget which pint you are on.");
+
     static Tier forUnits(double units) {
         Tier[] tiers = Tier.values();
         return tiers[DrunkTiers.levelFor(units)];
@@ -128,6 +140,62 @@ final class DrunkEffects {
                 applyEffect(player, signature);
             }
         }
+        if (tier.level() >= Tier.WRECKED.level()) {
+            maybeHiccup(player, tier);
+        }
+    }
+
+    /**
+     * The tier 4+ signature look: a warm amber glow around the player and a
+     * slow horizontal dust wave at head height. It is purely visual, so the
+     * player can still aim at darts, read the bar and walk home.
+     */
+    static void ambient(Player player, Tier tier, int tickCounter) {
+        if (tier.level() < Tier.WRECKED.level() || player.getWorld() == null) {
+            return;
+        }
+        if (tickCounter % 2 != 0) {
+            return;
+        }
+        long phase = tickCounter / 2L;
+        var world = player.getWorld();
+        var base = player.getLocation();
+        int points = tier.level() >= Tier.ABSOLUTELY_WETHERSPOONS.level() ? 10 : 7;
+        double radius = tier.level() >= Tier.ABSOLUTELY_WETHERSPOONS.level() ? 2.2 : 1.7;
+        for (int index = 0; index < points; index++) {
+            double angle = phase * 0.18 + (Math.PI * 2.0 * index / points);
+            double x = Math.cos(angle) * radius;
+            double z = Math.sin(angle) * radius;
+            double y = 1.05 + Math.sin(angle * 2.0 + phase * 0.12) * 0.42;
+            world.spawnParticle(Particle.DUST, base.clone().add(x, y, z), 1,
+                    0.05, 0.05, 0.05, 0.0,
+                    new Particle.DustOptions(Color.fromRGB(0xF2A93B), 0.85f));
+        }
+        // A soft amber aura at eye level: enough to tint the player's view with
+        // motes without a blindness/darkness effect.
+        world.spawnParticle(Particle.DUST, base.clone().add(0, 1.55, 0), 2,
+                0.55, 0.35, 0.55, 0.0,
+                new Particle.DustOptions(Color.fromRGB(0xFFC46B), 1.15f));
+        if (tickCounter % 160 == 0) {
+            world.spawnParticle(Particle.END_ROD, base.clone().add(0, 1.8, 0), 2,
+                    0.25, 0.15, 0.25, 0.01);
+        }
+    }
+
+    /** Occasional flavour, not a screen blackout. */
+    private static void maybeHiccup(Player player, Tier tier) {
+        UUID id = player.getUniqueId();
+        long now = System.currentTimeMillis();
+        if (now < NEXT_BLINK.getOrDefault(id, 0L)) {
+            return;
+        }
+        boolean worst = tier.level() >= Tier.ABSOLUTELY_WETHERSPOONS.level();
+        NEXT_BLINK.put(id, now + (worst ? 11_000L : 15_000L));
+        if (ThreadLocalRandom.current().nextInt(100) < 80) {
+            player.sendMessage(Component.text(
+                    BLINK_MESSAGES.get(ThreadLocalRandom.current().nextInt(BLINK_MESSAGES.size())),
+                    NamedTextColor.GOLD));
+        }
     }
 
     static void applyHangover(Player player) {
@@ -147,6 +215,7 @@ final class DrunkEffects {
      * source is left alone unless the pub itself handed out Speed.
      */
     static void clear(Player player) {
+        NEXT_BLINK.remove(player.getUniqueId());
         Set<PotionEffectType> applied = APPLIED.remove(player.getUniqueId());
         if (applied == null) {
             return;
@@ -158,5 +227,6 @@ final class DrunkEffects {
 
     static void forget(UUID player) {
         APPLIED.remove(player);
+        NEXT_BLINK.remove(player);
     }
 }

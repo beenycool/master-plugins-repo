@@ -175,6 +175,22 @@ pub:
     # Drinks older than this stop counting towards the meter. Each pint decays
     # linearly across this window, so the room gradually stops spinning.
     window-seconds: 900
+  # Temporary Happy Hour started with /pub happyhour <minutes|off>.
+  happy-hour:
+    # Drinks give this many times their normal alcohol units.
+    drunk-multiplier: 2
+    # Quiz prizes are multiplied by this while happy hour runs.
+    quiz-reward-multiplier: 2
+    # Pub prices are divided by this (2 = half price). Commands and menus that
+    # price through PubManager.pubPrice(int) honour the discount.
+    price-divisor: 2
+  # Server-wide social point sinks.
+  golden-round:
+    # Cost to buy every eligible player online a house pint, with fireworks.
+    cost: 500
+  rickroll:
+    # Cost to hire a rickroll on another online player from the pub menu.
+    cost: 1500
   # Points awarded once per lifetime pint milestone.
   milestones:
     rewards:
@@ -204,6 +220,8 @@ pub:
     cooldown-seconds: 0.35
     # The player must be this close to the board.
     max-distance: 8.0
+    # Largest stake accepted by /darts challenge <player> [bet].
+    max-stake: 100000
     default-mode: 101
     legs-to-win: 1
     # Beginner assist: an impossible finish is ignored instead of busting the
@@ -315,6 +333,8 @@ pub:
       - "How many bones are in the adult human body? | 206"
       - "What is the capital of Sweden? | Stockholm"
   menu:
+    # Spawn branded beer ItemDisplays on the protected shelves.
+    shelf-displays: true
     # Shelves whose contents are display-only and cannot be taken. Right-click
     # one to open the full beer menu.
     shelves:

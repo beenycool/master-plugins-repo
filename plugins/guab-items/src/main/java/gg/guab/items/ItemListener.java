@@ -5,14 +5,11 @@ import io.papermc.paper.datacomponent.DataComponentTypes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.GameMode;
-import org.bukkit.Sound;
-import org.bukkit.SoundCategory;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
@@ -26,18 +23,17 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
-import java.util.HashSet;
 import java.util.Locale;
-import java.util.Set;
-import java.util.UUID;
 
 /**
  * Right-click behaviour and the guards that keep renamed/crafted lookalikes inert.
+ * Beer is deliberately not handled here: vanilla consumption drives it through
+ * {@link BeerDrinkListener}, so block interactions still work and the 1.1s
+ * CONSUMABLE animation plays.
  */
 public final class ItemListener implements Listener {
 
     private final GuabItemsPlugin plugin;
-    private final Set<UUID> lethalDeaths = new HashSet<>();
 
     public ItemListener(GuabItemsPlugin plugin) {
         this.plugin = plugin;
@@ -72,22 +68,11 @@ public final class ItemListener implements Listener {
             return;
         }
 
-        // Beer is deliberately handled on the click rather than waiting for the
-        // client to hold right-click. That keeps drinking reliable even when a
-        // player taps the mouse, and it still carries the 26.3 CONSUMABLE
-        // component for tooltips and any vanilla fallback path.
+        // Beer never cancels the click. Leaving the event alone lets barrels,
+        // shelves, the bartender and dealers handle their own right-click while
+        // the CONSUMABLE component starts the drink animation. The actual drink
+        // is applied when PlayerItemConsumeEvent fires.
         if (type == ItemType.BEER) {
-            event.setCancelled(true);
-            if (player.getGameMode() == GameMode.SPECTATOR) {
-                return;
-            }
-            if (!player.hasPermission("guab.pub.use")) {
-                actionBar(player, Component.text("You cannot use Guab items.", NamedTextColor.RED));
-                return;
-            }
-            stack = plugin.items().canonicalize(stack);
-            inventory.setItem(hand, stack);
-            useBeer(player, stack, hand);
             return;
         }
 
@@ -124,48 +109,6 @@ public final class ItemListener implements Listener {
         if (consume) {
             consumeOne(player, hand);
         }
-    }
-
-    private void useBeer(Player player, ItemStack stack, EquipmentSlot hand) {
-        long remaining = plugin.cooldowns().remainingMillis(player.getUniqueId(), ItemType.BEER);
-        if (remaining > 0L) {
-            actionBar(player, Component.text("Beer ready in "
-                    + String.format(Locale.ROOT, "%.1f", remaining / 1000.0) + "s", NamedTextColor.GRAY));
-            return;
-        }
-
-        BeerBrand brand = plugin.items().beerBrandOf(stack);
-        if (brand == null) {
-            brand = plugin.beer().houseBrand();
-        }
-        BeerStyle style = brand.style();
-        plugin.cooldowns().start(player.getUniqueId(), ItemType.BEER,
-                plugin.config().beerCooldownMillis());
-        if (style.lethal()) {
-            player.sendMessage(Component.text("You drink the " + brand.displayName()
-                    + ". It is instantly, catastrophically fatal.", NamedTextColor.RED));
-            consumeOne(player, hand);
-            plugin.getServer().getScheduler().runTask(plugin, () -> {
-                if (player.isOnline() && !player.isDead()) {
-                    plugin.pub().recordLethalDrink(player);
-                    lethalDeaths.add(player.getUniqueId());
-                    player.setHealth(0.0);
-                }
-            });
-            return;
-        }
-        for (ItemsConfig.BeerEffect effect : style.effects()) {
-            player.addPotionEffect(new PotionEffect(effect.type(), effect.durationTicks(),
-                    effect.amplifier(), false, true, true));
-        }
-        GuabSounds.play(player, Sound.ENTITY_GENERIC_DRINK, SoundCategory.PLAYERS, 1.0f, 0.9f);
-        GuabSounds.play(player, Sound.ENTITY_PLAYER_BURP, SoundCategory.PLAYERS, 0.6f, 1.1f);
-        GuabSounds.play(player, GuabSounds.BEER_POUR, 1.0f, 1.0f);
-        plugin.pub().recordDrink(player, brand);
-        player.sendMessage(Component.text("You crack open a cold " + brand.displayName() + ".",
-                NamedTextColor.YELLOW));
-        player.sendMessage(Component.text(style.randomMessage(), NamedTextColor.GRAY));
-        consumeOne(player, hand);
     }
 
     private void useWindCharge(Player player) {
@@ -261,18 +204,9 @@ public final class ItemListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void onDeath(PlayerDeathEvent event) {
-        if (lethalDeaths.remove(event.getEntity().getUniqueId())) {
-            event.deathMessage(Component.text(event.getEntity().getName()
-                    + " drank a Baileys and Lime. It was fatal.", NamedTextColor.RED));
-        }
-    }
-
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         plugin.cooldowns().clear(event.getPlayer().getUniqueId());
-        lethalDeaths.remove(event.getPlayer().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.HIGH)

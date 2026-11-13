@@ -233,7 +233,7 @@ public final class DartsStatsStore {
             yaml.set(path + ".last-played", stats.lastPlayed);
         }
         try {
-            yaml.save(file);
+            gg.guab.core.YamlFiles.writeAtomic(file.toPath(), yaml);
             dirty = false;
         } catch (IOException exception) {
             plugin.getLogger().warning("Could not save darts.yml: " + exception.getMessage());

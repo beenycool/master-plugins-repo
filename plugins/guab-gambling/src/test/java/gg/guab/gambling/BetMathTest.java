@@ -29,30 +29,30 @@ class BetMathTest {
     void doublingIsRefusedWhenTheStakeWouldOverflow() {
         assertFalse(BetMath.canDouble(0));
         assertFalse(BetMath.canDouble(-1));
-        assertTrue(BetMath.canDouble(Integer.MAX_VALUE / 2));
-        assertFalse(BetMath.canDouble(Integer.MAX_VALUE / 2 + 1));
-        assertFalse(BetMath.canDouble(Integer.MAX_VALUE));
+        assertTrue(BetMath.canDouble(Long.MAX_VALUE / 2));
+        assertFalse(BetMath.canDouble(Long.MAX_VALUE / 2 + 1));
+        assertFalse(BetMath.canDouble(Long.MAX_VALUE));
     }
 
     @Test
-    void payoutsClampToTheLedgerIntegerRange() {
-        assertEquals(0, BetMath.payout(-50));
-        assertEquals(0, BetMath.payout(0));
-        assertEquals(40, BetMath.payout(40));
-        assertEquals(Integer.MAX_VALUE, BetMath.payout(Long.MAX_VALUE));
+    void payoutsClampToTheLedgerRange() {
+        assertEquals(0L, BetMath.payout(-50));
+        assertEquals(0L, BetMath.payout(0));
+        assertEquals(40L, BetMath.payout(40));
+        assertEquals(Long.MAX_VALUE, BetMath.payout(Long.MAX_VALUE));
     }
 
     @Test
     void winPayoutReturnsDoubleTheStakeAndClamps() {
-        assertEquals(20, BetMath.winPayout(10));
-        assertEquals(Integer.MAX_VALUE, BetMath.winPayout(Integer.MAX_VALUE));
-        assertEquals(Integer.MAX_VALUE - 1, BetMath.winPayout(Integer.MAX_VALUE / 2));
+        assertEquals(20L, BetMath.winPayout(10));
+        assertEquals(Long.MAX_VALUE, BetMath.winPayout(Long.MAX_VALUE));
+        assertEquals(Long.MAX_VALUE - 1, BetMath.winPayout(Long.MAX_VALUE / 2));
     }
 
     @Test
     void naturalPayoutAddsTheConfiguredBonus() {
-        assertEquals(25, BetMath.naturalPayout(10, 1.5));
-        assertEquals(10, BetMath.naturalPayout(10, 0.0));
-        assertEquals(Integer.MAX_VALUE, BetMath.naturalPayout(Integer.MAX_VALUE, 1.5));
+        assertEquals(25L, BetMath.naturalPayout(10, 1.5));
+        assertEquals(10L, BetMath.naturalPayout(10, 0.0));
+        assertEquals(Long.MAX_VALUE, BetMath.naturalPayout(Long.MAX_VALUE, 1.5));
     }
 }

@@ -111,6 +111,7 @@ public final class DartsManager implements Listener {
         // the bow/arrows back so shutdown cannot leak the kit into the pub.
         room.ejectVisitors();
         room.removeLiveBoard();
+        refundMatches();
         games.clear();
         matches.clear();
         invites.clear();
@@ -161,7 +162,7 @@ public final class DartsManager implements Listener {
             return List.of();
         }
         List<String> lines = new ArrayList<>();
-        lines.add("&8Darts");
+        lines.add("&8\uE002 Darts");
         DartsMatch match = matches.get(player.getUniqueId());
         if (match != null) {
             DartsGame other = games.get(match.other(player.getUniqueId()));
@@ -183,8 +184,16 @@ public final class DartsManager implements Listener {
     }
 
     public boolean challenge(Player from, Player target) {
+        return challenge(from, target, 0L);
+    }
+
+    public boolean challenge(Player from, Player target, long stake) {
         if (!config.enabled()) {
             actionBar(from, Component.text("The dartboard is closed.", NamedTextColor.RED));
+            return false;
+        }
+        if (stake < 0L || stake > config.maxStake()) {
+            actionBar(from, Component.text("That wager is outside the allowed range.", NamedTextColor.RED));
             return false;
         }
         if (from.getUniqueId().equals(target.getUniqueId())) {
@@ -196,10 +205,13 @@ public final class DartsManager implements Listener {
             return false;
         }
         invites.put(from.getUniqueId(),
-                new Invite(target.getUniqueId(), System.currentTimeMillis() + 60_000L));
-        send(from, "Challenged " + target.getName() + " to a 1v1. Waiting for them to accept.", NamedTextColor.GOLD);
+                new Invite(target.getUniqueId(), System.currentTimeMillis() + 60_000L, stake));
+        String wager = stake > 0L ? " with a " + stake + " point wager" : "";
+        send(from, "Challenged " + target.getName() + " to a 1v1" + wager
+                + ". Waiting for them to accept.", NamedTextColor.GOLD);
         target.sendMessage(Component.text("[Darts] ", NamedTextColor.GOLD)
-                .append(Component.text(from.getName() + " challenges you to a 1v1. ", NamedTextColor.WHITE))
+                .append(Component.text(from.getName() + " challenges you to a 1v1" + wager + ". ",
+                        NamedTextColor.WHITE))
                 .append(Component.text("[Accept]", NamedTextColor.GREEN)
                         .clickEvent(net.kyori.adventure.text.event.ClickEvent.runCommand(
                                 "/darts accept " + from.getName()))));
@@ -219,15 +231,34 @@ public final class DartsManager implements Listener {
             actionBar(target, Component.text("One of you is already on the board.", NamedTextColor.YELLOW));
             return false;
         }
-        return startMatch(challenger, target);
+        return startMatch(challenger, target, invite.stake());
     }
 
-    private boolean startMatch(Player first, Player second) {
+    private boolean startMatch(Player first, Player second, long stake) {
+        if (stake < 0L || stake > config.maxStake()) {
+            actionBar(first, Component.text("That wager is outside the allowed range.", NamedTextColor.RED));
+            actionBar(second, Component.text("That wager is outside the allowed range.", NamedTextColor.RED));
+            return false;
+        }
         // A 1v1 claims two of the four oches. Never let it overfill the room.
         if (!DartsSlots.canStartMatch(games.size())) {
             actionBar(first, Component.text("The darts room is full (4 players).", NamedTextColor.YELLOW));
             actionBar(second, Component.text("The darts room is full (4 players).", NamedTextColor.YELLOW));
             return false;
+        }
+        if (stake > 0L) {
+            if (!takeStake(first, stake)) {
+                send(second, "The challenge was cancelled because " + first.getName()
+                        + " cannot cover the wager.", NamedTextColor.RED);
+                return false;
+            }
+            if (!takeStake(second, stake)) {
+                refundStake(first.getUniqueId(), stake);
+                send(first, "The challenge was cancelled because " + second.getName()
+                        + " cannot cover the wager. Your " + stake + " point stake was refunded.",
+                        NamedTextColor.RED);
+                return false;
+            }
         }
         int mode = config.defaultMode();
         int legs = Math.max(1, config.legsToWin());
@@ -235,7 +266,7 @@ public final class DartsManager implements Listener {
         DartsGame secondGame = new DartsGame(second.getUniqueId(), second.getName(), mode, legs, config.beginnerAssist());
         games.put(first.getUniqueId(), firstGame);
         games.put(second.getUniqueId(), secondGame);
-        DartsMatch match = new DartsMatch(first.getUniqueId(), second.getUniqueId(), mode, legs);
+        DartsMatch match = new DartsMatch(first.getUniqueId(), second.getUniqueId(), mode, legs, stake);
         matches.put(first.getUniqueId(), match);
         matches.put(second.getUniqueId(), match);
         store.recordLegStart(first.getUniqueId(), first.getName());
@@ -244,11 +275,13 @@ public final class DartsManager implements Listener {
         if (!room.enter(first)) {
             rollbackStart(first, firstGame, true);
             rollbackStart(second, secondGame, true);
+            refundStake(match);
             return false;
         }
         if (!room.enter(second)) {
             rollbackStart(first, firstGame, true);
             rollbackStart(second, secondGame, true);
+            refundStake(match);
             return false;
         }
         presets.put(first.getUniqueId(), new Preset(mode, legs));
@@ -297,6 +330,7 @@ public final class DartsManager implements Listener {
             String loser = winner.getUniqueId().equals(firstId)
                     ? nameOf(secondId) : nameOf(firstId);
             send(winner, "You won the 1v1 against " + loser + ".", NamedTextColor.GOLD);
+            payWinner(match, winner.getUniqueId());
             Player other = Bukkit.getPlayer(match.other(winner.getUniqueId()));
             if (other != null) {
                 send(other, winner.getName() + " won the 1v1.", NamedTextColor.RED);
@@ -310,6 +344,73 @@ public final class DartsManager implements Listener {
             }
         }
         updateDisplay();
+    }
+
+    private boolean takeStake(Player player, long stake) {
+        PointsService points = points();
+        if (points == null) {
+            actionBar(player, Component.text("The points ledger is unavailable, so the wager cannot be placed.",
+                    NamedTextColor.RED));
+            return false;
+        }
+        if (!points.take(player.getUniqueId(), stake)) {
+            actionBar(player, Component.text("You cannot cover the " + stake + " point wager.",
+                    NamedTextColor.RED));
+            return false;
+        }
+        return true;
+    }
+
+    private void refundStake(UUID player, long stake) {
+        if (stake <= 0L) {
+            return;
+        }
+        PointsService points = points();
+        if (points != null) {
+            points.add(player, stake);
+        }
+    }
+
+    private void refundStake(DartsMatch match) {
+        if (match.stake() <= 0L) {
+            return;
+        }
+        refundStake(match.first(), match.stake());
+        refundStake(match.second(), match.stake());
+        Player first = Bukkit.getPlayer(match.first());
+        if (first != null) {
+            send(first, "Wager refunded: " + match.stake() + " points.", NamedTextColor.GRAY);
+        }
+        Player second = Bukkit.getPlayer(match.second());
+        if (second != null) {
+            send(second, "Wager refunded: " + match.stake() + " points.", NamedTextColor.GRAY);
+        }
+    }
+
+    private void refundMatches() {
+        Set<DartsMatch> refunded = new HashSet<>();
+        for (DartsMatch match : matches.values()) {
+            if (refunded.add(match)) {
+                refundStake(match);
+            }
+        }
+    }
+
+    private void payWinner(DartsMatch match, UUID winnerId) {
+        if (match.stake() <= 0L) {
+            return;
+        }
+        PointsService points = points();
+        if (points == null) {
+            return;
+        }
+        long payout = match.stake() > Long.MAX_VALUE / 2 ? Long.MAX_VALUE : match.stake() * 2L;
+        points.add(winnerId, payout);
+        Player winner = Bukkit.getPlayer(winnerId);
+        if (winner != null) {
+            send(winner, "Wager won: " + payout + " points (" + match.stake()
+                    + " from each player).", NamedTextColor.GOLD);
+        }
     }
 
     private String nameOf(UUID id) {
@@ -465,7 +566,9 @@ public final class DartsManager implements Listener {
         if (game == null || centre == null || point == null) {
             return;
         }
-        resolveThrow(player, game, point, centre, BlockFace.SOUTH, DartsRoom.BOARD_RADIUS);
+        // The arrow itself was perturbed on release, so the visual impact is
+        // scored exactly as it landed.
+        resolveThrow(player, game, point, centre, BlockFace.SOUTH, DartsRoom.BOARD_RADIUS, 0.0);
     }
 
     /** Legacy pub-board throw, kept as a fallback if the room is unavailable. */
@@ -490,11 +593,18 @@ public final class DartsManager implements Listener {
             actionBar(player, Component.text("Stand closer to the oche.", NamedTextColor.RED));
             return;
         }
-        resolveThrow(player, game, point, centre, config.face(), config.boardRadius());
+        resolveThrow(player, game, point, centre, config.face(), config.boardRadius(),
+                wobbleSigma(player.getUniqueId()));
+    }
+
+    /** Current Gaussian aim error for a player, in board radii. */
+    public double wobbleSigma(UUID player) {
+        double drunk = plugin.pub() == null ? 0 : plugin.pub().impairment(player) * 10.0;
+        return Math.min(config.wobbleMax(), config.wobbleSober() + drunk * config.wobblePerDrunk());
     }
 
     private void resolveThrow(Player player, DartsGame game, Location point,
-                              Location centre, BlockFace face, double radius) {
+                              Location centre, BlockFace face, double radius, double wobbleSigma) {
         long now = System.currentTimeMillis();
         long remaining = cooldowns.getOrDefault(player.getUniqueId(), 0L) - now;
         if (remaining > 0L) {
@@ -509,11 +619,38 @@ public final class DartsManager implements Listener {
         }
         cooldowns.put(player.getUniqueId(), now + config.cooldownMillis());
 
-        double drunk = plugin.pub() == null ? 0 : plugin.pub().impairment(player.getUniqueId()) * 10.0;
-        double wobble = Math.min(config.wobbleMax(), config.wobbleSober() + drunk * config.wobblePerDrunk());
-        DartsGeometry.Hit hit = DartsGeometry.score(centre, face, radius, point, config, wobble);
+        DartsGeometry.Hit hit = DartsGeometry.score(centre, face, radius, point, config, wobbleSigma);
 
         DartsGame.Result result = game.throwDart(hit);
+        finishThrow(player, game, result, point, match, false);
+    }
+
+    /**
+     * Consumes a dart for an arrow that hit the wall around the target. Uses the
+     * normal {@link DartsGame#throwDart} path with an explicit miss hit so turn
+     * ends, busts and match state stay consistent with a regular missed dart.
+     */
+    public void scoreMiss(Player player) {
+        DartsGame game = games.get(player.getUniqueId());
+        if (game == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long remaining = cooldowns.getOrDefault(player.getUniqueId(), 0L) - now;
+        if (remaining > 0L) {
+            return;
+        }
+        DartsMatch match = matches.get(player.getUniqueId());
+        if (match != null && !match.active().equals(player.getUniqueId())) {
+            return;
+        }
+        cooldowns.put(player.getUniqueId(), now + config.cooldownMillis());
+        DartsGame.Result result = game.throwDart(DartsGeometry.Hit.miss());
+        finishThrow(player, game, result, null, match, true);
+    }
+
+    private void finishThrow(Player player, DartsGame game, DartsGame.Result result,
+                             Location point, DartsMatch match, boolean wallMiss) {
         boolean practice = game.practice();
         if (!practice) {
             store.recordThrow(player.getUniqueId());
@@ -529,15 +666,17 @@ public final class DartsManager implements Listener {
         }
 
         showHud(player, game);
-        present(player, game, result, point);
+        present(player, game, result, point, wallMiss);
         if (result.kind() != DartsGame.Kind.BUST) {
             if (result.hit().score() > 0 && result.scoreAfter() == result.scoreBefore()) {
                 send(player, "No score — that would have bust. "
                         + result.scoreAfter() + " left", NamedTextColor.GRAY);
             } else {
-                String hitText = result.hit().score() == 0
-                        ? "Missed"
-                        : "Hit " + result.hit().label() + " for " + result.hit().score();
+                String hitText = wallMiss
+                        ? "Thud — off the wall"
+                        : result.hit().score() == 0
+                                ? "Missed"
+                                : "Hit " + result.hit().label() + " for " + result.hit().score();
                 send(player, hitText + " · " + result.scoreAfter() + " left", NamedTextColor.WHITE);
             }
         }
@@ -618,6 +757,7 @@ public final class DartsManager implements Listener {
             UUID opponentId = match.other(player.getUniqueId());
             Player other = Bukkit.getPlayer(opponentId);
             store.recordForfeitWin(opponentId);
+            payWinner(match, opponentId);
             send(player, reason, NamedTextColor.GRAY);
             if (other != null) {
                 send(other, player.getName() + " left the 1v1. You win by forfeit.",
@@ -639,6 +779,9 @@ public final class DartsManager implements Listener {
         cancelAllDraws();
         clearBossBars();
         if (games.isEmpty()) {
+            refundMatches();
+            matches.clear();
+            invites.clear();
             return;
         }
         for (UUID id : new ArrayList<>(games.keySet())) {
@@ -650,6 +793,7 @@ public final class DartsManager implements Listener {
                 }
             }
         }
+        refundMatches();
         games.clear();
         matches.clear();
         invites.clear();
@@ -806,7 +950,8 @@ public final class DartsManager implements Listener {
         }
     }
 
-    private void present(Player player, DartsGame game, DartsGame.Result result, Location point) {
+    private void present(Player player, DartsGame game, DartsGame.Result result, Location point,
+                         boolean wallMiss) {
         boolean inRoom = room.isInRoom(player);
         // Effects must live in the same world as the arrow. When the leg is
         // played in the darts room, the pub board world is the wrong place.
@@ -827,7 +972,8 @@ public final class DartsManager implements Listener {
         if (result.kind() == DartsGame.Kind.BUST) {
             GuabSounds.play(player, Sound.BLOCK_NOTE_BLOCK_BASS, SoundCategory.PLAYERS, 0.8f, 0.6f);
         } else if (result.hit().score() == 0) {
-            GuabSounds.play(player, Sound.ENTITY_ITEM_BREAK, SoundCategory.PLAYERS, 0.5f, 0.8f);
+            GuabSounds.play(player, wallMiss ? Sound.BLOCK_WOOD_HIT : Sound.ENTITY_ITEM_BREAK,
+                    SoundCategory.PLAYERS, 0.6f, 0.7f);
         } else if (result.kind() == DartsGame.Kind.CHECKOUT) {
             GuabSounds.play(player, Sound.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 0.9f, 1.2f);
             celebration(centre, result.oneEighty() ? 3 : 2);
@@ -848,16 +994,9 @@ public final class DartsManager implements Listener {
             }
             celebration(centre, 2);
         } else if (result.hit().number() == 20 && result.hit().multiplier() == 3) {
-            player.showTitle(Title.title(
-                    Component.text("TRIPLE 20", NamedTextColor.GOLD),
-                    Component.text("60", NamedTextColor.WHITE),
-                    Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(650), Duration.ofMillis(200))));
+            // Mid-visit hits stay on the action bar so the player can keep aiming.
             GuabSounds.play(player, Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.PLAYERS, 1.0f, 1.6f);
         } else if (result.hit().isBullseye()) {
-            player.showTitle(Title.title(
-                    Component.text("BULLSEYE", NamedTextColor.RED),
-                    Component.text("50", NamedTextColor.GOLD),
-                    Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(700), Duration.ofMillis(250))));
             GuabSounds.play(player, Sound.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.0f, 0.7f);
         } else {
             GuabSounds.play(player, Sound.ENTITY_ARROW_HIT, SoundCategory.PLAYERS, 0.9f, 1.2f);
@@ -879,7 +1018,8 @@ public final class DartsManager implements Listener {
                     .append(Component.text("  ·  new turn", NamedTextColor.AQUA)),
                     barPriority, 45);
         } else {
-            actionBar(player, Component.text(result.hit().label(), NamedTextColor.WHITE)
+            actionBar(player, Component.text(wallMiss ? "Off the wall" : result.hit().label(),
+                            NamedTextColor.WHITE)
                     .append(Component.text("  ·  " + result.scoreAfter() + " left", NamedTextColor.GRAY))
                     .append(Component.text("  ·  darts " + game.dartsLeft() + "/3", NamedTextColor.AQUA)),
                     barPriority, 45);
@@ -1168,6 +1308,7 @@ public final class DartsManager implements Listener {
         if (match != null) {
             UUID otherId = match.other(id);
             Player other = Bukkit.getPlayer(otherId);
+            payWinner(match, otherId);
             if (other != null) {
                 removeBossBar(other);
                 cancelDraw(other);
@@ -1192,13 +1333,15 @@ public final class DartsManager implements Listener {
         private final UUID second;
         private final int mode;
         private final int legsToWin;
+        private final long stake;
         private UUID active;
 
-        private DartsMatch(UUID first, UUID second, int mode, int legsToWin) {
+        private DartsMatch(UUID first, UUID second, int mode, int legsToWin, long stake) {
             this.first = first;
             this.second = second;
             this.mode = mode;
             this.legsToWin = legsToWin;
+            this.stake = stake;
             this.active = first;
         }
 
@@ -1208,6 +1351,10 @@ public final class DartsManager implements Listener {
 
         private UUID second() {
             return second;
+        }
+
+        private long stake() {
+            return stake;
         }
 
         private UUID active() {
@@ -1223,7 +1370,7 @@ public final class DartsManager implements Listener {
         }
     }
 
-    private record Invite(UUID target, long expiresAt) {
+    private record Invite(UUID target, long expiresAt, long stake) {
     }
 
     /** Last mode and leg count a player chose, replayed by /darts again. */

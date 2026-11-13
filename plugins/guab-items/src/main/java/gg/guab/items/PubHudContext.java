@@ -1,9 +1,11 @@
 package gg.guab.items;
 
+import gg.guab.core.GuabGlyphs;
 import gg.guab.core.HudContextService;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -42,7 +44,19 @@ public final class PubHudContext implements HudContextService {
         String world = player.getWorld().getName();
         if (world.equals(DARTS_WORLD)) {
             DartsManager darts = plugin.darts();
-            return darts == null ? List.of() : darts.hudLines(player);
+            if (darts == null) {
+                return List.of();
+            }
+            List<String> dartsLines = darts.hudLines(player);
+            if (dartsLines.isEmpty()) {
+                return dartsLines;
+            }
+            List<String> decorated = new ArrayList<>(dartsLines);
+            String header = decorated.get(0);
+            if (header != null && header.contains("Darts")) {
+                decorated.set(0, "&8" + GuabGlyphs.DART + "&8Darts");
+            }
+            return decorated;
         }
         if (!world.equals(casinoWorld())) {
             return List.of();
@@ -59,12 +73,17 @@ public final class PubHudContext implements HudContextService {
         if (player.getLocation().distanceSquared(centre) > radius * radius) {
             return List.of();
         }
-        return List.of(
-                "&8Pub",
-                "&7Pints &8» &f" + pub.pints(player.getUniqueId()),
-                "&7Drunk &8» &f"
-                        + String.format(Locale.ROOT, "%.1f", pub.drunkUnits(player.getUniqueId())) + "u",
-                "&7Beer &8» &f/beer");
+        List<String> lines = new ArrayList<>(5);
+        lines.add("&8Pub");
+        lines.add("&7Pints &8» &f" + pub.pints(player.getUniqueId()));
+        lines.add("&7" + GuabGlyphs.BEER + "&7Drunk &8» &f"
+                + String.format(Locale.ROOT, "%.1f", pub.drunkUnits(player.getUniqueId())) + "u");
+        if (pub.happyHourActive()) {
+            long minutes = Math.max(1L, (pub.happyHourRemainingMillis() + 59_999L) / 60_000L);
+            lines.add("&6Happy Hour &8» &f" + minutes + "m");
+        }
+        lines.add("&7Beer &8» &f/beer");
+        return lines;
     }
 
     private String casinoWorld() {

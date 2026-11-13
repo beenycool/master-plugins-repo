@@ -6,6 +6,7 @@ import io.papermc.paper.registry.data.dialog.ActionButton;
 import io.papermc.paper.registry.data.dialog.DialogBase;
 import io.papermc.paper.registry.data.dialog.action.DialogAction;
 import io.papermc.paper.registry.data.dialog.body.DialogBody;
+import io.papermc.paper.registry.data.dialog.input.DialogInput;
 import io.papermc.paper.registry.data.dialog.type.DialogType;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
@@ -23,6 +24,8 @@ import java.util.Locale;
  * is a real button that charges the ledger and pours the matching pint.
  */
 public final class BeerMenuDialog {
+
+    private static final String RICKROLL_INPUT = "rickroll_target";
 
     private final GuabItemsPlugin plugin;
 
@@ -84,6 +87,31 @@ public final class BeerMenuDialog {
                             style.price(), true)))
                     .build());
         }
+        int goldenCost = Math.max(0, plugin.getConfig().getInt("pub.golden-round.cost", 500));
+        actions.add(ActionButton.builder(Component.text("Golden round · " + goldenCost + " pt",
+                        NamedTextColor.GOLD))
+                .tooltip(Component.text("Buys every eligible player online a random house pint, "
+                        + "with fireworks."))
+                .width(180)
+                .action(purchaseButton(clicker -> plugin.beerService().buyGoldenRound(clicker, goldenCost)))
+                .build());
+
+        int rickrollCost = Math.max(0, plugin.getConfig().getInt("pub.rickroll.cost", 1500));
+        actions.add(ActionButton.builder(Component.text("Rickroll contract · " + rickrollCost + " pt",
+                        NamedTextColor.LIGHT_PURPLE))
+                .tooltip(Component.text("Pay to rickroll the named online player. "
+                        + "Five-minute buyer cooldown."))
+                .width(180)
+                .action(inputButton((clicker, response) -> {
+                    boolean hired = plugin.beerService().hireRickroll(clicker,
+                            response.getText(RICKROLL_INPUT), rickrollCost);
+                    if (hired && clicker.isOnline()
+                            && plugin.getConfig().getBoolean("beer.menu.enabled", true)) {
+                        plugin.getServer().getScheduler().runTask(plugin, () -> open(clicker));
+                    }
+                }))
+                .build());
+
         actions.add(ActionButton.builder(Component.text("My drinking record", NamedTextColor.AQUA))
                 .width(180)
                 .action(DialogAction.customClick(
@@ -97,7 +125,12 @@ public final class BeerMenuDialog {
                 .build());
         actions.add(backToHub());
 
-        player.showDialog(build("The Wetherspoons Bar", body, actions,
+        List<DialogInput> inputs = List.of(DialogInput.text(RICKROLL_INPUT,
+                        Component.text("Rickroll target (online player name)"))
+                .maxLength(16)
+                .build());
+
+        player.showDialog(build("The Wetherspoons Bar", body, inputs, actions,
                 Component.text("Close", NamedTextColor.GRAY), 2));
     }
 
@@ -119,6 +152,19 @@ public final class BeerMenuDialog {
                                         () -> open(clicker));
                             }
                         });
+                    }
+                },
+                options());
+    }
+
+    /** Like a purchase button, but reads the dialog response (e.g. a player name). */
+    private DialogAction inputButton(
+            java.util.function.BiConsumer<Player, DialogResponseView> action) {
+        return DialogAction.customClick(
+                (DialogResponseView response, Audience audience) -> {
+                    if (audience instanceof Player clicker) {
+                        plugin.getServer().getScheduler().runTask(plugin,
+                                () -> action.accept(clicker, response));
                     }
                 },
                 options());
@@ -176,6 +222,11 @@ public final class BeerMenuDialog {
 
     private Dialog build(String title, List<DialogBody> body, List<ActionButton> actions,
                          Component exitLabel, int columns) {
+        return build(title, body, List.of(), actions, exitLabel, columns);
+    }
+
+    private Dialog build(String title, List<DialogBody> body, List<DialogInput> inputs,
+                         List<ActionButton> actions, Component exitLabel, int columns) {
         Component titleComponent = Component.text(title, NamedTextColor.GOLD);
         ActionButton exit = ActionButton.builder(exitLabel)
                 .width(140)
@@ -190,7 +241,7 @@ public final class BeerMenuDialog {
                 .pause(false)
                 .afterAction(DialogBase.DialogAfterAction.CLOSE)
                 .body(body)
-                .inputs(List.of())
+                .inputs(inputs)
                 .build();
 
         return Dialog.create(factory -> factory.empty()

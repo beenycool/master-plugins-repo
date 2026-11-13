@@ -18,6 +18,14 @@ final class GuabSounds {
     static final Key ONE_EIGHTY = Key.key("guab", "one_eighty");
     static final Key BEER_POUR = Key.key("guab", "beer_pour");
     static final Key MILESTONE = Key.key("guab", "milestone");
+    static final Key CARD_FLIP = Key.key("guab", "card_flip");
+    static final Key CHIP_CLICK = Key.key("guab", "chip_click");
+    static final Key BLACKJACK = Key.key("guab", "blackjack");
+    static final Key DART_THUD = Key.key("guab", "dart_thud");
+    static final Key DART_MISS = Key.key("guab", "dart_miss");
+    static final Key PIT_KILL = Key.key("guab", "pit_kill");
+    static final Key DRINK_CLINK = Key.key("guab", "drink_clink");
+    static final Key HICCUP = Key.key("guab", "hiccup");
 
     private GuabSounds() {
     }

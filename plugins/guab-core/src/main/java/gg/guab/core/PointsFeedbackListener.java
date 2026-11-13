@@ -71,10 +71,11 @@ final class PointsFeedbackListener implements Listener {
                     gain ? Sound.ENTITY_EXPERIENCE_ORB_PICKUP : Sound.BLOCK_NOTE_BLOCK_BASS,
                     SoundCategory.PLAYERS, 0.6f, gain ? 1.4f : 0.8f);
         }
-        channel.send(player, Component.text(
+        Component points = Component.text(
                 (gain ? "+" : "") + String.format(Locale.ROOT, "%,d", entry.delta) + " points",
-                gain ? NamedTextColor.GREEN : NamedTextColor.RED),
-                HudChannel.PRIORITY_POINTS, 40);
+                gain ? NamedTextColor.GREEN : NamedTextColor.RED);
+        channel.send(player, GuabGlyphs.withIcon(true, player, GuabGlyphs.COIN,
+                NamedTextColor.GOLD, points), HudChannel.PRIORITY_POINTS, 40);
     }
 
     @EventHandler

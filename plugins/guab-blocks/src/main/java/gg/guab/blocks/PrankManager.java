@@ -1,5 +1,6 @@
 package gg.guab.blocks;
 
+import gg.guab.core.CooldownMap;
 import gg.guab.core.HudChannel;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -31,9 +32,9 @@ public final class PrankManager {
     static final String PIT_METADATA = "guab.battlepit";
 
     private final GuabBlocksPlugin plugin;
-    private final Map<UUID, Long> playerCooldowns = new HashMap<>();
-    private final Map<String, Long> blockCooldowns = new HashMap<>();
-    private final Map<UUID, Long> swapCooldowns = new HashMap<>();
+    private final CooldownMap<UUID> playerCooldowns = new CooldownMap<>();
+    private final CooldownMap<String> blockCooldowns = new CooldownMap<>();
+    private final CooldownMap<UUID> swapCooldowns = new CooldownMap<>();
     private final Map<String, PendingRestore> pendingRestores = new HashMap<>();
 
     public PrankManager(GuabBlocksPlugin plugin) {
@@ -45,19 +46,18 @@ public final class PrankManager {
             return;
         }
         BlocksConfig config = plugin.config();
-        long now = System.currentTimeMillis();
 
-        if (now - playerCooldowns.getOrDefault(player.getUniqueId(), 0L) < config.perPlayerCooldownMillis()) {
+        if (playerCooldowns.remainingMillis(player.getUniqueId()) > 0L) {
             return;
         }
         long blockCooldown = entry.cooldownSeconds() != null
                 ? entry.cooldownSeconds() * 1000L
                 : config.perBlockCooldownMillis();
-        if (now - blockCooldowns.getOrDefault(entry.key(), 0L) < blockCooldown) {
+        if (blockCooldowns.remainingMillis(entry.key()) > 0L) {
             return;
         }
         if (entry.type() == PrankType.SWAP
-                && now - swapCooldowns.getOrDefault(player.getUniqueId(), 0L) < config.swapCooldownMillis()) {
+                && swapCooldowns.remainingMillis(player.getUniqueId()) > 0L) {
             return;
         }
 
@@ -70,8 +70,8 @@ public final class PrankManager {
         if (!applied) {
             return;
         }
-        playerCooldowns.put(player.getUniqueId(), now);
-        blockCooldowns.put(entry.key(), now);
+        playerCooldowns.start(player.getUniqueId(), config.perPlayerCooldownMillis());
+        blockCooldowns.start(entry.key(), blockCooldown);
     }
 
     /** Admin test path: ignores chance and every cooldown. */
@@ -101,8 +101,8 @@ public final class PrankManager {
 
     public void forget(Player player) {
         UUID id = player.getUniqueId();
-        playerCooldowns.remove(id);
-        swapCooldowns.remove(id);
+        playerCooldowns.clear(id);
+        swapCooldowns.clear(id);
     }
 
     public void restoreAll() {
@@ -248,10 +248,19 @@ public final class PrankManager {
             return false;
         }
 
+        if (!isSafeLanding(origin)) {
+            actionBar(victim, Component.text("Swap block: your own spot is not safe to send someone to.",
+                    NamedTextColor.GRAY), HudChannel.PRIORITY_CRITICAL);
+            return false;
+        }
+
         Player target = candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
-        victim.teleport(target.getLocation());
+        Location targetOrigin = target.getLocation().clone();
+        victim.teleport(targetOrigin);
         victim.setFallDistance(0.0f);
-        swapCooldowns.put(victim.getUniqueId(), System.currentTimeMillis());
+        target.teleport(origin);
+        target.setFallDistance(0.0f);
+        swapCooldowns.start(victim.getUniqueId(), config.swapCooldownMillis());
         victim.playSound(victim.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT,
                 SoundCategory.PLAYERS, 1.0f, 1.0f);
         target.playSound(target.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT,

@@ -31,3 +31,7 @@ jobs:
 
       - name: Verify scripts, tools, configs and jars
         run: SKIP_BUILD=1 bash tools/verify.sh
+
+      - name: Docs check (non-blocking)
+        run: python3 tools/check-docs.py
+        continue-on-error: true

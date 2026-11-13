@@ -16,6 +16,7 @@ import org.bukkit.WorldCreator;
 import org.bukkit.WorldType;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
@@ -53,6 +54,8 @@ public final class DartsRoom implements Listener {
     private static final int TARGET_Y = 67;
     private static final int TARGET_Z = -6;
     public static final double BOARD_RADIUS = 1.5;
+    /** How far a player may shuffle around their oche while a leg is live. */
+    private static final double OCHE_RADIUS = 0.6;
     private static final int[] GLASS_LIGHTS = {-3, 0, 3};
     private static final double[][] OCHES = {
             {0.5, 6.5}, {-2.5, 6.5}, {3.5, 6.5}, {0.5, 4.5}
@@ -154,25 +157,73 @@ public final class DartsRoom implements Listener {
                 && block.getType() == Material.TARGET;
     }
 
+    /**
+     * The wall immediately behind and around the 3x3 target. Arrows landing
+     * here are clear misses rather than shots that vanish without using a dart.
+     */
+    private boolean isTargetWall(Block block) {
+        return block.getWorld().getName().equals(WORLD_NAME)
+                && block.getZ() == TARGET_Z - 1
+                && Math.abs(block.getX() - TARGET_X) <= 2
+                && Math.abs(block.getY() - TARGET_Y) <= 2;
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onArrowHit(ProjectileHitEvent event) {
         if (!(event.getEntity() instanceof Arrow arrow)
                 || !(arrow.getShooter() instanceof Player player)
                 || event.getHitBlock() == null
-                || event.getHitBlockFace() != BlockFace.SOUTH
-                || !isTarget(event.getHitBlock())
                 || !plugin.darts().isPlaying(player.getUniqueId())
                 || !isInRoom(player)) {
+            return;
+        }
+        Block hitBlock = event.getHitBlock();
+        boolean onTarget = event.getHitBlockFace() == BlockFace.SOUTH && isTarget(hitBlock);
+        if (!onTarget && !isTargetWall(hitBlock)) {
             return;
         }
         Location point = arrow.getLocation().clone();
         arrow.setPickupStatus(Arrow.PickupStatus.DISALLOWED);
         arrow.setPersistent(false);
         Bukkit.getScheduler().runTaskLater(plugin, arrow::remove, 100L);
-        plugin.darts().scoreArrow(player, point);
+        if (onTarget) {
+            player.getWorld().playSound(point, "guab:dart_thud", 0.8f, 1.0f);
+            stickDart(point);
+            plugin.darts().scoreArrow(player, point);
+        } else {
+            player.getWorld().playSound(point, "guab:dart_miss", 0.8f, 0.9f);
+            plugin.darts().scoreMiss(player);
+        }
     }
 
-    /** Lock the player to their oche while a leg is live; looking is still free. */
+    /** A short-lived 3D dart stuck in the board, so the impact reads physically. */
+    private void stickDart(Location point) {
+        World roomWorld = point.getWorld();
+        if (roomWorld == null) {
+            return;
+        }
+        ItemDisplay display = roomWorld.spawn(point, ItemDisplay.class, entity -> {
+            ItemStack dart = new ItemStack(Material.ARROW);
+            ItemMeta meta = dart.getItemMeta();
+            NamespacedKey model = NamespacedKey.fromString("guab:dart");
+            if (model != null) {
+                meta.setItemModel(model);
+            }
+            dart.setItemMeta(meta);
+            entity.setItemStack(dart);
+            entity.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+            entity.setBillboard(Display.Billboard.FIXED);
+            entity.setPersistent(false);
+            entity.setViewRange(1.0f);
+        });
+        Bukkit.getScheduler().runTaskLater(plugin, display::remove, 100L);
+    }
+
+    /**
+     * Keep the player near their oche while a leg is live, but allow a small
+     * amount of natural movement instead of snapping them every tick. Looking
+     * and vertical motion are always free.
+     */
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
@@ -186,13 +237,25 @@ public final class DartsRoom implements Listener {
                 || from.distanceSquared(to) > 4.0) {
             return;
         }
-        if (from.getX() != to.getX() || from.getZ() != to.getZ()) {
-            Location fixed = from.clone();
-            fixed.setYaw(to.getYaw());
-            fixed.setPitch(to.getPitch());
-            fixed.setY(to.getY());
-            event.setTo(fixed);
+        Integer slot = slots.get(player.getUniqueId());
+        if (slot == null) {
+            return;
         }
+        Location oche = oche(to.getWorld(), slot);
+        double dx = to.getX() - oche.getX();
+        double dz = to.getZ() - oche.getZ();
+        double distanceSquared = dx * dx + dz * dz;
+        if (distanceSquared <= OCHE_RADIUS * OCHE_RADIUS) {
+            return;
+        }
+        double scale = OCHE_RADIUS / Math.sqrt(distanceSquared);
+        Location fixed = to.clone();
+        fixed.setX(oche.getX() + dx * scale);
+        fixed.setZ(oche.getZ() + dz * scale);
+        fixed.setY(to.getY());
+        fixed.setYaw(to.getYaw());
+        fixed.setPitch(to.getPitch());
+        event.setTo(fixed);
     }
 
     @EventHandler
@@ -392,7 +455,9 @@ public final class DartsRoom implements Listener {
             item.setItemMeta(meta);
             display.setItemStack(item);
             display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
-            display.setBillboard(Display.Billboard.CENTER);
+            // Fixed keeps the rings flush against the wall so the visual board
+            // and the arrow impact positions share the same plane.
+            display.setBillboard(Display.Billboard.FIXED);
             display.setBrightness(new Display.Brightness(15, 15));
             display.setPersistent(false);
             display.setViewRange(1.0f);
@@ -464,12 +529,18 @@ public final class DartsRoom implements Listener {
         ItemMeta bowMeta = bow.getItemMeta();
         bowMeta.displayName(Component.text("Darts Bow", NamedTextColor.GOLD));
         bowMeta.setUnbreakable(true);
+        NamespacedKey handModel = NamespacedKey.fromString("guab:dart_hand");
+        if (handModel != null) {
+            bowMeta.setItemModel(handModel);
+        }
+        // Infinity keeps a long 501 match from running out of darts between legs.
+        bowMeta.addEnchant(Enchantment.INFINITY, 1, true);
         bowMeta.getPersistentDataContainer().set(bowKey, PersistentDataType.BYTE, (byte) 1);
         bow.setItemMeta(bowMeta);
         inventory.addItem(bow).values()
                 .forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
 
-        ItemStack arrows = new ItemStack(Material.ARROW, 64);
+        ItemStack arrows = new ItemStack(Material.ARROW, 1);
         ItemMeta arrowMeta = arrows.getItemMeta();
         arrowMeta.displayName(Component.text("Darts Arrows", NamedTextColor.GRAY));
         arrowMeta.getPersistentDataContainer().set(arrowKey, PersistentDataType.BYTE, (byte) 1);

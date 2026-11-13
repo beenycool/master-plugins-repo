@@ -16,7 +16,7 @@ import org.bukkit.block.sign.Side;
 
 /**
  * Builds the walk-in casino hall. The hall is deliberately empty inside each painted
- * plot: MineGames builds its own roulette board, slots, chicken board and arena where
+ * plot: MineGames builds its own slots, chicken board and arena where
  * an admin stands, so we only supply the room, the lights and the marked stations.
  */
 public final class CasinoVenue {
@@ -162,7 +162,6 @@ public final class CasinoVenue {
         }
 
         // Plots. Each ring is painted on the floor; the interior stays clear for MineGames.
-        plot(world, cx, cy, cz, 0, 0, 15, 15, Material.RED_CONCRETE);
         plot(world, cx, cy, cz, -15, 0, 15, 15, Material.ORANGE_CONCRETE);
         plot(world, cx, cy, cz, -15, 12, 9, 9, Material.YELLOW_CONCRETE);
         plot(world, cx, cy, cz, 19, -10, 5, 5, Material.LIME_CONCRETE);
@@ -181,7 +180,6 @@ public final class CasinoVenue {
         sign(world, cx + 16, cy + 1, cz, "SLOTS", "stand on pad", "/slotsadmin", "create 3 1");
         sign(world, cx + 14, cy + 1, cz + 7, "MINES", "stand on beacon", "/minegameadmin", "create");
         sign(world, cx - 10, cy + 1, cz + 12, "CHICKEN", "stand on pad", "/chickenadmin", "create 7");
-        sign(world, cx, cy + 1, cz + 8, "ROULETTE", "centre of board", "/rouletteadmin", "create");
         sign(world, cx - 9, cy + 1, cz, "FIGHTS", "arena origin", "/fightadmin", "create 9 2");
         sign(world, cx + 4, cy + 1, cz - 12, "DICE", "item based", "/dice", "");
         sign(world, cx + 3, cy + 1, cz + 16, "GUAB CASINO", "walk in, sit down,", "lose your points", "");

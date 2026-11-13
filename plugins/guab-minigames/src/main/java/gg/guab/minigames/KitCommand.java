@@ -1,5 +1,7 @@
 package gg.guab.minigames;
 
+import gg.guab.core.CooldownMap;
+import gg.guab.core.GuabMessages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import gg.guab.core.HudChannel;
@@ -11,8 +13,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 /** Gives the battle pit PvP kit, with a short cooldown. */
@@ -20,7 +20,7 @@ public final class KitCommand implements CommandExecutor, Listener {
 
     private final GuabMinigamesPlugin plugin;
     private final BattlePit pit;
-    private final Map<UUID, Long> cooldowns = new HashMap<>();
+    private final CooldownMap<UUID> cooldowns = new CooldownMap<>();
 
     public KitCommand(GuabMinigamesPlugin plugin, BattlePit pit) {
         this.plugin = plugin;
@@ -51,16 +51,15 @@ public final class KitCommand implements CommandExecutor, Listener {
         }
 
         long cooldown = Math.max(0, plugin.getConfig().getLong("kit.cooldown-seconds", 30)) * 1000L;
-        long now = System.currentTimeMillis();
-        long remaining = cooldowns.getOrDefault(player.getUniqueId(), 0L) + cooldown - now;
+        long remaining = cooldowns.remainingMillis(player.getUniqueId());
         if (remaining > 0) {
-            long seconds = (remaining + 999) / 1000;
+            String seconds = GuabMessages.seconds(remaining);
             plugin.actionBar(player, Component.text("Kit ready in " + seconds + "s",
                     NamedTextColor.RED), HudChannel.PRIORITY_HINT, 40);
             error(sender, "Kit ready in " + seconds + "s.");
             return true;
         }
-        cooldowns.put(player.getUniqueId(), now);
+        cooldowns.start(player.getUniqueId(), cooldown);
 
         if (plugin.getConfig().getBoolean("kit.clear-inventory", true)) {
             BattleKit.resetAndGive(plugin, player);
@@ -76,20 +75,19 @@ public final class KitCommand implements CommandExecutor, Listener {
 
     /** Called when a fighter joins or leaves so a fresh session starts ready. */
     void resetCooldown(UUID id) {
-        cooldowns.remove(id);
+        cooldowns.clear(id);
     }
 
     void forget(UUID id) {
-        cooldowns.remove(id);
+        cooldowns.clear(id);
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        cooldowns.remove(event.getPlayer().getUniqueId());
+        cooldowns.clear(event.getPlayer().getUniqueId());
     }
 
     private void error(CommandSender sender, String message) {
-        sender.sendMessage(Component.text("[Kit] ", NamedTextColor.GOLD)
-                .append(Component.text(message, NamedTextColor.RED)));
+        sender.sendMessage(GuabMessages.error("Kit", message));
     }
 }
