@@ -1,0 +1,49 @@
+# Master switch. Set to false and restart to unregister commands/listeners.
+enabled: true
+
+wedding:
+  # Points taken from the proposer when the proposal is accepted. 0 disables the fee.
+  cost: 250
+  # Broadcast the wedding to the whole server.
+  announce: true
+
+proposal:
+  # How long a pending proposal stays valid, in seconds.
+  timeout-seconds: 60
+  # Cooldown between proposals from the same player, in seconds.
+  cooldown-seconds: 30
+
+divorce:
+  # How long /marry divorce confirm stays valid after the first call.
+  confirm-seconds: 30
+  # Points taken from the player who confirms the divorce. 0 disables the fee.
+  cost: 100
+
+teleport:
+  # Cooldown for /marry tp, in seconds.
+  cooldown-seconds: 60
+  # 0 = instant; otherwise cancel if the player moves more than 1 block.
+  warmup-seconds: 0
+
+home:
+  # Cooldown for /marry home, in seconds.
+  cooldown-seconds: 60
+
+kiss:
+  cooldown-seconds: 30
+  # Maximum distance between partners, in blocks.
+  range: 4.0
+
+gift:
+  cooldown-seconds: 10
+  # Maximum distance between partners, in blocks.
+  range: 5.0
+
+pvp:
+  # true means spouses can damage each other by default; /marry pvp off opts out.
+  default: true
+
+ring:
+  enabled: true
+  # Cooldown for /marry ring, in seconds.
+  cooldown-seconds: 300

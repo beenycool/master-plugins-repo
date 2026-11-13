@@ -1,8 +1,8 @@
 # Plugin TODOs
 
-Last updated: 2026-11-11
+Last updated: 2026-11-13
 
-Overall: `█████████░` **93%** (90/97 checklist items)
+Overall: `█████████░` **94%** (101/107 checklist items)
 
 | Plugin            | Progress                    |
 | ----------------- | --------------------------- |
@@ -12,6 +12,7 @@ Overall: `█████████░` **93%** (90/97 checklist items)
 | guab-rickroll    | `█████████░` 92% (22/24)    |
 | guab-gambling    | `█████████░` 87% (13/15)    |
 | guab-minigames   | `█████████░` 94% (17/18)    |
+| guab-marriage    | `██████████` 100% (10/10)   |
 
 Progress is per checklist line, updated by hand.
 
@@ -156,6 +157,23 @@ Status: live. Battle pit built in the overworld at `100, -61, 100` with join/lea
 - [x] Arrow hits show the victim's remaining HP
 - [x] Battle pit QoL: `/battlepit stats|top|kick|purge|quit`, kit tagging/reset, saved inventories, `exit-mode`, coordinate kill feed
 - [ ] Additional point-earning minigames
+
+## guab-marriage — `██████████` 100% (10/10)
+
+**What it does:** proposals, weddings and the couple quality-of-life: shared home, gifts, kiss, PvP toggle and private chat, all on the shared points ledger.
+
+Status: implemented and built. `/marry` proposals with clickable accept/deny, wedding fee, divorce confirmation, `/mc`, shared home, `/marry tp`, gift and kiss, per-couple PvP, a cosmetic wedding ring from the pack, and a Marriage page in `/guab`. Data lives in `marriages.yml`; unit tests cover proposals, storage and config.
+
+- [x] `marriages.yml` couple store (sorted UUID key, home, pvp, since)
+- [x] Proposals with timeout, accept/deny buttons and a propose cooldown
+- [x] Wedding fee from the proposer via `PointsService`, broadcast and hearts
+- [x] `/marry info|list|anniversary` and a partner join notice
+- [x] `/marry tp` and the shared `/marry sethome|home`
+- [x] `/marry gift`, `/marry kiss` and `/marry pvp on|off`
+- [x] `/marry divorce confirm`, `/marry admin divorce` and `/marry reload`
+- [x] `/mc` couple chat and the cosmetic `guab:wedding_ring` item
+- [x] Native `/marry` dialog dashboard, couple list, propose picker and divorce confirmation
+- [x] Native `/guab` Marriage page plus unit tests
 
 ## QoL pass (2026-11-10)
 

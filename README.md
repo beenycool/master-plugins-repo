@@ -14,6 +14,7 @@ Small Paper plugins for the Guab Christmas server. Built for Paper `26.3` on Jav
 | `plugins/guab-rickroll`  | The rickroll block                       |
 | `plugins/guab-gambling`  | Casino and wagers                        |
 | `plugins/guab-minigames` | Battle pit and point minigames           |
+| `plugins/guab-marriage`  | Proposals, weddings and couple homes     |
 | `plugins/guab-webconsole`| Token-protected HTTP command console      |
 
 ## Build
@@ -23,8 +24,9 @@ Small Paper plugins for the Guab Christmas server. Built for Paper `26.3` on Jav
 ```
 
 Jars are written to `plugins/<module>/build/libs/`. Darts scoring/slots, blackjack
-maths, drunk-beer and quiz rules, and the points/HUD/preferences helpers have
-unit tests; none of them needs a live server:
+maths, drunk-beer and quiz rules, marriage proposals/store, and the
+points/HUD/preferences helpers have unit tests; none of them needs a live
+server:
 
 ```bash
 ./gradlew test
@@ -276,13 +278,13 @@ Staff can hand out stacks with `/guabitems give <player> beer 64` (alias `/gi gi
 
 The item textures live in `guab-items.zip` on the pack host (`:39002`) and are applied as the server resource pack; the server stacks `rickroll.zip` on top, so beer and HUD assets stay available during a show without being duplicated into the rickroll pack. The branded pint textures are real product photos from Open Food Facts (CC BY-SA 3.0) where a clean cutout exists, the Baileys bottle is a public-domain Wikimedia Commons photo, and the dartboard face is Wikimedia Commons' unlabelled dartboard (CC BY-SA 3.0). Brands whose OFF photo is a scene shot, plus the generic house pint, are drawn procedurally so they still look like a clean 3D pint.
 
-The same packs also carry the HUD bitmap font (`assets/guab/font/hud.json` plus `assets/guab/textures/font/hud.png`), the generated card/chip/UI/dart/milk item models, and twelve custom sound events. Regenerate those source assets deterministically with:
+The same packs also carry the HUD bitmap font (`assets/guab/font/hud.json` plus `assets/guab/textures/font/hud.png`), the generated card/chip/UI/dart/milk/wedding-ring item models, and thirteen custom sound events (including the `guab:wedding_bell` peal). Regenerate those source assets deterministically with:
 
 ```bash
 python3 tools/build-guab-hud-assets.py
 ```
 
-That writes the font PNG, generated item models and the twelve OGG files under `pack/hud/`. It needs Pillow, numpy and ffmpeg. Then rebuild the packs with:
+That writes the font PNG, generated item models and the thirteen OGG files under `pack/hud/`. It needs Pillow, numpy and ffmpeg. Then rebuild the packs with:
 
 ```bash
 sudo tools/build-guab-items-pack.py
@@ -290,7 +292,7 @@ sudo tools/build-guab-items-pack.py
 
 It copies the HUD assets into the guab-items zip, merges the custom sound events into `assets/guab/sounds.json` without removing the `guab:rickroll` entry, and validates that every referenced OGG exists. It writes `/tmp/guab-pack/guab-items.zip` and `/tmp/guab-pack/rickroll.zip` and prints their SHA-1 values. Copy them into `/opt/guab-server/resourcepack/`, update `resource-pack-sha1` in `data/server.properties` and `sha1` in `data/plugins/GuabRickroll/pack.properties`, then restart Paper. Run this after `tools/build-rickroll-pack.sh`, because the rickroll script recreates the base zip.
 
-Beer items use generated 3D models: each 4-pixel row of the 64×64 texture becomes a 1-unit-tall cuboid following the alpha silhouette, with 1.5–4 units of depth, label art wrapped around the sides, and full GUI/hand/ground display transforms. The builder flood-fills photo backgrounds with tolerance, keeps the largest connected component, pads/crops the subject, and falls back to a brand-coloured procedural can/bottle (or a drawn house pint) when a photo has no usable cutout. Only the guab-items pack carries the generic `guab:beer` pint, every brand model/texture and the generated card/chip/UI/milk/dart assets; the rickroll pack is frames + audio only and stacks on top. Item→model and texture→PNG references, coordinates (0–16) and UVs (0–16) are validated before zipping, and sorted JSON plus fixed ZIP timestamps keep hashes reproducible. Pass `--preview DIR` for flat depth-offset previews.
+Beer items use generated 3D models: each 4-pixel row of the 64×64 texture becomes a 1-unit-tall cuboid following the alpha silhouette, with 1.5–4 units of depth, label art wrapped around the sides, and full GUI/hand/ground display transforms. The builder flood-fills photo backgrounds with tolerance, keeps the largest connected component, pads/crops the subject, and falls back to a brand-coloured procedural can/bottle (or a drawn house pint) when a photo has no usable cutout. Only the guab-items pack carries the generic `guab:beer` pint, every brand model/texture and the generated card/chip/UI/milk/dart/wedding-ring assets; the rickroll pack is frames + audio only and stacks on top. Item→model and texture→PNG references, coordinates (0–16) and UVs (0–16) are validated before zipping, and sorted JSON plus fixed ZIP timestamps keep hashes reproducible. Pass `--preview DIR` for flat depth-offset previews.
 
 **Pub features**
 
@@ -368,6 +370,25 @@ Jars are pinned in `docker/install-casino.sh` with SHA-256 checks and installed 
 - `/battlepit setspawn [x y z world]`, `setexit`, `kick <player>`, `purge` and `reload` need `guab.battlepit.admin`.
 - Spawn protection, arrow-hit HP, cobblestone decay and the respawn bell are configurable under `battlepit`, `kit` and `respawn-bell` in `GuabMinigames/config.yml`.
 
+## Marriage
+
+`GuabMarriage` is the native couple system for the Guab server. Proposals, weddings, shared homes, gifts and private chat all run on the same points ledger as the rest of the server.
+
+- `/marry` (alias `/marriage`) opens the native dialog dashboard: partner status, shared home, teleport, kiss, gift, ring, the PvP toggle, the couples list and a two-step divorce confirmation. On a single player it shows a propose picker with everyone online. `/marry menu` reopens it and `/marry help` prints the chat command list.
+- `/marry <player>` sends a 60-second proposal. The target gets clickable **Accept** and **Deny** buttons, or can use `/marry accept [player]` and `/marry deny [player]`.
+- Accepting costs `wedding.cost` (250 points) from the proposer. If they cannot pay, the proposal stays until it expires; `wedding.announce` controls the broadcast.
+- `/marry info [player]` shows the partner, wedding date, days together, home and PvP state. `/marry list [page]` lists couples, and `/marry anniversary` shows the date and days together.
+- `/marry sethome` and `/marry home` store and use one shared home; `/marry tp` teleports to an online partner.
+- `/marry gift` hands your main-hand stack to an online partner within 5 blocks; `/marry kiss` spawns hearts within 4 blocks. Both have cooldowns.
+- `/marry pvp [on|off]` toggles spouse damage. **PvP is on by default**, so the battle pit behaves normally and a couple has to opt out.
+- `/marry divorce` asks for `/marry divorce confirm` within 30 seconds and charges 100 points. `/marry admin divorce <player>` removes a marriage without the fee.
+- `/mc <message>` (alias `/couplechat`) sends a private message to your partner.
+- `/marry ring` gives the cosmetic Wedding Ring (`guab:wedding_ring`) from the guab-items pack; a wedding also gives each partner one. `/marry reload` reloads config and data.
+- Couples are stored in `plugins/GuabMarriage/marriages.yml`; fees, cooldowns, ranges, the proposal timeout and the PvP default are in `GuabMarriage/config.yml`.
+- The wedding and kiss use `guab:wedding_bell` from the resource pack, and the HUD sound toggle silences it. Players who decline the pack still see the chat and particles.
+- The ring model and bell ship in `guab-items.zip`. After changing pack assets, rebuild it with `tools/build-guab-items-pack.py` (see the Wetherspoons pack section) and update `resource-pack-sha1`.
+- The native `/guab` hub has a **Marriage** page with info, the couples list, the couple home, the ring and a propose picker.
+
 ## Permissions
 
 The gameplay permissions are enforced in code as well as on the commands, so a player without a permission gets a clear message rather than a silent no-op.
@@ -400,6 +421,9 @@ The gameplay permissions are enforced in code as well as on the commands, so a p
 | `guab.battlepit.use` | true | Join/leave, status and session stats for the battle pit |
 | `guab.battlepit.admin` | op | `setspawn`, `setexit`, `kick`, `purge` and `reload` |
 | `guab.battlepit.bounty` | true | `/battlepit bounty <player> <amount>` |
+| `guab.marriage.use` | true | Propose, accept/deny, info, divorce, home, gift, kiss, ring and `/mc` |
+| `guab.marriage.tp` | true | `/marry tp` |
+| `guab.marriage.admin` | op | `/marry reload` and `/marry admin divorce <player>` |
 | `guab.kit.use` | true | `/kit` |
 | `guab.killplane.admin` | op | `/killplane on\|off\|set\|world\|reload` |
 | `guab.killplane.status` | true | `/killplane status` without admin rights |

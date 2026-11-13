@@ -27,6 +27,7 @@ public final class GuabMenuDialog {
 
     private static final String TARGET_INPUT = "darts_target";
     private static final String RICKROLL_INPUT = "rickroll_target";
+    private static final String MARRIAGE_INPUT = "marriage_target";
 
     private final GuabItemsPlugin plugin;
 
@@ -43,7 +44,7 @@ public final class GuabMenuDialog {
                         NamedTextColor.GRAY),
                 plain("Balance: " + balance + " points", NamedTextColor.GOLD),
                 plain(pubLine, NamedTextColor.WHITE),
-                plain("Pub · Casino · Darts · Battle Pit · Stats · Help", NamedTextColor.AQUA));
+                plain("Pub · Casino · Darts · Marriage · Battle Pit · Stats · Help", NamedTextColor.AQUA));
 
         List<ActionButton> actions = List.of(
                 page("Pub", NamedTextColor.GOLD, "Beer, milk and the drunk meter.", 160,
@@ -52,6 +53,9 @@ public final class GuabMenuDialog {
                         "Enter the casino or read the blackjack rules.", 160, this::openCasino),
                 page("Darts", NamedTextColor.YELLOW,
                         "Beginner-friendly 101 and 1v1 challenges.", 160, this::openDarts),
+                page("Marriage", NamedTextColor.LIGHT_PURPLE,
+                        "Propose, check your partner or visit your shared home.", 160,
+                        this::openMarriage),
                 page("Battle Pit", NamedTextColor.RED,
                         "Join, leave, check the pit or see the top streak.", 160,
                         this::openBattlePit),
@@ -267,6 +271,65 @@ public final class GuabMenuDialog {
                 body, inputs, actions, Component.text("Close", NamedTextColor.GRAY), 2));
     }
 
+    /** Marriage runs in GuabMarriage; every button here is a real /marry command. */
+    public void openMarriage(Player player) {
+        List<DialogBody> body = List.of(
+                plain("GuabMarriage keeps proposals, weddings, shared homes and couple chat.",
+                        NamedTextColor.GRAY),
+                plain("Propose with /marry <player>. The other player clicks Accept, "
+                        + "or denies you in front of everyone.", NamedTextColor.WHITE),
+                plain("The wedding and divorce fees are paid in Guab points. "
+                        + "/marry info shows the paperwork.", NamedTextColor.GOLD));
+
+        List<ActionButton> actions = new ArrayList<>();
+        actions.add(page("Open marriage menu · /marry menu", NamedTextColor.LIGHT_PURPLE,
+                "The full dashboard: partner, home, teleport, kiss, ring, PvP and divorce.",
+                260, clicker -> clicker.performCommand("marry menu")));
+        actions.add(page("Marriage info · /marry info", NamedTextColor.LIGHT_PURPLE,
+                "Partner, wedding date, days together, home and PvP state.", 260,
+                clicker -> clicker.performCommand("marry info")));
+        actions.add(page("Couples · /marry list", NamedTextColor.YELLOW,
+                "List the couples on the server.", 260,
+                clicker -> clicker.performCommand("marry list")));
+        actions.add(page("Couple home · /marry home", NamedTextColor.AQUA,
+                "Teleport to the home you set with /marry sethome.", 260,
+                clicker -> clicker.performCommand("marry home")));
+        actions.add(page("Wedding ring · /marry ring", NamedTextColor.GOLD,
+                "Claim the cosmetic wedding ring from the resource pack.", 260,
+                clicker -> clicker.performCommand("marry ring")));
+
+        List<DialogInput> inputs = List.of();
+        List<SingleOptionDialogInput.OptionEntry> targets = new ArrayList<>();
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            if (!online.getUniqueId().equals(player.getUniqueId())) {
+                targets.add(SingleOptionDialogInput.OptionEntry.create(
+                        online.getName(), Component.text(online.getName()), targets.isEmpty()));
+            }
+        }
+        if (!targets.isEmpty()) {
+            inputs = List.of(DialogInput.singleOption(MARRIAGE_INPUT, 220, targets,
+                    Component.text("Propose to an online player"), true));
+            actions.add(GuabDialogFactory.button(plugin,
+                    Component.text("Propose", NamedTextColor.GREEN),
+                    Component.text("Send a marriage proposal to the selected player."), 200,
+                    (clicker, response) -> {
+                        String targetName = response.getText(MARRIAGE_INPUT);
+                        if (targetName == null || targetName.isBlank()) {
+                            message(clicker, "Pick a player first.", NamedTextColor.RED);
+                            return;
+                        }
+                        clicker.performCommand("marry " + targetName);
+                    }));
+        }
+
+        actions.add(page("Back to the hub", NamedTextColor.YELLOW,
+                "Return to the main menu.", 200, this::openHome));
+
+        player.showDialog(GuabDialogFactory.build(
+                Component.text("Guab Marriage", NamedTextColor.LIGHT_PURPLE),
+                body, inputs, actions, Component.text("Close", NamedTextColor.GRAY), 2));
+    }
+
     public void openStats(Player player) {
         UUID id = player.getUniqueId();
         DartsStatsStore.Stats darts = plugin.darts().stats(id);
@@ -301,9 +364,9 @@ public final class GuabMenuDialog {
                         NamedTextColor.GRAY),
                 plain("Pub · /guab pub        Beer · /beer menu        Darts · /darts menu",
                         NamedTextColor.WHITE),
-                plain("Battle Pit · /guab battlepit     Stats · /guab stats     Points · /points",
-                        NamedTextColor.WHITE),
-                plain("Casino · /guab casino", NamedTextColor.WHITE),
+                plain("Marriage · /marry info        Battle Pit · /guab battlepit     "
+                        + "Stats · /guab stats", NamedTextColor.WHITE),
+                plain("Points · /points     Casino · /guab casino", NamedTextColor.WHITE),
                 plain("Balance: " + balance(player) + " points", NamedTextColor.GOLD));
 
         List<ActionButton> actions = List.of(
@@ -316,6 +379,9 @@ public final class GuabMenuDialog {
                 page("Darts · /darts menu", NamedTextColor.AQUA,
                         "Open the dartboard menu.", 220,
                         clicker -> clicker.performCommand("darts menu")),
+                page("Marriage · /marry info", NamedTextColor.LIGHT_PURPLE,
+                        "Open the marriage page and check your partner.", 220,
+                        this::openMarriage),
                 page("Battle Pit · /guab battlepit", NamedTextColor.RED,
                         "Join, leave or inspect the battle pit.", 220,
                         clicker -> clicker.performCommand("guab battlepit")),

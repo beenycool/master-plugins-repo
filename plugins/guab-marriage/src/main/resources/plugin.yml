@@ -1,0 +1,28 @@
+name: GuabMarriage
+version: '${version}'
+main: gg.guab.marriage.GuabMarriagePlugin
+api-version: '26.3'
+description: Proposals, weddings, couple homes and private chat for the Guab server.
+authors: [Guab]
+depend: [GuabCore]
+
+commands:
+  marry:
+    description: Propose, marry, travel home, gift and divorce.
+    usage: /marry [menu|help] | /marry <player> | accept [player] | deny [player] | info [player] | list [page] | divorce [confirm] | tp | sethome | home | gift | kiss | pvp [on|off] | ring | anniversary | reload | admin divorce <player>
+    aliases: [marriage]
+  mc:
+    description: Send a private message to your spouse.
+    usage: /mc <message>
+    aliases: [couplechat]
+
+permissions:
+  guab.marriage.use:
+    description: Use marriage commands and couple chat.
+    default: true
+  guab.marriage.tp:
+    description: Teleport to your spouse with /marry tp.
+    default: true
+  guab.marriage.admin:
+    description: Reload marriage data and divorce couples by player name.
+    default: op

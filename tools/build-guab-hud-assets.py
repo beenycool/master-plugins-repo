@@ -505,6 +505,36 @@ def jump_feather_texture() -> Image.Image:
     return image
 
 
+WEDDING_GOLD_DARK = (146, 96, 22, 255)
+WEDDING_GOLD = (244, 197, 66, 255)
+WEDDING_GOLD_LIGHT = (255, 243, 176, 255)
+WEDDING_DIAMOND = (238, 252, 255, 255)
+WEDDING_DIAMOND_FACET = (150, 220, 240, 255)
+WEDDING_DIAMOND_EDGE = (74, 146, 186, 255)
+
+
+def wedding_ring_texture() -> Image.Image:
+    """A gold wedding band with a small diamond, drawn at 32x32."""
+    image = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    # A five-pixel hoop: dark outline outside and in, gold body, and a bright
+    # arc on the upper left so the metal reads as round at GUI scale.
+    draw.ellipse((6, 10, 25, 29), outline=WEDDING_GOLD_DARK, width=5)
+    draw.ellipse((7, 11, 24, 28), outline=WEDDING_GOLD, width=3)
+    draw.arc((7, 11, 24, 28), 185, 285, fill=WEDDING_GOLD_LIGHT, width=2)
+    # The diamond sits in the band's setting at the top: a white crown and a
+    # cyan pavilion, with an edge line to keep it crisp.
+    gem = [(16, 1), (21, 7), (16, 13), (11, 7)]
+    draw.polygon(gem, fill=WEDDING_DIAMOND)
+    draw.polygon([(16, 8), (21, 7), (16, 13)], fill=WEDDING_DIAMOND_FACET)
+    draw.line([(11, 7), (21, 7)], fill=WEDDING_DIAMOND_EDGE)
+    draw.line(gem + [gem[0]], fill=WEDDING_DIAMOND_EDGE)
+    # A single sparkle keeps the gem from looking flat.
+    draw.line((25, 3, 25, 5), fill=(255, 255, 255, 255))
+    draw.line((24, 4, 26, 4), fill=(255, 255, 255, 255))
+    return image
+
+
 def dart_texture() -> Image.Image:
     image = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
@@ -588,7 +618,9 @@ CARD_IDS = ["card_back"] + [
 ]
 CHIP_IDS = ["chip_10", "chip_100", "chip_500", "chip_1000", "chip_10000"]
 UI_IDS = ["ui_hit", "ui_stand", "ui_double"]
-PROP_IDS = ["milk", "wind_charge", "jump_feather", "dart", "dart_hand"]
+PROP_IDS = [
+    "milk", "wind_charge", "jump_feather", "dart", "dart_hand", "wedding_ring",
+]
 ITEM_IDS = CARD_IDS + CHIP_IDS + UI_IDS + PROP_IDS
 
 
@@ -638,6 +670,8 @@ def render_items() -> dict[str, int]:
                       generated_model("guab:item/dart"))
     write_item_assets("dart_hand", dart_hand_texture(),
                       generated_model("guab:item/dart_hand", DART_HAND_DISPLAY))
+    write_item_assets("wedding_ring", wedding_ring_texture(),
+                      generated_model("guab:item/wedding_ring"))
 
     return {
         "cards": len(CARD_IDS),
@@ -777,6 +811,22 @@ def milestone() -> np.ndarray:
     )
 
 
+def wedding_bell() -> np.ndarray:
+    """A warm four-note bell peal rising to a sustained C7."""
+    return sequence(
+        silence(0.01),
+        tone(1046.50, 0.14, 0.17, decay=8.0),
+        silence(0.015),
+        tone(1318.51, 0.14, 0.18, decay=8.0),
+        silence(0.015),
+        tone(1567.98, 0.15, 0.19, decay=7.0),
+        silence(0.02),
+        tone(2093.00, 0.50, 0.21, decay=3.2,
+             harmonics=((0.5, 0.10), (1.0, 1.0), (2.0, 0.26), (3.0, 0.10),
+                        (4.0, 0.04))),
+    )
+
+
 def low_pass_noise(seconds: float, seed: int, smoothing: float = 0.12,
                    volume: float = 0.2, attack: float = 0.01,
                    release: float = 0.2) -> np.ndarray:
@@ -887,6 +937,7 @@ SOUNDS = {
     "one_eighty": one_eighty,
     "beer_pour": beer_pour,
     "milestone": milestone,
+    "wedding_bell": wedding_bell,
     "card_flip": card_flip,
     "chip_click": chip_click,
     "blackjack": blackjack,

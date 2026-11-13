@@ -7,5 +7,6 @@ include(
     "plugins:guab-rickroll",
     "plugins:guab-gambling",
     "plugins:guab-minigames",
+    "plugins:guab-marriage",
     "plugins:guab-webconsole",
 )

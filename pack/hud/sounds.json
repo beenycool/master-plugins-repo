@@ -82,5 +82,12 @@
         "name": "guab:quiz_correct"
       }
     ]
+  },
+  "wedding_bell": {
+    "sounds": [
+      {
+        "name": "guab:wedding_bell"
+      }
+    ]
   }
 }
